@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-BR">
+
+<head>
+  <meta charset="utf-8" />
+  <link href="./favicon.svg" rel="icon" type="image/svg+xml" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <title>Projetos - ProjectFlow</title>
+  <meta content="light" name="color-scheme" />
+  <meta content="" name="description" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+    rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            primary: "#135bec",
+            text: {
+              light: { primary: "#0d121b", secondary: "#526071", tertiary: "#8292a2" },
+              dark: { primary: "#ffffff", secondary: "#9ca3af", tertiary: "#6b7280" }
+            },
+            background: {
+              light: "#f6f6f8", dark: "#101622"
+            }
+          },
+          fontFamily: {
+            sans: ["Inter", "sans-serif"]
+          }
+        }
+      }
+    };
+  </script>
+  <!-- Supabase and Auth Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/supabaseClient.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/projects.js" defer></script>
+</head>
+
+<body
+  class="bg-background-light dark:bg-background-dark text-text-light-primary dark:text-text-dark-primary font-sans antialiased overflow-hidden">
+  <div class="flex h-screen w-full">
+    <!-- Sidebar -->
+    <aside
+      class="w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark flex-shrink-0 flex flex-col justify-between">
+      <div class="p-6">
+        <div class="flex items-center gap-3">
+          <img src="logoresitrat.png" alt="Logo" class="h-12 w-auto object-contain">
+        </div>
+        <nav class="mt-8 space-y-1">
+          <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+            href="gerenciamentodeprojetos.html">
+            <span class="material-symbols-outlined">dashboard</span>
+            <p class="text-sm font-medium leading-normal">Dashboard</p>
+          </a>
+          <a class="flex items-center gap-3 rounded-lg bg-primary/10 px-3 py-2 text-primary" href="listaprojetos.html">
+            <span class="material-symbols-outlined fill-1">folder</span>
+            <p class="text-sm font-medium leading-normal">Projetos</p>
+          </a>
+          <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+            href="itens_projeto.html">
+            <span class="material-symbols-outlined">inventory_2</span>
+            <p class="text-sm font-medium leading-normal">Itens do Projeto</p>
+          </a>
+          <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+            href="tarefas.html">
+            <span class="material-symbols-outlined">check_circle</span>
+            <p class="text-sm font-medium leading-normal">Tarefas</p>
+          </a>
+          <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+            href="membros.html">
+            <span class="material-symbols-outlined">groups</span>
+            <p class="text-sm font-medium leading-normal">Equipe</p>
+          </a>
+          <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+            href="relatorios.html">
+            <span class="material-symbols-outlined">bar_chart</span>
+            <p class="text-sm font-medium leading-normal">Relatórios</p>
+          </a>
+        </nav>
+      </div>
+
+      <div class="p-6 border-t border-gray-200 dark:border-gray-800">
+        <div class="space-y-1">
+          <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" href="#">
+            <span class="material-symbols-outlined text-[#0d121b] dark:text-gray-300">help</span>
+            <p class="text-[#0d121b] dark:text-gray-300 text-sm font-medium leading-normal">Ajuda e Suporte</p>
+          </a>
+          <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" href="#">
+            <span class="material-symbols-outlined text-[#0d121b] dark:text-gray-300">settings</span>
+            <p class="text-[#0d121b] dark:text-gray-300 text-sm font-medium leading-normal">Configurações</p>
+          </a>
+          <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+            href="logout">
+            <span class="material-symbols-outlined text-[#0d121b] dark:text-gray-300">logout</span>
+            <p class="text-[#0d121b] dark:text-gray-300 text-sm font-medium leading-normal">Sair</p>
+          </a>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 min-w-0 overflow-auto">
+      <div class="p-8">
+        <div class="flex items-center justify-between mb-8">
+          <div>
+            <h1 class="text-2xl font-bold text-[#0d121b] dark:text-white">Projetos</h1>
+            <p class="text-gray-500 dark:text-gray-400 mt-1">Gerencie e monitore todos os projetos</p>
+          </div>
+          <button
+            class="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-white hover:bg-primary/90 transition-colors">
+            <span class="material-symbols-outlined text-xl">add</span>
+            <span class="text-sm font-medium truncate">Novo Projeto</span>
+          </button>
+        </div>
+
+        <div
+          class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
+          <div
+            class="p-4 border-b border-gray-200 dark:border-gray-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="relative flex-1 max-w-md">
+              <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                <span class="material-symbols-outlined text-lg">search</span>
+              </span>
+              <input type="text" placeholder="Pesquisar projetos..."
+                class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 focus:ring-1 focus:ring-primary focus:border-primary text-sm">
+            </div>
+            <div class="flex items-center gap-3">
+              <button
+                class="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
+                <span class="material-symbols-outlined text-lg">filter_list</span>
+                Status: Todos
+              </button>
+              <button
+                class="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
+                <span class="material-symbols-outlined text-lg">sort</span>
+                Ordenar por: Prazo
+              </button>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50 dark:bg-gray-800/50">
+                <tr>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    Cód.</th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    Nome do Projeto</th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    Status</th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    Equipe</th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    Prazo</th>
+                  <th
+                    class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    Ações</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
+                <!-- JS Populated -->
+              </tbody>
+            </table>
+          </div>
+
+          <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between">
+            <p class="text-sm text-gray-500 dark:text-gray-400">Mostrando 1 a 10 de 24 resultados</p>
+            <div class="flex items-center gap-2">
+              <button
+                class="px-3 py-1 border border-gray-300 dark:border-gray-700 rounded-md text-sm text-gray-700 dark:text-gray-300 disabled:opacity-50"
+                disabled>Anterior</button>
+              <button
+                class="px-3 py-1 border border-gray-300 dark:border-gray-700 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">Próximo</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+
+</html>
