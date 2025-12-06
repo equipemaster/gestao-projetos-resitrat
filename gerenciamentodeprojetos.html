@@ -231,13 +231,39 @@
 
         <!-- Main Table -->
         <div class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark shadow-sm">
-          <div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800">
+          <div
+            class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800 flex-wrap gap-4">
             <h2 class="text-lg font-bold text-[#0d121b] dark:text-white">Visão Geral dos Projetos</h2>
-            <button onclick="openNewProjectModal()"
-              class="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors">
-              <span class="material-symbols-outlined text-lg">add</span>
-              Novo Projeto
-            </button>
+
+            <div class="flex items-center gap-3 flex-1 justify-end">
+              <div class="relative max-w-xs w-full">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                  <span class="material-symbols-outlined text-lg">search</span>
+                </span>
+                <input type="text" id="dashboardSearch" placeholder="Filtrar projetos..."
+                  class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 focus:ring-1 focus:ring-primary focus:border-primary text-sm">
+              </div>
+
+              <div class="relative">
+                <select id="dashboardStatusFilter"
+                  class="appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg py-2 pl-4 pr-10 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+                  <option value="All">Status: Todos</option>
+                  <option value="In Progress">Em Andamento</option>
+                  <option value="On Hold">Em Espera</option>
+                  <option value="Completed">Concluído</option>
+                </select>
+                <div
+                  class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
+                  <span class="material-symbols-outlined text-lg">arrow_drop_down</span>
+                </div>
+              </div>
+
+              <button onclick="openNewProjectModal()"
+                class="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors whitespace-nowrap">
+                <span class="material-symbols-outlined text-lg">add</span>
+                Novo Projeto
+              </button>
+            </div>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full">

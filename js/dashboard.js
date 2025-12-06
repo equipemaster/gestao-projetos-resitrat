@@ -10,11 +10,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     ]);
 
     // Pass data to rendering functions
+    allProjects = projects; // Store globally
     loadDashboardStats(stats, tasks);
-    loadProjectsTable(projects, tasks);
+    loadProjectsTable(projects.slice(0, 5), tasks);
     loadUpcomingDeadlines(tasks, projects);
     setupNotifications(projects);
+
+    // Setup listeners
+    const searchInput = document.getElementById('dashboardSearch');
+    const statusSelect = document.getElementById('dashboardStatusFilter');
+
+    if (searchInput) searchInput.addEventListener('input', () => filterDashboard(tasks));
+    if (statusSelect) statusSelect.addEventListener('change', () => filterDashboard(tasks));
 });
+
+let allProjects = [];
+
+function filterDashboard(tasks) {
+    const searchVal = document.getElementById('dashboardSearch').value.toLowerCase();
+    const statusVal = document.getElementById('dashboardStatusFilter').value;
+
+    let filtered = allProjects.filter(p => {
+        const matchesStatus = statusVal === 'All' || p.status === statusVal;
+        const matchesSearch = p.name.toLowerCase().includes(searchVal);
+        return matchesStatus && matchesSearch;
+    });
+
+    // If no filter is active, show only top 5, else show all matches
+    if (searchVal === '' && statusVal === 'All') {
+        filtered = filtered.slice(0, 5);
+    }
+
+    loadProjectsTable(filtered, tasks);
+}
 
 function setupNotifications(projects) {
     const btn = document.getElementById('notification-btn');
@@ -85,9 +113,8 @@ async function loadProjectsTable(projects, tasks) {
     const tableBody = document.getElementById('dashboard-projects-table');
     tableBody.innerHTML = '';
 
-    const topProjects = projects.slice(0, 5);
-
-    for (const project of topProjects) {
+    // projects is already the list we want to render (filtered or sliced)
+    for (const project of projects) {
         // Calculate progress dynamically based on tasks
         const projectTasks = tasks.filter(t => t.project_id === project.id);
         const totalTasks = projectTasks.length;

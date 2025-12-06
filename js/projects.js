@@ -1,3 +1,14 @@
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('Projects list loading...');
+    await loadProjectsList();
+    setupProjectModal();
+    setupDeleteModal();
+
+    // Setup search listener
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', filterProjects);
+    }
 });
 
 function filterProjects() {
