@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 let allProjects = [];
+let currentRenderId = 0;
 
 function filterDashboard(tasks) {
     const searchVal = document.getElementById('dashboardSearch').value.toLowerCase();
@@ -110,11 +111,18 @@ function loadDashboardStats(stats, tasks) {
 }
 
 async function loadProjectsTable(projects, tasks) {
+    // Generate a new ID for this render cycle
+    currentRenderId++;
+    const thisRenderId = currentRenderId;
+
     const tableBody = document.getElementById('dashboard-projects-table');
     tableBody.innerHTML = '';
 
     // projects is already the list we want to render (filtered or sliced)
     for (const project of projects) {
+        // If a new render has started, abort this one
+        if (thisRenderId !== currentRenderId) return;
+
         // Calculate progress dynamically based on tasks
         const projectTasks = tasks.filter(t => t.project_id === project.id);
         const totalTasks = projectTasks.length;
@@ -133,6 +141,9 @@ async function loadProjectsTable(projects, tasks) {
         } catch (e) {
             console.warn(`Could not fetch items for project ${project.id}`, e);
         }
+
+        // Check again after async fetch
+        if (thisRenderId !== currentRenderId) return;
 
         const budget = parseFloat(project.budget_goal || 0);
         const balance = budget - totalCost;
