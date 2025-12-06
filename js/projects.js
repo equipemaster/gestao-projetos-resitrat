@@ -1,9 +1,23 @@
-document.addEventListener('DOMContentLoaded', async () => {
-    console.log('Projects list loading...');
-    await loadProjectsList();
-    setupProjectModal();
-    setupDeleteModal();
 });
+
+function filterProjects() {
+    const statusFilter = document.getElementById('statusFilter').value;
+    const searchInput = document.getElementById('searchInput');
+    const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+
+    const filtered = currentProjects.filter(project => {
+        // Status Filter
+        const matchesStatus = statusFilter === 'All' || project.status === statusFilter;
+
+        // Search Filter (Code or Name)
+        const matchesSearch = (project.name && project.name.toLowerCase().includes(searchTerm)) ||
+            (project.code && project.code.toLowerCase().includes(searchTerm));
+
+        return matchesStatus && matchesSearch;
+    });
+
+    renderProjectsTable(filtered);
+}
 
 let currentProjects = [];
 let editingProjectId = null;
