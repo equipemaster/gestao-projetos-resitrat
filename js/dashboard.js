@@ -57,12 +57,24 @@ function setupNotifications(projects) {
     const oneDayAgo = new Date();
     oneDayAgo.setDate(oneDayAgo.getDate() - 1);
 
-    const newProjects = projects.filter(p => new Date(p.created_at) > oneDayAgo);
+    const recentProjects = projects.filter(p => new Date(p.created_at) > oneDayAgo);
 
-    if (newProjects.length > 0) {
+    // Check local storage for last read timestamp
+    const lastReadTime = localStorage.getItem('lastNotificationReadTime');
+    const lastReadDate = lastReadTime ? new Date(lastReadTime) : new Date(0);
+
+    // Unread are recent ones created AFTER the last read time
+    const unreadCount = recentProjects.filter(p => new Date(p.created_at) > lastReadDate).length;
+
+    if (unreadCount > 0) {
         badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+
+    if (recentProjects.length > 0) {
         list.innerHTML = '';
-        newProjects.forEach(p => {
+        recentProjects.forEach(p => {
             const item = document.createElement('div');
             item.className = 'px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-0';
             item.innerHTML = `
@@ -73,14 +85,22 @@ function setupNotifications(projects) {
             list.appendChild(item);
         });
     } else {
-        badge.classList.add('hidden');
         list.innerHTML = '<div class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 text-center">Nenhuma notificação nova</div>';
     }
 
     // Toggle Dropdown
     btn.onclick = (e) => {
         e.stopPropagation();
-        dropdown.classList.toggle('hidden');
+        const isHidden = dropdown.classList.contains('hidden');
+
+        if (isHidden) {
+            dropdown.classList.remove('hidden');
+            // Dismiss notifications (mark as read)
+            badge.classList.add('hidden');
+            localStorage.setItem('lastNotificationReadTime', new Date().toISOString());
+        } else {
+            dropdown.classList.add('hidden');
+        }
     };
 
     // Close on click outside
