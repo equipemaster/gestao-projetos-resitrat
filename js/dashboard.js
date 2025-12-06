@@ -18,9 +18,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Setup listeners
     const searchInput = document.getElementById('dashboardSearch');
+    const headerSearch = document.getElementById('headerSearch');
     const statusSelect = document.getElementById('dashboardStatusFilter');
 
+
     if (searchInput) searchInput.addEventListener('input', () => filterDashboard(tasks));
+    if (headerSearch) headerSearch.addEventListener('input', () => filterDashboard(tasks));
     if (statusSelect) statusSelect.addEventListener('change', () => filterDashboard(tasks));
 });
 
@@ -28,8 +31,12 @@ let allProjects = [];
 let currentRenderId = 0;
 
 function filterDashboard(tasks) {
-    const searchVal = document.getElementById('dashboardSearch').value.toLowerCase();
-    const statusVal = document.getElementById('dashboardStatusFilter').value;
+    const searchValLower = document.getElementById('dashboardSearch') ? document.getElementById('dashboardSearch').value.toLowerCase() : '';
+    const headerSearchVal = document.getElementById('headerSearch') ? document.getElementById('headerSearch').value.toLowerCase() : '';
+    const searchVal = searchValLower || headerSearchVal;
+
+    const statusEl = document.getElementById('dashboardStatusFilter');
+    const statusVal = statusEl ? statusEl.value : 'All';
 
     let filtered = allProjects.filter(p => {
         const matchesStatus = statusVal === 'All' || p.status === statusVal;
@@ -221,10 +228,11 @@ function loadUpcomingDeadlines(tasks, projects) {
                 <span>${dueDate.toLocaleString('pt-BR', { month: 'short' }).replace('.', '')}</span>
             </div>
             <div>
-                <p class="text-sm font-bold text-[#0d121b] dark:text-white line-clamp-1">${task.title}</p>
                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">${projectName}</p>
             </div>
         `;
         container.appendChild(div);
     });
 }
+
+

@@ -9,14 +9,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (searchInput) {
         searchInput.addEventListener('input', filterProjects);
     }
+
+    // Initial sort state
+    updateSortButton();
 });
+
+let sortDateAsc = true; // Default sort: Ascending (Earliest first)
+
 
 function filterProjects() {
     const statusFilter = document.getElementById('statusFilter').value;
     const searchInput = document.getElementById('searchInput');
     const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
 
-    const filtered = currentProjects.filter(project => {
+    let filtered = currentProjects.filter(project => {
         // Status Filter
         const matchesStatus = statusFilter === 'All' || project.status === statusFilter;
 
@@ -27,7 +33,36 @@ function filterProjects() {
         return matchesStatus && matchesSearch;
     });
 
+    // Sort logic
+    filtered.sort((a, b) => {
+        const dateA = new Date(a.due_date || '9999-12-31'); // Push no-date to end if ASC
+        const dateB = new Date(b.due_date || '9999-12-31');
+
+        if (sortDateAsc) {
+            return dateA - dateB;
+        } else {
+            return dateB - dateA;
+        }
+    });
+
     renderProjectsTable(filtered);
+}
+
+window.toggleSortDate = () => {
+    sortDateAsc = !sortDateAsc;
+    updateSortButton();
+    filterProjects();
+}
+
+function updateSortButton() {
+    const btn = document.getElementById('sortDateBtn');
+    if (btn) {
+        // Keep icon, update text
+        btn.innerHTML = `
+            <span class="material-symbols-outlined text-lg">sort</span>
+            Ordenar por: Prazo (${sortDateAsc ? '↑' : '↓'})
+        `;
+    }
 }
 
 let currentProjects = [];

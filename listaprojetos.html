@@ -3,9 +3,9 @@
 
 <head>
   <meta charset="utf-8" />
-  <link href="./favicon.svg" rel="icon" type="image/svg+xml" />
+  <link href="./logoresitrat.png" rel="icon" type="image/png" />
   <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-  <title>Projetos - ProjectFlow</title>
+  <title>Projetos - Resitrat</title>
   <meta content="light" name="color-scheme" />
   <meta content="" name="description" />
   <script src="https://cdn.tailwindcss.com"></script>
@@ -88,16 +88,18 @@
 
       <div class="p-6 border-t border-gray-200 dark:border-gray-800">
         <div class="space-y-1">
-          <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" href="#">
+          <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+            href="ajuda.html">
             <span class="material-symbols-outlined text-[#0d121b] dark:text-gray-300">help</span>
             <p class="text-[#0d121b] dark:text-gray-300 text-sm font-medium leading-normal">Ajuda e Suporte</p>
           </a>
-          <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" href="#">
+          <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+            href="configuracoes.html">
             <span class="material-symbols-outlined text-[#0d121b] dark:text-gray-300">settings</span>
             <p class="text-[#0d121b] dark:text-gray-300 text-sm font-medium leading-normal">Configurações</p>
           </a>
-          <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-            href="logout">
+          <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" href="#"
+            onclick="signOut()">
             <span class="material-symbols-outlined text-[#0d121b] dark:text-gray-300">logout</span>
             <p class="text-[#0d121b] dark:text-gray-300 text-sm font-medium leading-normal">Sair</p>
           </a>
@@ -145,7 +147,7 @@
                   <span class="material-symbols-outlined text-lg">filter_list</span>
                 </div>
               </div>
-              <button
+              <button id="sortDateBtn" onclick="toggleSortDate()"
                 class="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
                 <span class="material-symbols-outlined text-lg">sort</span>
                 Ordenar por: Prazo
