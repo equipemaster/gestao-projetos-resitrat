@@ -10,11 +10,41 @@ let memberToDeleteId = null;
 
 async function loadMembersList() {
     currentMembers = await fetchMembers();
+    populateRoleFilter(currentMembers);
+    setupFilters();
+    renderMembers(currentMembers);
+}
+
+function renderMembers(members) {
     const tableBody = document.querySelector('tbody');
     if (!tableBody) return;
     tableBody.innerHTML = '';
 
-    currentMembers.forEach(member => {
+    // Update count
+    const countSpan = document.querySelector('.text-2xl + p');
+    if (countSpan) countSpan.textContent = `${members.length} membros na sua organização`;
+
+    const showingStart = document.getElementById('showingStart');
+    const showingEnd = document.getElementById('showingEnd');
+    const showingTotal = document.getElementById('totalResults');
+
+    if (showingStart) showingStart.textContent = members.length > 0 ? 1 : 0;
+    if (showingEnd) showingEnd.textContent = members.length;
+    if (showingTotal) showingTotal.textContent = members.length;
+
+
+    if (members.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="6" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400 text-sm">
+                    Nenhum membro encontrado.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    members.forEach(member => {
         const row = document.createElement('tr');
         row.className = "hover:bg-gray-50 dark:hover:bg-gray-800/50";
         row.innerHTML = `
@@ -45,6 +75,55 @@ async function loadMembersList() {
     });
 }
 
+function setupFilters() {
+    const searchInput = document.getElementById('searchInput');
+    const roleFilter = document.getElementById('roleFilter');
+    const statusFilter = document.getElementById('statusFilter');
+
+    const filterHandler = () => {
+        const searchTerm = searchInput.value.toLowerCase();
+        const roleValue = roleFilter.value;
+        const statusValue = statusFilter.value;
+
+        const filtered = currentMembers.filter(member => {
+            const matchesSearch = (member.name && member.name.toLowerCase().includes(searchTerm)) ||
+                (member.email && member.email.toLowerCase().includes(searchTerm));
+            const matchesRole = roleValue === '' || member.role === roleValue;
+            // Handle possibility of status being undefined or null in DB
+            const memberStatus = member.status || 'Active'; // Default to active if missing, or adjust based on logic
+            const matchesStatus = statusValue === '' || memberStatus === statusValue;
+
+            return matchesSearch && matchesRole && matchesStatus;
+        });
+
+        renderMembers(filtered);
+    };
+
+    if (searchInput) searchInput.addEventListener('input', filterHandler);
+    if (roleFilter) roleFilter.addEventListener('change', filterHandler);
+    if (statusFilter) statusFilter.addEventListener('change', filterHandler);
+}
+
+function populateRoleFilter(members) {
+    const roleFilter = document.getElementById('roleFilter');
+    if (!roleFilter) return;
+
+    // Get unique roles
+    const roles = [...new Set(members.map(m => m.role).filter(r => r))];
+
+    // Clear existing options except first
+    while (roleFilter.options.length > 1) {
+        roleFilter.remove(1);
+    }
+
+    roles.forEach(role => {
+        const option = document.createElement('option');
+        option.value = role;
+        option.textContent = role;
+        roleFilter.appendChild(option);
+    });
+}
+
 function setupMemberModal() {
     const modalHtml = `
         <div id="member-modal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
@@ -63,7 +142,7 @@ function setupMemberModal() {
                                 <label for="m-email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">E-mail</label>
                                 <input type="email" id="m-email" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring focus:ring-primary/50 dark:bg-gray-700 dark:text-white sm:text-sm">
                             </div>
-                             <div>
+                            <div>
                                 <label for="m-role" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Função</label>
                                 <input type="text" id="m-role" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring focus:ring-primary/50 dark:bg-gray-700 dark:text-white sm:text-sm" placeholder="ex: Desenvolvedor">
                             </div>
@@ -80,7 +159,7 @@ function setupMemberModal() {
                 </div>
             </div>
         </div>
-    `;
+        `;
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 
     const addBtn = document.querySelector('button span.truncate').parentElement;
@@ -120,7 +199,7 @@ function setupDeleteModal() {
                 </div>
             </div>
         </div>
-    `;
+        `;
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 

@@ -131,26 +131,52 @@
               <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <span class="material-symbols-outlined text-gray-400">search</span>
               </div>
-              <input type="text"
+              <input type="text" id="searchInput"
                 class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg leading-5 bg-white dark:bg-gray-700 placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:border-primary focus:ring-1 focus:ring-primary sm:text-sm dark:text-white"
                 placeholder="Pesquisar por nome ou e-mail">
             </div>
             <div class="flex gap-2 w-full lg:w-auto overflow-x-auto pb-2 lg:pb-0">
-              <button
-                class="flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap">
-                <span class="material-symbols-outlined text-gray-500 mr-2">filter_list</span>
-                Função: Todas
-              </button>
-              <button
-                class="flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap">
-                <span class="material-symbols-outlined text-gray-500 mr-2">work</span>
-                Projeto
-              </button>
-              <button
-                class="flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap">
-                <span class="material-symbols-outlined text-gray-500 mr-2">toggle_on</span>
-                Status
-              </button>
+              <div class="relative">
+                <select id="roleFilter"
+                  class="appearance-none pl-9 pr-8 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer">
+                  <option value="">Todas as Funções</option>
+                </select>
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <span class="material-symbols-outlined text-gray-500 text-[20px]">filter_list</span>
+                </div>
+                <div class="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
+                  <span class="material-symbols-outlined text-gray-400 text-[20px]">expand_more</span>
+                </div>
+              </div>
+
+              <!-- Project Filter (Hidden for now as logic suggests no direct link yet, but kept structure) -->
+              <div class="relative hidden">
+                <select id="projectFilter"
+                  class="appearance-none pl-9 pr-8 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer">
+                  <option value="">Todos Projetos</option>
+                </select>
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <span class="material-symbols-outlined text-gray-500 text-[20px]">work</span>
+                </div>
+                <div class="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
+                  <span class="material-symbols-outlined text-gray-400 text-[20px]">expand_more</span>
+                </div>
+              </div>
+
+              <div class="relative">
+                <select id="statusFilter"
+                  class="appearance-none pl-9 pr-8 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer">
+                  <option value="">Todos Status</option>
+                  <option value="Active">Ativo</option>
+                  <option value="Inactive">Inativo</option>
+                </select>
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <span class="material-symbols-outlined text-gray-500 text-[20px]">toggle_on</span>
+                </div>
+                <div class="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
+                  <span class="material-symbols-outlined text-gray-400 text-[20px]">expand_more</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -197,8 +223,8 @@
             <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
               <div>
                 <p class="text-sm text-gray-700 dark:text-gray-300">
-                  Mostrando <span class="font-medium">1</span> de <span class="font-medium">5</span> de <span
-                    class="font-medium">5</span> resultados
+                  Mostrando <span id="showingStart" class="font-medium">1</span> de <span id="showingEnd"
+                    class="font-medium">5</span> de <span id="totalResults" class="font-medium">5</span> resultados
                 </p>
               </div>
               <div>
