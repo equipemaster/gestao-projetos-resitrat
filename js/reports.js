@@ -2,18 +2,136 @@
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Reports page loading...');
     await loadReportsData();
+    await loadProjectSelectRelatorio();
     setupExportButtons();
 });
+
+async function loadProjectSelectRelatorio() {
+    const projects = await fetchProjects();
+    const select = document.getElementById('report-project-select');
+    if (!select) return;
+
+    projects.forEach(p => {
+        const option = document.createElement('option');
+        option.value = p.id;
+        option.textContent = p.name;
+        select.appendChild(option);
+    });
+
+    select.addEventListener('change', (e) => {
+        loadProjectDetails(e.target.value);
+    });
+}
+
+async function loadProjectDetails(projectId) {
+    const container = document.getElementById('detailed-report-container');
+    const tbody = document.getElementById('detailed-report-body');
+    const tfoot = document.getElementById('detailed-report-footer');
+
+    if (!projectId) {
+        container.classList.add('hidden');
+        return;
+    }
+
+    try {
+        // Fetch full project details (for budget columns)
+        // Since fetchProjects currently returns all, we can find it in the cached list or fetch again.
+        // Optimizing: fetch single project by ID if API supports, or find in fetched list.
+        // Let's rely on fetchProjects for now or fetchItems + finding project.
+        // We'll fetch items and project.
+
+        // Fetch project to get budget breakdown
+        const { data: project, error } = await _supabase.from('projects').select('*').eq('id', projectId).single();
+        if (error) throw error;
+
+        // Fetch items
+        const items = await fetchProjectItems(projectId);
+
+        container.classList.remove('hidden');
+        tbody.innerHTML = '';
+        tfoot.innerHTML = '';
+
+        const categories = [
+            'Reservatórios', 'Filtros PRFV', 'Bombas', 'Hidráulicos',
+            'Elétricos', 'Dosadoras', 'Terceiros', 'Frete', 'Eletrólise', 'Outros'
+        ];
+
+        let totalBudget = 0;
+        let totalActual = 0;
+
+        categories.forEach(cat => {
+            // Get Budget
+            // Map category name to column name: 'Reservatórios' -> 'budget_reservatorios'
+            // Special handling for special chars or mapping
+            let budgetCol = '';
+            if (cat === 'Reservatórios') budgetCol = 'budget_reservatorios';
+            else if (cat === 'Filtros PRFV') budgetCol = 'budget_filtros';
+            else if (cat === 'Bombas') budgetCol = 'budget_bombas';
+            else if (cat === 'Hidráulicos') budgetCol = 'budget_hidraulicos';
+            else if (cat === 'Elétricos') budgetCol = 'budget_eletricos';
+            else if (cat === 'Dosadoras') budgetCol = 'budget_dosadoras';
+            else if (cat === 'Terceiros') budgetCol = 'budget_terceiros';
+            else if (cat === 'Frete') budgetCol = 'budget_frete';
+            else if (cat === 'Eletrólise') budgetCol = 'budget_eletrolise';
+
+            const catBudget = budgetCol ? (parseFloat(project[budgetCol]) || 0) : 0;
+
+            // Get Actual Cost
+            const catItems = items.filter(i => {
+                if (cat === 'Outros') return !i.category || i.category === 'Outros';
+                return i.category === cat;
+            });
+            const catActual = catItems.reduce((sum, i) => sum + (parseFloat(i.value || 0) * parseFloat(i.quantity || 1)), 0);
+
+            const balance = catBudget - catActual;
+            const balanceClass = balance < 0 ? 'text-red-600 font-bold' : 'text-green-600 font-bold';
+
+            if (cat === 'Outros' && catBudget === 0 && catActual === 0) return; // Skip empty 'Outros'
+
+            totalBudget += catBudget;
+            totalActual += catActual;
+
+            const tr = document.createElement('tr');
+            tr.className = "hover:bg-gray-50 dark:hover:bg-gray-800/50";
+            tr.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap text-[#0d121b] dark:text-white text-sm font-medium">${cat}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white text-sm">${formatCurrency(catBudget)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white text-sm">${formatCurrency(catActual)}</td>
+                <td class="px-6 py-4 whitespace-nowrap ${balanceClass} text-sm">${formatCurrency(balance)}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        const totalBalance = totalBudget - totalActual;
+        const totalBalanceClass = totalBalance < 0 ? 'text-red-600 font-bold' : 'text-green-600 font-bold';
+
+        tfoot.innerHTML = `
+            <tr>
+                <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white text-sm font-bold">TOTAL</td>
+                <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white text-sm font-bold">${formatCurrency(totalBudget)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white text-sm font-bold">${formatCurrency(totalActual)}</td>
+                <td class="px-6 py-4 whitespace-nowrap ${totalBalanceClass} text-sm">${formatCurrency(totalBalance)}</td>
+            </tr>
+        `;
+
+    } catch (e) {
+        console.error("Error loading details", e);
+        tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-4 text-center text-red-500">Erro ao carregar detalhes: ${e.message}</td></tr>`;
+    }
+}
 
 let reportData = [];
 
 async function loadReportsData() {
-    const tableBody = document.querySelector('tbody');
-    tableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center">Carregando dados...</td></tr>';
+    const tableBody = document.getElementById('main-report-body');
+    if (!tableBody) return;
+    tableBody.innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center">Carregando dados...</td></tr>';
 
     try {
         const projects = await fetchProjects();
         const tasks = await fetchTasks();
+
+        // ... (rest of logic same until render) ...
 
         reportData = [];
 
@@ -51,11 +169,16 @@ async function loadReportsData() {
             // Convert to days
             const timeSpentDays = Math.round(totalDurationMs / (1000 * 60 * 60 * 24));
 
+            const budget = parseFloat(project.budget_goal || 0);
+            const balance = budget - totalValue;
+
             reportData.push({
                 projectName: project.name,
                 lead: project.lead ? project.lead.name : 'N/A',
                 status: project.status,
-                totalValue: totalValue,
+                budget: budget,
+                totalValue: totalValue, // Custo Real
+                balance: balance,
                 timeSpent: timeSpentDays,
                 longestStage: longestTask.title
             });
@@ -65,16 +188,17 @@ async function loadReportsData() {
 
     } catch (error) {
         console.error('Error loading reports:', error);
-        tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-4 text-center text-red-500">Erro ao carregar dados: ${error.message}</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 text-center text-red-500">Erro ao carregar dados: ${error.message}</td></tr>`;
     }
 }
 
 function renderReportsTable(data) {
-    const tableBody = document.querySelector('tbody');
+    const tableBody = document.getElementById('main-report-body');
+    if (!tableBody) return;
     tableBody.innerHTML = '';
 
     if (data.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Nenhum projeto encontrado.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">Nenhum projeto encontrado.</td></tr>';
         return;
     }
 
@@ -96,6 +220,8 @@ function renderReportsTable(data) {
             statusLabel = "Em Espera";
         }
 
+        const balanceClass = row.balance < 0 ? 'text-red-600 font-bold' : 'text-green-600 font-bold';
+
         tr.innerHTML = `
             <td class="px-6 py-4 whitespace-nowrap text-[#0d121b] dark:text-white text-sm font-medium">${row.projectName}</td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${row.lead}</td>
@@ -104,7 +230,9 @@ function renderReportsTable(data) {
                     ${statusLabel}
                 </span>
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white text-sm font-bold">${formatCurrency(row.totalValue)}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white text-sm">${formatCurrency(row.budget)}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white text-sm">${formatCurrency(row.totalValue)}</td>
+            <td class="px-6 py-4 whitespace-nowrap ${balanceClass} text-sm">${formatCurrency(row.balance)}</td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${row.timeSpent} dias</td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm truncate max-w-xs" title="${row.longestStage}">${row.longestStage}</td>
         `;
@@ -139,7 +267,9 @@ function exportToXLS() {
         "Projeto": row.projectName,
         "Responsável": row.lead,
         "Status": row.status,
-        "Valor Total": row.totalValue,
+        "Meta (R$)": row.budget,
+        "Custo Real (R$)": row.totalValue,
+        "Saldo (R$)": row.balance,
         "Tempo Gasto (Dias)": row.timeSpent,
         "Etapa Mais Longa": row.longestStage
     }));
@@ -158,14 +288,14 @@ function exportToPDF() {
     }
 
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
+    const doc = new jsPDF('l'); // Landscape for more columns
 
     doc.setFontSize(18);
     doc.text("Relatório de Projetos", 14, 22);
     doc.setFontSize(11);
     doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 30);
 
-    const tableColumn = ["Projeto", "Responsável", "Status", "Valor Total", "Tempo (Dias)", "Etapa Longa"];
+    const tableColumn = ["Projeto", "Responsável", "Status", "Meta", "Custo", "Saldo", "Tempo", "Etapa Longa"];
     const tableRows = [];
 
     reportData.forEach(row => {
@@ -173,7 +303,9 @@ function exportToPDF() {
             row.projectName,
             row.lead,
             row.status === 'In Progress' ? 'Em Andamento' : row.status,
+            formatCurrency(row.budget),
             formatCurrency(row.totalValue),
+            formatCurrency(row.balance),
             row.timeSpent,
             row.longestStage
         ];

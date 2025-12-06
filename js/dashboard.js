@@ -81,23 +81,43 @@ function loadDashboardStats(stats, tasks) {
     }
 }
 
-function loadProjectsTable(projects, tasks) {
+async function loadProjectsTable(projects, tasks) {
     const tableBody = document.getElementById('dashboard-projects-table');
     tableBody.innerHTML = '';
 
-    projects.slice(0, 5).forEach(project => {
+    const topProjects = projects.slice(0, 5);
+
+    for (const project of topProjects) {
         // Calculate progress dynamically based on tasks
         const projectTasks = tasks.filter(t => t.project_id === project.id);
         const totalTasks = projectTasks.length;
-        const completedTasks = projectTasks.filter(t => t.status === 'Done').length;
+        const completedTasks = projectTasks.filter(t => t.status === 'Done' || t.status === 'Completed').length;
 
         let progress = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+
+        // Calculate Cost & Balance
+        // We fetch items individually here. For a dashboard with only 5 items this is acceptable.
+        let totalCost = 0;
+        try {
+            const items = await fetchProjectItems(project.id);
+            if (items) {
+                totalCost = items.reduce((sum, item) => sum + (parseFloat(item.value || 0) * parseFloat(item.quantity || 1)), 0);
+            }
+        } catch (e) {
+            console.warn(`Could not fetch items for project ${project.id}`, e);
+        }
+
+        const budget = parseFloat(project.budget_goal || 0);
+        const balance = budget - totalCost;
+        const balanceClass = balance < 0 ? 'text-red-600 font-bold' : 'text-green-600 font-bold';
 
         const row = document.createElement('tr');
         row.className = "hover:bg-gray-50 dark:hover:bg-gray-800/50";
         row.innerHTML = `
              <td class="px-6 py-4 whitespace-nowrap text-[#0d121b] dark:text-white text-sm font-medium">${project.name}</td>
              <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${project.lead ? project.lead.name : '-'}</td>
+             <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${formatCurrency(budget)}</td>
+             <td class="px-6 py-4 whitespace-nowrap ${balanceClass} text-sm">${formatCurrency(balance)}</td>
              <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${formatDate(project.due_date)}</td>
              <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">
                <div class="flex items-center gap-2">
@@ -112,7 +132,11 @@ function loadProjectsTable(projects, tasks) {
              </td>
         `;
         tableBody.appendChild(row);
-    });
+    }
+}
+
+function formatCurrency(value) {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
 }
 
 function loadUpcomingDeadlines(tasks, projects) {

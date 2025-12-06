@@ -229,57 +229,58 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <!-- Main Table -->
-          <div
-            class="lg:col-span-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark shadow-sm">
-            <div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800">
-              <h2 class="text-lg font-bold text-[#0d121b] dark:text-white">Visão Geral dos Projetos</h2>
-              <button
-                class="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors">
-                <span class="material-symbols-outlined text-lg">add</span>
-                Novo Projeto
-              </button>
-            </div>
-            <div class="overflow-x-auto">
-              <table class="w-full">
-                <thead class="bg-gray-50 dark:bg-gray-800/50">
-                  <tr>
-                    <th
-                      class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                      Nome do Projeto</th>
-                    <th
-                      class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                      Responsável</th>
-                    <th
-                      class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                      Prazo</th>
-                    <th
-                      class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                      Progresso</th>
-                    <th
-                      class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    </th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200 dark:divide-gray-800" id="dashboard-projects-table">
-                  <!-- JS Populate -->
-                </tbody>
-              </table>
-            </div>
+        <!-- Main Table -->
+        <div class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark shadow-sm">
+          <div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800">
+            <h2 class="text-lg font-bold text-[#0d121b] dark:text-white">Visão Geral dos Projetos</h2>
+            <button onclick="openNewProjectModal()"
+              class="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors">
+              <span class="material-symbols-outlined text-lg">add</span>
+              Novo Projeto
+            </button>
           </div>
-
-          <!-- Side Widgets -->
-          <div class="space-y-8">
-            <div
-              class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark shadow-sm p-6">
-              <h3 class="text-lg font-bold text-[#0d121b] dark:text-white mb-4">Próximos Prazos</h3>
-              <div class="space-y-4" id="upcoming-deadlines-container">
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50 dark:bg-gray-800/50">
+                <tr>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    Nome do Projeto</th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    Responsável</th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    Meta (R$)</th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    Saldo (R$)</th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    Prazo</th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    Progresso</th>
+                  <th
+                    class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200 dark:divide-gray-800" id="dashboard-projects-table">
                 <!-- JS Populate -->
-              </div>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Side Widgets (Now below table) -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div
+            class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark shadow-sm p-6">
+            <h3 class="text-lg font-bold text-[#0d121b] dark:text-white mb-4">Próximos Prazos</h3>
+            <div class="space-y-4" id="upcoming-deadlines-container">
+              <!-- JS Populate -->
             </div>
-
-
           </div>
         </div>
       </div>

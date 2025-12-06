@@ -117,6 +117,51 @@ function setupProjectModal() {
                                 </select>
                             </div>
                             <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Detalhamento Financeiro</label>
+                                <div class="grid grid-cols-2 gap-4 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+                                    <div>
+                                        <label for="p-budget-reservatorios" class="block text-xs font-medium text-gray-500 dark:text-gray-400">Reservatórios</label>
+                                        <input type="number" step="0.01" id="p-budget-reservatorios" oninput="calculateTotalBudget()" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring focus:ring-primary/50 dark:bg-gray-700 dark:text-white sm:text-sm h-8" placeholder="0,00">
+                                    </div>
+                                    <div>
+                                        <label for="p-budget-filtros" class="block text-xs font-medium text-gray-500 dark:text-gray-400">Filtros PRFV</label>
+                                        <input type="number" step="0.01" id="p-budget-filtros" oninput="calculateTotalBudget()" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring focus:ring-primary/50 dark:bg-gray-700 dark:text-white sm:text-sm h-8" placeholder="0,00">
+                                    </div>
+                                    <div>
+                                        <label for="p-budget-bombas" class="block text-xs font-medium text-gray-500 dark:text-gray-400">Bombas</label>
+                                        <input type="number" step="0.01" id="p-budget-bombas" oninput="calculateTotalBudget()" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring focus:ring-primary/50 dark:bg-gray-700 dark:text-white sm:text-sm h-8" placeholder="0,00">
+                                    </div>
+                                    <div>
+                                        <label for="p-budget-hidraulicos" class="block text-xs font-medium text-gray-500 dark:text-gray-400">Hidráulicos</label>
+                                        <input type="number" step="0.01" id="p-budget-hidraulicos" oninput="calculateTotalBudget()" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring focus:ring-primary/50 dark:bg-gray-700 dark:text-white sm:text-sm h-8" placeholder="0,00">
+                                    </div>
+                                    <div>
+                                        <label for="p-budget-eletricos" class="block text-xs font-medium text-gray-500 dark:text-gray-400">Elétricos</label>
+                                        <input type="number" step="0.01" id="p-budget-eletricos" oninput="calculateTotalBudget()" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring focus:ring-primary/50 dark:bg-gray-700 dark:text-white sm:text-sm h-8" placeholder="0,00">
+                                    </div>
+                                    <div>
+                                        <label for="p-budget-dosadoras" class="block text-xs font-medium text-gray-500 dark:text-gray-400">Dosadoras</label>
+                                        <input type="number" step="0.01" id="p-budget-dosadoras" oninput="calculateTotalBudget()" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring focus:ring-primary/50 dark:bg-gray-700 dark:text-white sm:text-sm h-8" placeholder="0,00">
+                                    </div>
+                                    <div>
+                                        <label for="p-budget-terceiros" class="block text-xs font-medium text-gray-500 dark:text-gray-400">Terceiros</label>
+                                        <input type="number" step="0.01" id="p-budget-terceiros" oninput="calculateTotalBudget()" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring focus:ring-primary/50 dark:bg-gray-700 dark:text-white sm:text-sm h-8" placeholder="0,00">
+                                    </div>
+                                    <div>
+                                        <label for="p-budget-frete" class="block text-xs font-medium text-gray-500 dark:text-gray-400">Frete</label>
+                                        <input type="number" step="0.01" id="p-budget-frete" oninput="calculateTotalBudget()" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring focus:ring-primary/50 dark:bg-gray-700 dark:text-white sm:text-sm h-8" placeholder="0,00">
+                                    </div>
+                                    <div>
+                                        <label for="p-budget-eletrolise" class="block text-xs font-medium text-gray-500 dark:text-gray-400">Eletrólise</label>
+                                        <input type="number" step="0.01" id="p-budget-eletrolise" oninput="calculateTotalBudget()" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring focus:ring-primary/50 dark:bg-gray-700 dark:text-white sm:text-sm h-8" placeholder="0,00">
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <label for="p-budget" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Meta Total (R$)</label>
+                                <input type="number" step="0.01" id="p-budget" readonly class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-600 shadow-sm focus:border-primary focus:ring focus:ring-primary/50 dark:text-white sm:text-sm font-bold text-gray-700" placeholder="0,00">
+                            </div>
+                            <div>
                                 <label for="p-due" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Prazo</label>
                                 <input type="date" id="p-due" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring focus:ring-primary/50 dark:bg-gray-700 dark:text-white sm:text-sm">
                             </div>
@@ -140,6 +185,22 @@ function setupProjectModal() {
     if (newBtn) {
         newBtn.onclick = openNewProjectModal;
     }
+}
+
+window.calculateTotalBudget = () => {
+    const ids = [
+        'p-budget-reservatorios', 'p-budget-filtros', 'p-budget-bombas',
+        'p-budget-hidraulicos', 'p-budget-eletricos', 'p-budget-dosadoras',
+        'p-budget-terceiros', 'p-budget-frete', 'p-budget-eletrolise'
+    ];
+
+    let total = 0;
+    ids.forEach(id => {
+        const val = parseFloat(document.getElementById(id).value) || 0;
+        total += val;
+    });
+
+    document.getElementById('p-budget').value = total > 0 ? total.toFixed(2) : '';
 }
 
 function setupDeleteModal() {
@@ -183,10 +244,16 @@ window.openNewProjectModal = () => {
     document.getElementById('p-code').value = '';
     document.getElementById('p-name').value = '';
     document.getElementById('p-status').value = 'In Progress';
+    document.getElementById('p-budget').value = '';
+
+    // Reset detailed budgets
+    ['reservatorios', 'filtros', 'bombas', 'hidraulicos', 'eletricos', 'dosadoras', 'terceiros', 'frete', 'eletrolise'].forEach(key => {
+        document.getElementById(`p-budget-${key}`).value = '';
+    });
 
     const dueInput = document.getElementById('p-due');
     dueInput.value = '';
-    dueInput.disabled = false; // Enable for new projects
+    dueInput.disabled = false;
 
     document.getElementById('project-modal').classList.remove('hidden');
 }
@@ -204,10 +271,22 @@ window.editProject = (id) => {
     document.getElementById('p-code').value = project.code || '';
     document.getElementById('p-name').value = project.name;
     document.getElementById('p-status').value = project.status;
+    document.getElementById('p-budget').value = project.budget_goal || '';
+
+    // Load detailed budgets
+    document.getElementById('p-budget-reservatorios').value = project.budget_reservatorios || '';
+    document.getElementById('p-budget-filtros').value = project.budget_filtros || '';
+    document.getElementById('p-budget-bombas').value = project.budget_bombas || '';
+    document.getElementById('p-budget-hidraulicos').value = project.budget_hidraulicos || '';
+    document.getElementById('p-budget-eletricos').value = project.budget_eletricos || '';
+    document.getElementById('p-budget-dosadoras').value = project.budget_dosadoras || '';
+    document.getElementById('p-budget-terceiros').value = project.budget_terceiros || '';
+    document.getElementById('p-budget-frete').value = project.budget_frete || '';
+    document.getElementById('p-budget-eletrolise').value = project.budget_eletrolise || '';
 
     const dueInput = document.getElementById('p-due');
     dueInput.value = project.due_date;
-    dueInput.disabled = true; // Disable for editing
+    dueInput.disabled = true;
 
     document.getElementById('project-modal').classList.remove('hidden');
 }
@@ -217,6 +296,18 @@ window.saveProject = async () => {
     const name = document.getElementById('p-name').value;
     const status = document.getElementById('p-status').value;
     const dueDate = document.getElementById('p-due').value;
+    const budget = document.getElementById('p-budget').value;
+
+    // Get detailed budgets
+    const budget_reservatorios = document.getElementById('p-budget-reservatorios').value || null;
+    const budget_filtros = document.getElementById('p-budget-filtros').value || null;
+    const budget_bombas = document.getElementById('p-budget-bombas').value || null;
+    const budget_hidraulicos = document.getElementById('p-budget-hidraulicos').value || null;
+    const budget_eletricos = document.getElementById('p-budget-eletricos').value || null;
+    const budget_dosadoras = document.getElementById('p-budget-dosadoras').value || null;
+    const budget_terceiros = document.getElementById('p-budget-terceiros').value || null;
+    const budget_frete = document.getElementById('p-budget-frete').value || null;
+    const budget_eletrolise = document.getElementById('p-budget-eletrolise').value || null;
 
     if (!name) {
         alert('O Nome do Projeto é obrigatório');
@@ -227,13 +318,21 @@ window.saveProject = async () => {
         code,
         name,
         status,
-        due_date: dueDate || null
+        due_date: dueDate || null,
+        budget_goal: budget || null,
+        budget_reservatorios,
+        budget_filtros,
+        budget_bombas,
+        budget_hidraulicos,
+        budget_eletricos,
+        budget_dosadoras,
+        budget_terceiros,
+        budget_frete,
+        budget_eletrolise
     };
 
     try {
         if (editingProjectId) {
-            // If disabled, we might want to exclude it from the update payload to be safe, 
-            // but effectively the value won't change in the UI.
             await updateProject(editingProjectId, projectData);
         } else {
             await createProject(projectData);

@@ -80,6 +80,7 @@ function renderItemsTable(items) {
         row.className = "hover:bg-gray-50 dark:hover:bg-gray-800/50";
         row.innerHTML = `
             <td class="px-6 py-4 whitespace-nowrap text-[#0d121b] dark:text-white text-sm font-medium">${item.name}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm"><span class="px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-xs">${item.category || 'Outros'}</span></td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${item.quantity}</td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${item.unit}</td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${formatCurrency(val)}</td>
@@ -96,7 +97,7 @@ function renderItemsTable(items) {
     const totalRow = document.createElement('tr');
     totalRow.className = "bg-gray-50 dark:bg-gray-800 font-bold";
     totalRow.innerHTML = `
-        <td colspan="4" class="px-6 py-4 text-right text-gray-900 dark:text-white">TOTAL GERAL:</td>
+        <td colspan="5" class="px-6 py-4 text-right text-gray-900 dark:text-white">TOTAL GERAL:</td>
         <td class="px-6 py-4 text-gray-900 dark:text-white">${formatCurrency(totalProjectValue)}</td>
         <td colspan="2"></td>
     `;
@@ -108,6 +109,7 @@ window.openNewItemModal = () => {
     document.getElementById('modal-title').innerText = 'Novo Item';
     document.getElementById('i-id').value = ''; // Clear ID
     document.getElementById('i-name').value = '';
+    document.getElementById('i-category').value = 'Outros';
     document.getElementById('i-qty').value = '1';
     document.getElementById('i-value').value = '0.00';
     document.getElementById('item-modal').classList.remove('hidden');
@@ -124,6 +126,7 @@ window.editItem = (id) => {
     document.getElementById('modal-title').innerText = 'Editar Item';
     document.getElementById('i-id').value = item.id;
     document.getElementById('i-name').value = item.name;
+    document.getElementById('i-category').value = item.category || 'Outros';
     document.getElementById('i-qty').value = item.quantity;
     document.getElementById('i-unit').value = item.unit;
     document.getElementById('i-value').value = item.value;
@@ -140,6 +143,7 @@ window.saveItem = async () => {
 
     const id = document.getElementById('i-id').value;
     const name = document.getElementById('i-name').value;
+    const category = document.getElementById('i-category').value;
     const qty = document.getElementById('i-qty').value;
     const unit = document.getElementById('i-unit').value;
     const value = document.getElementById('i-value').value;
@@ -151,6 +155,7 @@ window.saveItem = async () => {
             // Update
             await updateProjectItem(id, {
                 name: name,
+                category: category,
                 quantity: qty,
                 unit: unit,
                 value: value
@@ -160,6 +165,7 @@ window.saveItem = async () => {
             await createProjectItem({
                 project_id: projectId,
                 name: name,
+                category: category,
                 quantity: qty,
                 unit: unit,
                 value: value

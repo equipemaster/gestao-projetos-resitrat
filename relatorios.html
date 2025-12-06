@@ -132,6 +132,51 @@
                     </div>
                 </div>
 
+                <!-- Detailed View Section -->
+                <div
+                    class="mb-8 p-6 bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
+                    <h2 class="text-lg font-bold text-[#0d121b] dark:text-white mb-4">Detalhamento Financeiro por
+                        Projeto</h2>
+                    <div class="mb-6 max-w-md">
+                        <label for="report-project-select"
+                            class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Selecione o
+                            Projeto</label>
+                        <select id="report-project-select"
+                            class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md dark:bg-gray-800 dark:text-white">
+                            <option value="">Selecione um projeto...</option>
+                        </select>
+                    </div>
+
+                    <div id="detailed-report-container" class="hidden overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
+                            <thead class="bg-gray-50 dark:bg-gray-800/50">
+                                <tr>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                        Categoria</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                        Meta (R$)</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                        Custo Real (R$)</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                        Saldo (R$)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detailed-report-body"
+                                class="bg-white dark:bg-background-dark divide-y divide-gray-200 dark:divide-gray-800">
+                                <!-- Populated by JS -->
+                            </tbody>
+                            <tfoot id="detailed-report-footer" class="bg-gray-50 dark:bg-gray-800 font-bold">
+                                <!-- Populated by JS -->
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Main Overview Table -->
                 <div
                     class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
                     <div class="overflow-x-auto">
@@ -149,7 +194,13 @@
                                         Status</th>
                                     <th
                                         class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                        Valor Total (R$)</th>
+                                        Meta (R$)</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                        Custo Real (R$)</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                        Saldo (R$)</th>
                                     <th
                                         class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                         Tempo Gasto</th>
@@ -158,7 +209,7 @@
                                         Etapa + Longa</th>
                                 </tr>
                             </thead>
-                            <tbody
+                            <tbody id="main-report-body"
                                 class="bg-white dark:bg-background-dark divide-y divide-gray-200 dark:divide-gray-800">
                                 <!-- Populated by JS -->
                             </tbody>
