@@ -48,12 +48,15 @@
   <div class="flex h-screen w-full">
     <!-- Sidebar -->
     <aside
-      class="w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark flex-shrink-0 flex flex-col justify-between">
-      <div class="p-6">
+      class="w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark flex-shrink-0 flex flex-col h-full">
+      <div class="p-6 pb-0">
         <div class="flex items-center gap-3">
           <img src="logoresitrat.png" alt="Logo" class="h-12 w-auto object-contain">
         </div>
-        <nav class="mt-8 space-y-1">
+      </div>
+
+      <div class="flex-1 overflow-y-auto px-6 py-4">
+        <nav class="space-y-1">
           <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
             href="gerenciamentodeprojetos.html">
             <span class="material-symbols-outlined">dashboard</span>
@@ -76,7 +79,7 @@
           </a>
           <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
             href="saida_estoque.html">
-            <span class="material-symbols-outlined fill-1">output</span>
+            <span class="material-symbols-outlined">output</span>
             <p class="text-sm font-medium leading-normal">Saída de Estoque</p>
           </a>
           <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
@@ -108,20 +111,20 @@
 
       <div class="p-6 border-t border-gray-200 dark:border-gray-800">
         <div class="space-y-1">
-          <a class="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+          <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
             href="ajuda.html">
-            <span class="material-symbols-outlined text-gray-800 dark:text-gray-200">help</span>
-            <p class="text-sm font-medium leading-normal">Ajuda e Suporte</p>
+            <span class="material-symbols-outlined text-[#0d121b] dark:text-gray-300">help</span>
+            <p class="text-[#0d121b] dark:text-gray-300 text-sm font-medium leading-normal">Ajuda e Suporte</p>
           </a>
-          <a class="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+          <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
             href="configuracoes.html">
-            <span class="material-symbols-outlined text-gray-800 dark:text-gray-200">settings</span>
-            <p class="text-sm font-medium leading-normal">Configurações</p>
+            <span class="material-symbols-outlined text-[#0d121b] dark:text-gray-300">settings</span>
+            <p class="text-[#0d121b] dark:text-gray-300 text-sm font-medium leading-normal">Configurações</p>
           </a>
-          <a class="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
-            href="#" onclick="signOut()">
-            <span class="material-symbols-outlined text-gray-800 dark:text-gray-200">logout</span>
-            <p class="text-sm font-medium leading-normal">Sair</p>
+          <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" href="#"
+            onclick="signOut()">
+            <span class="material-symbols-outlined text-[#0d121b] dark:text-gray-300">logout</span>
+            <p class="text-[#0d121b] dark:text-gray-300 text-sm font-medium leading-normal">Sair</p>
           </a>
         </div>
       </div>
