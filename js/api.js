@@ -180,6 +180,37 @@ async function deleteProjectItem(id) {
     if (error) throw error;
 }
 
+// Stock Items
+async function fetchStockItems() {
+    try {
+        const { data, error } = await _supabase
+            .from('stock_items')
+            .select('*');
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Error fetching stock items:', error.message);
+        return [];
+    }
+}
+
+async function createStockItem(itemData) {
+    const { data, error } = await _supabase.from('stock_items').insert([itemData]);
+    if (error) throw error;
+    return data;
+}
+
+async function updateStockItem(id, updates) {
+    const { data, error } = await _supabase.from('stock_items').update(updates).eq('id', id);
+    if (error) throw error;
+    return data;
+}
+
+async function deleteStockItem(id) {
+    const { error } = await _supabase.from('stock_items').delete().eq('id', id);
+    if (error) throw error;
+}
+
 // Logic to check and auto-complete project
 async function checkProjectCompletion(projectId) {
     try {
@@ -206,8 +237,79 @@ async function checkProjectCompletion(projectId) {
             return true;
         }
         return false;
+        return false;
     } catch (e) {
         console.error("Error checking project completion:", e);
         return false;
     }
+}
+
+// Stock Exit Logic (RPC) - Updated
+async function processStockExit(itemId, quantity, reason, projectId, obs, clientId) {
+    try {
+        const { data, error } = await _supabase.rpc('register_stock_exit', {
+            p_item_id: itemId,
+            p_quantity: quantity,
+            p_reason: reason,
+            p_project_id: projectId || null,
+            p_observation: obs || null,
+            p_client_id: clientId || null
+        });
+
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Error processing stock exit:', error);
+        throw error;
+    }
+}
+
+
+async function fetchStockExits() {
+    try {
+        const { data, error } = await _supabase
+            .from('stock_exits')
+            .select(`
+                *,
+                stock_items (name, value, unit),
+                clients (name)
+            `);
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Error fetching stock exits:', error.message);
+        return [];
+    }
+}
+
+// Client Management
+async function fetchClients() {
+    try {
+        const { data, error } = await _supabase
+            .from('clients')
+            .select('*')
+            .order('name');
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Error fetching clients:', error.message);
+        return [];
+    }
+}
+
+async function createClient(clientData) {
+    const { data, error } = await _supabase.from('clients').insert([clientData]);
+    if (error) throw error;
+    return data;
+}
+
+async function updateClient(id, updates) {
+    const { data, error } = await _supabase.from('clients').update(updates).eq('id', id);
+    if (error) throw error;
+    return data;
+}
+
+async function deleteClient(id) {
+    const { error } = await _supabase.from('clients').delete().eq('id', id);
+    if (error) throw error;
 }
