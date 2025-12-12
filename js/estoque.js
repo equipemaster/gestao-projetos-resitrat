@@ -79,12 +79,31 @@ function renderStockTable(items) {
     tableBody.appendChild(totalRow);
 }
 
+// Toggle Custom Category Input
+window.toggleCustomCategory = () => {
+    const select = document.getElementById('s-category-select');
+    const customInput = document.getElementById('s-category-custom');
+
+    if (select.value === 'custom') {
+        customInput.classList.remove('hidden');
+        customInput.focus();
+    } else {
+        customInput.classList.add('hidden');
+        customInput.value = '';
+    }
+}
+
 // Modal functions
 window.openStockModal = () => {
     document.getElementById('modal-title').innerText = 'Novo Item de Estoque';
-    document.getElementById('s-id').value = ''; // Clear ID
+    document.getElementById('s-id').value = '';
     document.getElementById('s-name').value = '';
-    document.getElementById('s-category').value = 'Outros';
+
+    // Reset Category
+    document.getElementById('s-category-select').value = 'Outros';
+    document.getElementById('s-category-custom').value = '';
+    document.getElementById('s-category-custom').classList.add('hidden');
+
     document.getElementById('s-qty').value = '1';
     document.getElementById('s-value').value = '0.00';
     document.getElementById('stock-modal').classList.remove('hidden');
@@ -95,13 +114,33 @@ window.closeStockModal = () => {
 }
 
 window.editStockItem = (id) => {
-    const item = currentStock.find(i => i.id === id);
-    if (!item) return;
+    console.log('Edit requested for ID:', id, 'Type:', typeof id);
+    const item = currentStock.find(i => i.id == id); // Loose equality
+
+    if (!item) {
+        console.error('Item not found for ID:', id, 'Available stock:', currentStock);
+        alert('Erro: Item não encontrado para edição.');
+        return;
+    }
 
     document.getElementById('modal-title').innerText = 'Editar Item';
     document.getElementById('s-id').value = item.id;
     document.getElementById('s-name').value = item.name;
-    document.getElementById('s-category').value = item.category || 'Outros';
+
+    // Handle Category Logic
+    const select = document.getElementById('s-category-select');
+    const customInput = document.getElementById('s-category-custom');
+    const options = Array.from(select.options).map(o => o.value);
+
+    if (options.includes(item.category)) {
+        select.value = item.category;
+        customInput.classList.add('hidden');
+    } else {
+        select.value = 'custom';
+        customInput.value = item.category || '';
+        customInput.classList.remove('hidden');
+    }
+
     document.getElementById('s-qty').value = item.quantity;
     document.getElementById('s-unit').value = item.unit;
     document.getElementById('s-value').value = item.value;
@@ -112,7 +151,17 @@ window.editStockItem = (id) => {
 window.saveStockItem = async () => {
     const id = document.getElementById('s-id').value;
     const name = document.getElementById('s-name').value;
-    const category = document.getElementById('s-category').value;
+
+    // Get Category
+    const select = document.getElementById('s-category-select');
+    const customInput = document.getElementById('s-category-custom');
+    let category = select.value;
+
+    if (category === 'custom') {
+        category = customInput.value.trim();
+        if (!category) return alert('Por favor, digite o nome da nova categoria.');
+    }
+
     const qty = document.getElementById('s-qty').value;
     const unit = document.getElementById('s-unit').value;
     const value = document.getElementById('s-value').value;
@@ -147,9 +196,15 @@ window.saveStockItem = async () => {
 }
 
 window.deleteItem = async (id) => {
-    if (confirm('Excluir este item do estoque?')) {
-        await deleteStockItem(id);
-        await loadStockItems();
+    console.log('Delete requested for ID:', id);
+    if (confirm('Tem certeza que deseja excluir este item do estoque?')) {
+        try {
+            await deleteStockItem(id);
+            await loadStockItems();
+        } catch (e) {
+            console.error('Error deleting:', e);
+            alert('Erro ao excluir item: ' + e.message);
+        }
     }
 }
 
