@@ -52,8 +52,12 @@ function renderStockTable(items) {
         totalStockValue += total;
 
         const row = document.createElement('tr');
-        row.className = "hover:bg-gray-50 dark:hover:bg-gray-800/50";
+        row.className = "hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors";
         row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap">
+                <input type="checkbox" class="stock-checkbox rounded border-gray-300 text-primary focus:ring-primary h-4 w-4" 
+                    value="${item.id}" onclick="updateBulkActionState()">
+            </td>
             <td class="px-6 py-4 whitespace-nowrap text-[#0d121b] dark:text-white text-sm font-medium">${item.name}</td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm"><span class="px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-xs">${item.category || 'Outros'}</span></td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${item.quantity}</td>
@@ -68,15 +72,173 @@ function renderStockTable(items) {
         tableBody.appendChild(row);
     });
 
-    // Add total row
     const totalRow = document.createElement('tr');
     totalRow.className = "bg-gray-50 dark:bg-gray-800 font-bold";
     totalRow.innerHTML = `
-        <td colspan="5" class="px-6 py-4 text-right text-gray-900 dark:text-white">TOTAL GERAL EM ESTOQUE:</td>
+        <td colspan="6" class="px-6 py-4 text-right text-gray-900 dark:text-white">TOTAL GERAL EM ESTOQUE:</td>
         <td class="px-6 py-4 text-gray-900 dark:text-white">${formatCurrency(totalStockValue)}</td>
         <td colspan="2"></td>
     `;
     tableBody.appendChild(totalRow);
+
+    // Reset selection state on re-render
+    document.getElementById('select-all').checked = false;
+    updateBulkActionState();
+}
+
+// Bulk Actions Logic
+let selectedStockIds = [];
+
+window.toggleSelectAll = () => {
+    const isChecked = document.getElementById('select-all').checked;
+    const checkboxes = document.querySelectorAll('.stock-checkbox');
+    checkboxes.forEach(cb => cb.checked = isChecked);
+    updateBulkActionState();
+}
+
+window.updateBulkActionState = () => {
+    const checkboxes = document.querySelectorAll('.stock-checkbox:checked');
+    selectedStockIds = Array.from(checkboxes).map(cb => cb.value);
+
+    const count = selectedStockIds.length;
+    const toolbar = document.getElementById('bulk-actions');
+    const countLabel = document.getElementById('selected-count');
+
+    if (count > 0) {
+        toolbar.classList.remove('hidden');
+        countLabel.innerText = `${count} selecionado${count > 1 ? 's' : ''}`;
+    } else {
+        toolbar.classList.add('hidden');
+    }
+}
+
+window.bulkDelete = async () => {
+    if (selectedStockIds.length === 0) return;
+    openDeleteModal(null, true);
+}
+
+// Bulk Edit Category Logic
+window.bulkEditCategory = () => {
+    if (selectedStockIds.length === 0) return;
+
+    // Reset modal fields
+    document.getElementById('bulk-category-select').value = 'Outros';
+    document.getElementById('bulk-category-custom').value = '';
+    document.getElementById('bulk-category-custom').classList.add('hidden');
+
+    document.getElementById('bulk-edit-modal').classList.remove('hidden');
+}
+
+window.closeBulkEditModal = () => {
+    document.getElementById('bulk-edit-modal').classList.add('hidden');
+}
+
+window.toggleBulkCustomCategory = () => {
+    const select = document.getElementById('bulk-category-select');
+    const customInput = document.getElementById('bulk-category-custom');
+
+    if (select.value === 'custom') {
+        customInput.classList.remove('hidden');
+        customInput.focus();
+    } else {
+        customInput.classList.add('hidden');
+        customInput.value = '';
+    }
+}
+
+window.saveBulkEdit = async () => {
+    // Get Category
+    const select = document.getElementById('bulk-category-select');
+    const customInput = document.getElementById('bulk-category-custom');
+    let category = select.value;
+
+    if (category === 'custom') {
+        category = customInput.value.trim();
+        if (!category) return alert('Por favor, digite o nome da nova categoria.');
+    }
+
+    try {
+        // Update all selected items
+        for (const id of selectedStockIds) {
+            await updateStockItem(id, { category: category });
+        }
+
+        closeBulkEditModal();
+        selectedStockIds = [];
+        document.getElementById('select-all').checked = false;
+        updateBulkActionState();
+        await loadStockItems();
+        alert('Categorias atualizadas com sucesso!');
+    } catch (e) {
+        console.error('Bulk edit error:', e);
+        alert('Erro ao atualizar categorias: ' + e.message);
+    }
+}
+
+// Delete Modal Logic
+let pendingDeleteId = null;
+let isBulkDelete = false;
+
+window.openDeleteModal = (id = null, bulk = false) => {
+    pendingDeleteId = id;
+    isBulkDelete = bulk;
+
+    const title = document.getElementById('delete-modal-title');
+    const msg = document.getElementById('delete-modal-message');
+
+    if (bulk) {
+        title.innerText = 'Excluir Itens Selecionados';
+        msg.innerText = `Tem certeza que deseja excluir ${selectedStockIds.length} itens? Esta ação não pode ser desfeita.`;
+    } else {
+        title.innerText = 'Excluir Item';
+        msg.innerText = 'Tem certeza que deseja excluir este item? Esta ação não pode ser desfeita.';
+    }
+
+    document.getElementById('delete-modal').classList.remove('hidden');
+}
+
+window.closeDeleteModal = () => {
+    document.getElementById('delete-modal').classList.add('hidden');
+    pendingDeleteId = null;
+    isBulkDelete = false;
+}
+
+// Bind confirm button
+document.getElementById('confirm-delete-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('confirm-delete-btn');
+    const originalText = btn.innerText;
+    btn.innerText = 'Excluindo...';
+    btn.disabled = true;
+
+    try {
+        if (isBulkDelete) {
+            for (const id of selectedStockIds) {
+                await deleteStockItem(id);
+            }
+            selectedStockIds = [];
+            document.getElementById('select-all').checked = false;
+            updateBulkActionState();
+            alert('Itens excluídos com sucesso!');
+        } else if (pendingDeleteId) {
+            await deleteStockItem(pendingDeleteId);
+            // Alert removed here to make UI smoother, or keep if preferred. user asked for modal.
+        }
+
+        await loadStockItems();
+        closeDeleteModal();
+
+    } catch (e) {
+        console.error('Delete error:', e);
+        alert('Erro ao excluir: ' + e.message);
+    } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
+});
+
+// Updated Delete Entry Points
+window.deleteItem = (id) => {
+    openDeleteModal(id, false);
 }
 
 // Toggle Custom Category Input

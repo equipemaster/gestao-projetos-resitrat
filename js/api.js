@@ -207,8 +207,23 @@ async function updateStockItem(id, updates) {
 }
 
 async function deleteStockItem(id) {
-    const { error } = await _supabase.from('stock_items').delete().eq('id', id);
-    if (error) throw error;
+    console.log('API: deleteStockItem called with ID:', id);
+    const { data, error, count } = await _supabase
+        .from('stock_items')
+        .delete({ count: 'exact' }) // Request count of deleted rows
+        .eq('id', id)
+        .select(); // Ensure we get a response to verify
+
+    if (error) {
+        console.error('API: Error deleting item:', error);
+        throw error;
+    }
+    console.log('API: Delete successful. Rows deleted:', count, 'Data:', data);
+
+    // If 0 rows deleted, it might be an ID mismatch, but not an SQL error
+    if (count === 0 && (!data || data.length === 0)) {
+        console.warn('API: Warning - No rows were deleted. Check ID match.');
+    }
 }
 
 // Logic to check and auto-complete project
