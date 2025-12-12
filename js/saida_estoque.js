@@ -154,3 +154,50 @@ function setupFormSubmission() {
         }
     });
 }
+
+window.exportExitHistory = async () => {
+    try {
+        const btn = document.querySelector('button[onclick="exportExitHistory()"]');
+        if (btn) {
+            btn.innerHTML = '<span class="material-symbols-outlined animate-spin">refresh</span> Exportando...';
+            btn.disabled = true;
+        }
+
+        const exits = await fetchStockExits();
+
+        if (!exits || exits.length === 0) {
+            alert('Não há histórico de saídas para exportar.');
+            return;
+        }
+
+        // Format data for Excel
+        const dataToExport = exits.map(item => ({
+            'Data': formatDate(item.created_at.split('T')[0]),
+            'Item': item.stock_items ? item.stock_items.name : 'Item excluído',
+            'Quantidade': item.quantity,
+            'Unidade': item.stock_items ? item.stock_items.unit : '-',
+            'Motivo': item.reason,
+            'Projeto': item.project_id ? 'Sim' : 'Não', // Ideally fetch project name if needed
+            'Cliente': item.clients ? item.clients.name : '-',
+            'Observação': item.observation || ''
+        }));
+
+        // Create Worksheet
+        const ws = XLSX.utils.json_to_sheet(dataToExport);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Saídas de Estoque");
+
+        // Download
+        XLSX.writeFile(wb, "Histórico_Saida_Estoque.xlsx");
+
+    } catch (error) {
+        console.error('Export error:', error);
+        alert('Erro ao exportar: ' + error.message);
+    } finally {
+        const btn = document.querySelector('button[onclick="exportExitHistory()"]');
+        if (btn) {
+            btn.innerHTML = '<span class="material-symbols-outlined text-xl">download</span><span class="text-sm font-medium">Exportar Histórico</span>';
+            btn.disabled = false;
+        }
+    }
+}

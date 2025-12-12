@@ -33,6 +33,9 @@
             }
         };
     </script>
+    <!-- Libs -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+
     <!-- Supabase and Auth Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/config.js"></script>
@@ -133,9 +136,16 @@
         <!-- Main Content -->
         <main class="flex-1 min-w-0 overflow-auto bg-gray-50 dark:bg-black/10">
             <div class="p-8 max-w-4xl mx-auto">
-                <div class="mb-8">
-                    <h1 class="text-2xl font-bold text-[#0d121b] dark:text-white">Registrar Saída de Estoque</h1>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Baixa de materiais e equipamentos</p>
+                <div class="flex items-center justify-between mb-8">
+                    <div>
+                        <h1 class="text-2xl font-bold text-[#0d121b] dark:text-white">Registrar Saída de Estoque</h1>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Baixa de materiais e equipamentos</p>
+                    </div>
+                    <button onclick="exportExitHistory()"
+                        class="flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors bg-white dark:bg-gray-800">
+                        <span class="material-symbols-outlined text-xl">download</span>
+                        <span class="text-sm font-medium">Exportar Histórico</span>
+                    </button>
                 </div>
 
                 <div
