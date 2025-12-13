@@ -2,7 +2,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadInitialData();
     setupSearchHandlers();
     setupFormSubmission();
+    setupReturnModal();
 });
+
+let currentReturnExit = null;
 
 let allStockItems = [];
 
@@ -37,6 +40,9 @@ async function loadInitialData() {
 
         // Load Stock Items for search
         allStockItems = await fetchStockItems();
+
+        // Load History
+        await loadExitHistory();
     } catch (e) {
         console.error('Error loading initial data:', e);
         alert('Erro ao carregar dados iniciais.');
@@ -145,6 +151,9 @@ function setupFormSubmission() {
             // Reload stock items to get fresh quantities
             allStockItems = await fetchStockItems();
 
+            // Reload History
+            await loadExitHistory();
+
         } catch (error) {
             console.error(error);
             alert('Erro ao registrar saída: ' + (error.message || error.error_description || 'Erro desconhecido'));
@@ -199,5 +208,165 @@ window.exportExitHistory = async () => {
             btn.innerHTML = '<span class="material-symbols-outlined text-xl">download</span><span class="text-sm font-medium">Exportar Histórico</span>';
             btn.disabled = false;
         }
+    }
+}
+
+// Return Logic
+function setupReturnModal() {
+    const confirmBtn = document.getElementById('confirm-return-btn');
+    if (confirmBtn) confirmBtn.addEventListener('click', confirmReturn);
+}
+
+window.openReturnModal = (exit) => {
+    currentReturnExit = exit;
+    const modal = document.getElementById('return-modal');
+    const desc = document.getElementById('return-modal-desc');
+    const input = document.getElementById('return-qty');
+    const maxQtySpan = document.getElementById('return-max-qty');
+
+    // Reset input
+    input.value = '';
+
+    // Set content
+    desc.textContent = `Devolvendo: ${exit.stock_items ? exit.stock_items.name : 'Item excluído'} (Qtd Saída: ${exit.quantity})`;
+    maxQtySpan.textContent = exit.quantity;
+
+    // Configure input
+    input.max = exit.quantity;
+    input.min = 0.01;
+    input.step = 'any';
+
+    modal.classList.remove('hidden');
+    input.focus();
+}
+
+window.closeReturnModal = () => {
+    document.getElementById('return-modal').classList.add('hidden');
+    currentReturnExit = null;
+}
+
+async function confirmReturn() {
+    if (!currentReturnExit) return;
+
+    const input = document.getElementById('return-qty');
+    const qtyToReturn = parseFloat(input.value);
+
+    if (!qtyToReturn || qtyToReturn <= 0) {
+        alert('Por favor, insira uma quantidade válida.');
+        return;
+    }
+
+    if (qtyToReturn > currentReturnExit.quantity) {
+        alert(`A quantidade a devolver não pode ser maior que a saída original (${currentReturnExit.quantity}).`);
+        return;
+    }
+
+    const btn = document.getElementById('confirm-return-btn');
+    try {
+        btn.disabled = true;
+        btn.innerText = 'Processando...';
+
+        // 1. Update Stock Quantity
+        const itemId = currentReturnExit.stock_item_id || currentReturnExit.item_id;
+
+        if (!itemId) {
+            throw new Error('ID do item não encontrado no registro de saída.');
+        }
+
+        // Fetch current stock first to be safe
+        const { data: stockItems, error: fetchError } = await _supabase
+            .from('stock_items')
+            .select('quantity')
+            .eq('id', itemId);
+
+        if (fetchError) throw fetchError;
+
+        const currentStock = stockItems[0].quantity;
+        const newStock = currentStock + qtyToReturn;
+
+        await updateStockItem(itemId, { quantity: newStock });
+
+        // 2. Update or Delete Exit Record
+        const remainingQty = currentReturnExit.quantity - qtyToReturn;
+        const safeRemaining = Math.round(remainingQty * 1000) / 1000;
+
+        if (safeRemaining <= 0) {
+            await deleteStockExit(currentReturnExit.id);
+        } else {
+            await updateStockExit(currentReturnExit.id, { quantity: safeRemaining });
+        }
+
+        alert('Devolução realizada com sucesso!');
+        closeReturnModal();
+
+        await loadExitHistory();
+        allStockItems = await fetchStockItems();
+
+    } catch (error) {
+        console.error('Error executing return:', error);
+        alert('Erro ao realizar devolução: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = 'Confirmar Devolução';
+    }
+}
+
+async function loadExitHistory() {
+    const tbody = document.getElementById('history-table-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Carregando...</td></tr>';
+
+    try {
+        let exits = await fetchStockExits();
+
+        // Filter out deleted items
+        exits = exits.filter(exit => exit.stock_items);
+
+        tbody.innerHTML = '';
+
+        if (exits.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Nenhuma saída recente.</td></tr>';
+            return;
+        }
+
+        // Sort by date desc
+        exits.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+        exits.forEach(exit => {
+            const tr = document.createElement('tr');
+            tr.className = "hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors";
+
+            const formattedDate = formatDate(exit.created_at.split('T')[0]);
+            const itemName = exit.stock_items ? exit.stock_items.name : '<span class="text-red-500">Item excluído</span>';
+
+            let destination = '-';
+            // Try to find project name if loaded, otherwise just show ID or Client
+            if (exit.project_id) destination = 'Projeto';
+            if (exit.clients) destination = exit.clients.name;
+
+            tr.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">${formattedDate}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">${itemName}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 font-bold">${exit.quantity} ${exit.stock_items ? exit.stock_items.unit : ''}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">${destination}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">${exit.reason}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"></td>
+            `;
+
+            const actionTd = tr.lastElementChild;
+            if (exit.stock_items) {
+                const btn = document.createElement('button');
+                btn.className = "text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 flex items-center justify-end gap-1 w-full";
+                btn.innerHTML = '<span class="material-symbols-outlined text-lg">undo</span> Devolver';
+                btn.onclick = () => openReturnModal(exit);
+                actionTd.appendChild(btn);
+            }
+
+            tbody.appendChild(tr);
+        });
+    } catch (e) {
+        console.error('Error loading history:', e);
+        tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-red-500">Erro ao carregar histórico.</td></tr>';
     }
 }

@@ -297,6 +297,18 @@ async function fetchStockExits() {
     }
 }
 
+
+async function updateStockExit(id, updates) {
+    const { data, error } = await _supabase.from('stock_exits').update(updates).eq('id', id);
+    if (error) throw error;
+    return data;
+}
+
+async function deleteStockExit(id) {
+    const { error } = await _supabase.from('stock_exits').delete().eq('id', id);
+    if (error) throw error;
+}
+
 // Client Management
 async function fetchClients() {
     try {
