@@ -195,7 +195,7 @@ async function fetchStockItems() {
 }
 
 async function createStockItem(itemData) {
-    const { data, error } = await _supabase.from('stock_items').insert([itemData]);
+    const { data, error } = await _supabase.from('stock_items').insert([itemData]).select();
     if (error) throw error;
     return data;
 }
@@ -252,10 +252,54 @@ async function checkProjectCompletion(projectId) {
             return true;
         }
         return false;
-        return false;
     } catch (e) {
         console.error("Error checking project completion:", e);
         return false;
+    }
+}
+
+// Ensure Stock Item (Find or Create)
+async function ensureStockItem(name, unitValue, quantityNeeded) {
+    console.log(`Ensuring item: ${name}, Value: ${unitValue}, Need: ${quantityNeeded}`);
+    try {
+        // 1. Try to find existing item (case-insensitive)
+        const { data: existingItems, error: searchError } = await _supabase
+            .from('stock_items')
+            .select('*')
+            .ilike('name', name); // Case-insensitive match
+
+        if (searchError) throw searchError;
+
+        if (existingItems && existingItems.length > 0) {
+            const item = existingItems[0];
+            // 2. Update existing item
+            // We add the needed quantity to the current stock so the exit doesn't fail (or just to track flow)
+            // And we update the value to the most recent one provided
+            const newQuantity = (parseFloat(item.quantity) || 0) + parseFloat(quantityNeeded);
+
+            await updateStockItem(item.id, {
+                quantity: newQuantity,
+                value: unitValue
+            });
+
+            return item.id;
+        } else {
+            // 3. Create new item
+            const newItem = {
+                name: name,
+                quantity: parseFloat(quantityNeeded), // Start with exactly what we need
+                value: unitValue,
+                unit: 'un' // Default unit
+            };
+
+            const created = await createStockItem(newItem);
+            if (!created || created.length === 0) throw new Error("Falha ao criar novo item.");
+
+            return created[0].id;
+        }
+    } catch (error) {
+        console.error("Error ensuring stock item:", error);
+        throw error;
     }
 }
 

@@ -75,11 +75,6 @@
                         <p class="text-sm font-medium leading-normal">Itens do Projeto</p>
                     </a>
                     <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="estoque.html">
-                        <span class="material-symbols-outlined">shelves</span>
-                        <p class="text-sm font-medium leading-normal">Cadastro de Materiais</p>
-                    </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
                         href="saida_estoque.html">
                         <span class="material-symbols-outlined">output</span>
                         <p class="text-sm font-medium leading-normal">Saída de Estoque</p>
@@ -163,13 +158,47 @@
                     <div class="p-6 border-b border-gray-200 dark:border-gray-800">
                         <div class="max-w-md">
                             <label for="client-search" class="sr-only">Filtrar por Cliente</label>
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <span class="material-symbols-outlined text-gray-400">search</span>
+                            <div class="flex gap-4 w-full">
+                                <div class="relative flex-1">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <span class="material-symbols-outlined text-gray-400">search</span>
+                                    </div>
+                                    <input type="text" id="client-search"
+                                        class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 dark:text-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm transition duration-150 ease-in-out"
+                                        placeholder="Filtrar por nome do cliente...">
                                 </div>
-                                <input type="text" id="client-search"
-                                    class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 dark:text-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm transition duration-150 ease-in-out"
-                                    placeholder="Filtrar por nome do cliente...">
+                                <div>
+                                    <select id="filter-month"
+                                        class="block w-full py-2 pl-3 pr-10 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                                        <option value="">Todos os Meses</option>
+                                        <option value="0">Janeiro</option>
+                                        <option value="1">Fevereiro</option>
+                                        <option value="2">Março</option>
+                                        <option value="3">Abril</option>
+                                        <option value="4">Maio</option>
+                                        <option value="5">Junho</option>
+                                        <option value="6">Julho</option>
+                                        <option value="7">Agosto</option>
+                                        <option value="8">Setembro</option>
+                                        <option value="9">Outubro</option>
+                                        <option value="10">Novembro</option>
+                                        <option value="11">Dezembro</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <select id="filter-year"
+                                        class="block w-full py-2 pl-3 pr-10 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                                        <option value="">Todos os Anos</option>
+                                        <option value="2024">2024</option>
+                                        <option value="2025">2025</option>
+                                        <option value="2026">2026</option>
+                                    </select>
+                                </div>
+                                <button id="clear-filters"
+                                    class="flex items-center justify-center p-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                                    title="Limpar Filtros">
+                                    <span class="material-symbols-outlined">filter_alt_off</span>
+                                </button>
                             </div>
                         </div>
                     </div>

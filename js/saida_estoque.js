@@ -1,13 +1,12 @@
 document.addEventListener('DOMContentLoaded', async () => {
     await loadInitialData();
-    setupSearchHandlers();
+    /* Search handlers removed as we are using manual entry now */
+    // setupSearchHandlers(); // Removed
     setupFormSubmission();
     setupReturnModal();
 });
 
 let currentReturnExit = null;
-
-let allStockItems = [];
 
 async function loadInitialData() {
     try {
@@ -38,69 +37,12 @@ async function loadInitialData() {
             clientSelect.appendChild(option);
         });
 
-        // Load Stock Items for search
-        allStockItems = await fetchStockItems();
-
         // Load History
         await loadExitHistory();
     } catch (e) {
         console.error('Error loading initial data:', e);
         alert('Erro ao carregar dados iniciais.');
     }
-}
-
-function setupSearchHandlers() {
-    const searchInput = document.getElementById('item-search');
-    const resultsDiv = document.getElementById('item-results');
-    const selectedIdInput = document.getElementById('selected-item-id');
-    const stockDisplay = document.getElementById('current-stock-display');
-
-    searchInput.addEventListener('input', (e) => {
-        const query = e.target.value.toLowerCase();
-        if (query.length < 2) {
-            resultsDiv.classList.add('hidden');
-            return;
-        }
-
-        const filtered = allStockItems.filter(item =>
-            item.name.toLowerCase().includes(query) ||
-            (item.category && item.category.toLowerCase().includes(query))
-        );
-
-        renderSearchResults(filtered);
-    });
-
-    function renderSearchResults(items) {
-        resultsDiv.innerHTML = '';
-        if (items.length === 0) {
-            resultsDiv.classList.add('hidden');
-            return;
-        }
-
-        items.forEach(item => {
-            const div = document.createElement('div');
-            div.className = "px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-700 dark:text-gray-200";
-            div.textContent = `${item.name} (Qtd: ${item.quantity} ${item.unit})`;
-            div.onclick = () => selectItem(item);
-            resultsDiv.appendChild(div);
-        });
-
-        resultsDiv.classList.remove('hidden');
-    }
-
-    function selectItem(item) {
-        searchInput.value = item.name;
-        selectedIdInput.value = item.id;
-        stockDisplay.textContent = `Em estoque: ${item.quantity} ${item.unit}`;
-        resultsDiv.classList.add('hidden');
-    }
-
-    // Close results when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!searchInput.contains(e.target) && !resultsDiv.contains(e.target)) {
-            resultsDiv.classList.add('hidden');
-        }
-    });
 }
 
 function setupFormSubmission() {
@@ -111,15 +53,24 @@ function setupFormSubmission() {
         e.preventDefault();
 
         const submitBtn = document.getElementById('submit-btn');
-        const itemId = document.getElementById('selected-item-id').value;
+
+        // Manual Entry Fields
+        const itemName = document.getElementById('item-name').value;
+        const itemValue = parseFloat(document.getElementById('item-value').value);
+
         const qty = parseFloat(document.getElementById('exit-qty').value);
         const projectId = document.getElementById('project-select').value;
         const clientId = document.getElementById('client-select').value;
         const reason = document.getElementById('exit-reason').value;
         const obs = document.getElementById('exit-obs').value;
 
-        if (!itemId) {
-            alert('Por favor, selecione um item do estoque.');
+        if (!itemName || itemName.trim() === '') {
+            alert('Por favor, informe o nome do material.');
+            return;
+        }
+
+        if (isNaN(itemValue) || itemValue < 0) {
+            alert('Por favor, insira um valor unitário válido.');
             return;
         }
 
@@ -137,7 +88,10 @@ function setupFormSubmission() {
             submitBtn.disabled = true;
             submitBtn.textContent = 'Processando...';
 
-            // Call API
+            // Ensure Stock Item exists (Create or Update)
+            const itemId = await ensureStockItem(itemName, itemValue, qty);
+
+            // Call API to register exit
             const result = await processStockExit(itemId, qty, reason, projectId, obs, clientId);
 
             alert('Saída registrada com sucesso!');
@@ -145,11 +99,6 @@ function setupFormSubmission() {
 
             // Reset form
             form.reset();
-            document.getElementById('selected-item-id').value = '';
-            document.getElementById('current-stock-display').textContent = '';
-
-            // Reload stock items to get fresh quantities
-            allStockItems = await fetchStockItems();
 
             // Reload History
             await loadExitHistory();
