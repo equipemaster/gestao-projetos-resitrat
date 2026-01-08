@@ -25,7 +25,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (searchInput) searchInput.addEventListener('input', () => filterDashboard(tasks));
     if (headerSearch) headerSearch.addEventListener('input', () => filterDashboard(tasks));
     if (statusSelect) statusSelect.addEventListener('change', () => filterDashboard(tasks));
+
+    // Listen for shared modal updates
+    window.addEventListener('project-saved', async () => {
+        // Reload everything
+        const [stats, projects, tasks] = await Promise.all([
+            fetchDashboardStats(),
+            fetchProjects(),
+            fetchTasks()
+        ]);
+        allProjects = projects;
+        loadDashboardStats(stats, tasks);
+        loadProjectsTable(projects.slice(0, 5), tasks);
+        loadUpcomingDeadlines(tasks, projects);
+        setupNotifications(projects);
+    });
 });
+
+// Hook for shared modal
+window.getProjectById = (id) => {
+    return allProjects.find(p => p.id === id);
+};
 
 let allProjects = [];
 let currentRenderId = 0;

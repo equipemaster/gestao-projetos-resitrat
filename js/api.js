@@ -2,6 +2,31 @@
 if (typeof _supabase === 'undefined') {
     console.error('_supabase is undefined. Check supabaseClient.js load order.');
 }
+
+// --- GLOBAL UPPERCASE STANDARDIZATION ---
+document.addEventListener('input', (e) => {
+    // Apply to text inputs and textareas
+    if (e.target.matches('input[type="text"], textarea')) {
+        const start = e.target.selectionStart;
+        const end = e.target.selectionEnd;
+
+        // Convert to Uppercase
+        e.target.value = e.target.value.toUpperCase();
+
+        // Restore cursor position
+        e.target.setSelectionRange(start, end);
+    }
+});
+
+// Inject CSS for Visual Uppercase as well
+const style = document.createElement('style');
+style.innerHTML = `
+    input[type="text"], textarea {
+        text-transform: uppercase;
+    }
+`;
+document.head.appendChild(style);
+// ----------------------------------------
 // Helper for Brazilian Date Format
 function formatDate(dateString) {
     if (!dateString) return '-';
@@ -258,38 +283,45 @@ async function checkProjectCompletion(projectId) {
     }
 }
 
-// Ensure Stock Item (Find or Create)
-async function ensureStockItem(name, unitValue, quantityNeeded) {
-    console.log(`Ensuring item: ${name}, Value: ${unitValue}, Need: ${quantityNeeded}`);
+// Ensure Stock Item (Catalogue Update Only)
+async function ensureStockItem(name, unitValue, qty, unit = 'UN') {
+    // NOTE: quantityUsed is ignored for stock balance, but we might use it 
+    // to initialize if desired. For now, we follow "No Stock Balance" logic 
+    // where we only keep the item as a catalogue entry.
+
+    // 1. Check if item exists (Case insensitive / Upercase handled by global input now, but force here too)
+    const safeName = name.toUpperCase().trim();
+    console.log(`Ensuring Stock Item: ${safeName}, Unit: ${unit}, Value: ${unitValue}`);
+
     try {
-        // 1. Try to find existing item (case-insensitive)
         const { data: existingItems, error: searchError } = await _supabase
             .from('stock_items')
             .select('*')
-            .ilike('name', name); // Case-insensitive match
+            .eq('name', safeName); // Match exact uppercase name
 
         if (searchError) throw searchError;
 
         if (existingItems && existingItems.length > 0) {
             const item = existingItems[0];
-            // 2. Update existing item
-            // We add the needed quantity to the current stock so the exit doesn't fail (or just to track flow)
-            // And we update the value to the most recent one provided
-            const newQuantity = (parseFloat(item.quantity) || 0) + parseFloat(quantityNeeded);
+            // 2. Update existing item's VALUE and UNIT (Catalogue)
+            // We DO NOT change quantity here anymore.
 
-            await updateStockItem(item.id, {
-                quantity: newQuantity,
-                value: unitValue
-            });
+            // Only update if value or unit changed
+            if (item.value !== unitValue || item.unit !== unit) {
+                await updateStockItem(item.id, {
+                    value: unitValue,
+                    unit: unit
+                });
+            }
 
             return item.id;
         } else {
-            // 3. Create new item
+            // 3. Create new item (Catalogue Entry)
             const newItem = {
-                name: name,
-                quantity: parseFloat(quantityNeeded), // Start with exactly what we need
+                name: safeName,
+                quantity: 0, // Ignored logic, start at 0
                 value: unitValue,
-                unit: 'un' // Default unit
+                unit: unit // Use provided unit
             };
 
             const created = await createStockItem(newItem);
@@ -303,17 +335,27 @@ async function ensureStockItem(name, unitValue, quantityNeeded) {
     }
 }
 
-// Stock Exit Logic (RPC) - Updated
+// Stock Exit Logic - Direct Insert for Cost Control
 async function processStockExit(itemId, quantity, reason, projectId, obs, clientId) {
+    console.log('Processing Stock Exit:', { itemId, quantity, reason });
     try {
-        const { data, error } = await _supabase.rpc('register_stock_exit', {
-            p_item_id: itemId,
-            p_quantity: quantity,
-            p_reason: reason,
-            p_project_id: projectId || null,
-            p_observation: obs || null,
-            p_client_id: clientId || null
-        });
+        // Fetch current item value to freeze it in history
+        const { data: items } = await _supabase.from('stock_items').select('value').eq('id', itemId);
+        const unitPrice = items && items[0] ? items[0].value : 0;
+
+        // Direct Insert instead of RPC to support unit_price and skip stock balance deduction
+        const { data, error } = await _supabase
+            .from('stock_exits')
+            .insert([{
+                item_id: itemId,
+                quantity: quantity,
+                reason: reason,
+                project_id: projectId || null,
+                observation: obs || null,
+                client_id: clientId || null,
+                unit_price: unitPrice // IMPORTANT: Requires 'unit_price' column in DB
+            }])
+            .select();
 
         if (error) throw error;
         return data;

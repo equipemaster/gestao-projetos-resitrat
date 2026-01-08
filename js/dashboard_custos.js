@@ -64,7 +64,15 @@ function processAndRender(exits) {
     exits.forEach(exit => {
         const clientName = exit.clients ? exit.clients.name : 'Sem Cliente';
         const quantity = parseFloat(exit.quantity) || 0;
-        const unitPrice = parseFloat(exit.stock_items ? exit.stock_items.value : 0) || 0;
+
+        // Use historical unit price if available (preferred), otherwise fallback to current catalogue value
+        let unitPrice = 0;
+        if (exit.unit_price !== undefined && exit.unit_price !== null) {
+            unitPrice = parseFloat(exit.unit_price);
+        } else {
+            unitPrice = parseFloat(exit.stock_items ? exit.stock_items.value : 0) || 0;
+        }
+
         const cost = quantity * unitPrice;
 
         if (!clientCosts[clientName]) {

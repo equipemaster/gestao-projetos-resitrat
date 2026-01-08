@@ -56,6 +56,7 @@ function setupFormSubmission() {
 
         // Manual Entry Fields
         const itemName = document.getElementById('item-name').value;
+        const itemUnit = document.getElementById('item-unit').value;
         const itemValue = parseFloat(document.getElementById('item-value').value);
 
         const qty = parseFloat(document.getElementById('exit-qty').value);
@@ -89,7 +90,7 @@ function setupFormSubmission() {
             submitBtn.textContent = 'Processando...';
 
             // Ensure Stock Item exists (Create or Update)
-            const itemId = await ensureStockItem(itemName, itemValue, qty);
+            const itemId = await ensureStockItem(itemName, itemValue, qty, itemUnit);
 
             // Call API to register exit
             const result = await processStockExit(itemId, qty, reason, projectId, obs, clientId);
