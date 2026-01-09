@@ -75,8 +75,7 @@ function updateSortButton() {
 }
 
 let currentProjects = [];
-let editingProjectId = null;
-let projectToDeleteId = null;
+
 
 async function loadProjectsList() {
     const projects = await fetchProjects();
