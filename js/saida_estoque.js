@@ -37,6 +37,21 @@ async function loadInitialData() {
             clientSelect.appendChild(option);
         });
 
+        // Populate Filter Dropdown
+        const filterSelect = document.getElementById('history-client-filter');
+        if (filterSelect) {
+            clients.forEach(c => {
+                const option = document.createElement('option');
+                option.value = c.id;
+                let label = c.name;
+                if (c.company) label += ` (${c.company})`;
+                option.textContent = label;
+                filterSelect.appendChild(option);
+            });
+
+            filterSelect.addEventListener('change', () => loadExitHistory());
+        }
+
         // Load History
         await loadExitHistory();
     } catch (e) {
@@ -269,6 +284,14 @@ async function loadExitHistory() {
 
     try {
         let exits = await fetchStockExits();
+
+        // Apply Client Filter
+        const filterSelect = document.getElementById('history-client-filter');
+        const filterClientId = filterSelect ? filterSelect.value : '';
+
+        if (filterClientId) {
+            exits = exits.filter(exit => exit.client_id == filterClientId);
+        }
 
         // Filter out deleted items
         exits = exits.filter(exit => exit.stock_items);
