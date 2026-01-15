@@ -1,6 +1,7 @@
 
 
 let allExits = []; // Store raw exits data
+let clientMap = {}; // Map id -> client data
 let currentChart = null; // Store chart instance to update it
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -8,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadDashboardData();
 
     // Setup filters
-    document.getElementById('client-search').addEventListener('input', applyFilters);
+    document.getElementById('client-search').addEventListener('change', applyFilters); // Changed to 'change' for select
     document.getElementById('filter-month').addEventListener('change', applyFilters);
     document.getElementById('filter-year').addEventListener('change', applyFilters);
 
@@ -22,7 +23,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadDashboardData() {
     try {
-        allExits = await fetchStockExits();
+        const [exits, clients] = await Promise.all([
+            fetchStockExits(),
+            fetchClients() // Reuse existing API function
+        ]);
+        allExits = exits;
+
+        // Build client map
+        clientMap = {};
+        clients.forEach(c => clientMap[c.id] = c);
+
+        populateClientFilter(clients);
         applyFilters(); // Initial render
     } catch (error) {
         console.error('Error loading dashboard data:', error);
@@ -31,7 +42,7 @@ async function loadDashboardData() {
 }
 
 function applyFilters() {
-    const nameQuery = document.getElementById('client-search').value.toLowerCase();
+    // const nameQuery = document.getElementById('client-search').value.toLowerCase(); // REMOVED
     const monthFilter = document.getElementById('filter-month').value; // 0-11 or empty
     const yearFilter = document.getElementById('filter-year').value; // YYYY or empty
 
@@ -43,7 +54,9 @@ function applyFilters() {
         const clientName = exit.clients ? exit.clients.name.toLowerCase() : 'sem cliente';
 
         // Check Name
-        const matchesName = clientName.includes(nameQuery);
+        // Check Client (ID match)
+        const selectedClientId = document.getElementById('client-search').value;
+        const matchesClient = selectedClientId === "" || (exit.client_id && exit.client_id.toString() === selectedClientId);
 
         // Check Month
         const matchesMonth = monthFilter === "" || exitMonth === monthFilter;
@@ -51,7 +64,7 @@ function applyFilters() {
         // Check Year
         const matchesYear = yearFilter === "" || exitYear === yearFilter;
 
-        return matchesName && matchesMonth && matchesYear;
+        return matchesClient && matchesMonth && matchesYear;
     });
 
     processAndRender(filteredExits);
@@ -76,9 +89,15 @@ function processAndRender(exits) {
         const cost = quantity * unitPrice;
 
         if (!clientCosts[clientName]) {
+            let meta = 0;
+            if (exit.client_id && clientMap[exit.client_id]) {
+                meta = clientMap[exit.client_id].metas;
+            }
+
             clientCosts[clientName] = {
                 count: 0,
-                totalCost: 0
+                totalCost: 0,
+                meta: meta
             };
         }
         clientCosts[clientName].count += quantity;
@@ -99,19 +118,40 @@ function renderTable(data) {
     const sortedClients = Object.keys(data).sort((a, b) => data[b].totalCost - data[a].totalCost);
 
     if (sortedClients.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-center text-gray-500">Nenhum registro encontrado.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-gray-500">Nenhum registro encontrado.</td></tr>';
         return;
     }
 
     sortedClients.forEach(client => {
-        // if (data[client].totalCost === 0 && client === 'Sem Cliente') return; 
+        const clientData = data[client];
+        const clientMeta = parseFloat(clientData.meta) || 0;
+        const totalCost = clientData.totalCost;
+        const isOverBudget = clientMeta > 0 && totalCost > clientMeta;
+
+        let metaDisplay = '-';
+        if (clientMeta > 0) {
+            metaDisplay = formatCurrency(clientMeta);
+        }
 
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors';
+
+        let costClass = "font-bold text-gray-900 dark:text-white";
+        let statusIcon = "";
+
+        if (isOverBudget) {
+            costClass = "font-bold text-red-600 dark:text-red-400";
+            statusIcon = `<span class="material-symbols-outlined text-red-600 dark:text-red-400 text-sm align-middle ml-1" title="Acima da Meta">warning</span>`;
+        }
+
         tr.innerHTML = `
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">${client}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${data[client].count.toFixed(2)}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-white">${formatCurrency(data[client].totalCost)}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${metaDisplay}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm ${costClass}">
+                ${formatCurrency(totalCost)}
+                ${statusIcon}
+            </td>
         `;
         tbody.appendChild(tr);
     });
@@ -165,3 +205,16 @@ function formatCurrency(value) {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
 }
 
+
+function populateClientFilter(clients) {
+    const select = document.getElementById('client-search');
+    // Keep the first "All" option
+    select.innerHTML = '<option value="">Todos os Clientes</option>';
+
+    clients.forEach(client => {
+        const option = document.createElement('option');
+        option.value = client.id;
+        option.textContent = client.name;
+        select.appendChild(option);
+    });
+}

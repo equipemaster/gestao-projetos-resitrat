@@ -27,6 +27,7 @@ function renderClients(clients) {
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${client.cnpj || '-'}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${client.email || '-'}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${client.phone || '-'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${client.metas || '-'}</td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <button onclick="editClient('${client.id}')" class="text-primary hover:text-primary/80 mr-3">Editar</button>
                 <button onclick="removeClient('${client.id}')" class="text-red-600 hover:text-red-900">Excluir</button>
@@ -41,7 +42,8 @@ function filterClients(query) {
     const filtered = allClients.filter(c =>
         (c.name && c.name.toLowerCase().includes(lower)) ||
         (c.cnpj && c.cnpj.includes(lower)) ||
-        (c.email && c.email.toLowerCase().includes(lower))
+        (c.email && c.email.toLowerCase().includes(lower)) ||
+        (c.metas && c.metas.toLowerCase().includes(lower))
     );
     renderClients(filtered);
 }
@@ -61,6 +63,7 @@ function openClientModal(id = null) {
         document.getElementById('c-email').value = '';
         document.getElementById('c-phone').value = '';
         document.getElementById('c-address').value = '';
+        document.getElementById('c-metas').value = '';
         document.getElementById('modal-title').textContent = 'Novo Cliente';
     }
 }
@@ -79,6 +82,7 @@ function editClient(id) {
     document.getElementById('c-email').value = client.email || '';
     document.getElementById('c-phone').value = client.phone || '';
     document.getElementById('c-address').value = client.address || '';
+    document.getElementById('c-metas').value = client.metas || '';
     document.getElementById('modal-title').textContent = 'Editar Cliente';
 
     openClientModal('edit');
@@ -102,7 +106,8 @@ async function saveClient() {
         cnpj: document.getElementById('c-cnpj').value,
         email: document.getElementById('c-email').value,
         phone: document.getElementById('c-phone').value,
-        address: document.getElementById('c-address').value
+        address: document.getElementById('c-address').value,
+        metas: document.getElementById('c-metas').value.replace(/,/g, '.')
     };
 
     if (!clientData.name) {

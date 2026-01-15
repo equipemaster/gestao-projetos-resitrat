@@ -2,34 +2,65 @@
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Reports page loading...');
     await loadReportsData();
-    await loadProjectSelectRelatorio();
+    await loadReportsData();
+    await initReportFilters();
     setupExportButtons();
+    // Register Chart DataLabels
+    if (typeof ChartDataLabels !== 'undefined') {
+        Chart.register(ChartDataLabels);
+    }
 });
 
-async function loadProjectSelectRelatorio() {
-    const projects = await fetchProjects();
-    const select = document.getElementById('report-project-select');
-    if (!select) return;
+let reportChart = null;
 
+
+let allProjectsForReport = [];
+
+async function initReportFilters() {
+
+
+    // Load Projects
+    allProjectsForReport = await fetchProjects();
+    populateProjectSelect(allProjectsForReport);
+
+    // Filter Listeners
+    document.getElementById('report-project-select').addEventListener('change', (e) => loadProjectDetails(e.target.value));
+    document.getElementById('report-month-filter').addEventListener('change', reloadDetails);
+    document.getElementById('report-year-filter').addEventListener('change', reloadDetails);
+    document.getElementById('chart-type-select').addEventListener('change', reloadDetails);
+}
+
+
+
+function populateProjectSelect(projects) {
+    const select = document.getElementById('report-project-select');
+    select.innerHTML = '<option value="">Selecione um projeto...</option>';
     projects.forEach(p => {
         const option = document.createElement('option');
         option.value = p.id;
         option.textContent = p.name;
         select.appendChild(option);
     });
+}
 
-    select.addEventListener('change', (e) => {
-        loadProjectDetails(e.target.value);
-    });
+function reloadDetails() {
+    const projectId = document.getElementById('report-project-select').value;
+    if (projectId) loadProjectDetails(projectId);
 }
 
 async function loadProjectDetails(projectId) {
+    const month = document.getElementById('report-month-filter').value;
+    const year = document.getElementById('report-year-filter').value;
+    const chartType = document.getElementById('chart-type-select').value;
+
     const container = document.getElementById('detailed-report-container');
+    const chartContainer = document.getElementById('chart-container');
     const tbody = document.getElementById('detailed-report-body');
     const tfoot = document.getElementById('detailed-report-footer');
 
     if (!projectId) {
         container.classList.add('hidden');
+        chartContainer.classList.add('hidden');
         return;
     }
 
@@ -48,6 +79,9 @@ async function loadProjectDetails(projectId) {
         const items = await fetchProjectItems(projectId);
 
         container.classList.remove('hidden');
+        if (typeof chartContainer !== 'undefined' && chartContainer) {
+            chartContainer.classList.remove('hidden');
+        }
         tbody.innerHTML = '';
         tfoot.innerHTML = '';
 
@@ -58,6 +92,11 @@ async function loadProjectDetails(projectId) {
 
         let totalBudget = 0;
         let totalActual = 0;
+
+        // Arrays for Chart
+        const chartLabels = [];
+        const chartBudgets = [];
+        const chartActuals = [];
 
         categories.forEach(cat => {
             // Get Budget
@@ -77,9 +116,20 @@ async function loadProjectDetails(projectId) {
             const catBudget = budgetCol ? (parseFloat(project[budgetCol]) || 0) : 0;
 
             // Get Actual Cost
+            // Get Actual Cost (Filtered)
             const catItems = items.filter(i => {
-                if (cat === 'Outros') return !i.category || i.category === 'Outros';
-                return i.category === cat;
+                // Category Filter
+                const matchCat = cat === 'Outros' ? (!i.category || i.category === 'Outros') : i.category === cat;
+
+                // Date Filter (using created_at of item)
+                let matchDate = true;
+                if (i.created_at) {
+                    const d = new Date(i.created_at);
+                    if (month !== "" && d.getMonth().toString() !== month) matchDate = false;
+                    if (year !== "" && d.getFullYear().toString() !== year) matchDate = false;
+                }
+
+                return matchCat && matchDate;
             });
             const catActual = catItems.reduce((sum, i) => sum + (parseFloat(i.value || 0) * parseFloat(i.quantity || 1)), 0);
 
@@ -100,7 +150,12 @@ async function loadProjectDetails(projectId) {
                 <td class="px-6 py-4 whitespace-nowrap ${balanceClass} text-sm">${formatCurrency(balance)}</td>
             `;
             tbody.appendChild(tr);
+            chartLabels.push(cat);
+            chartBudgets.push(catBudget);
+            chartActuals.push(catActual);
         });
+
+        renderCostChart(chartLabels, chartBudgets, chartActuals, chartType);
 
         const totalBalance = totalBudget - totalActual;
         const totalBalanceClass = totalBalance < 0 ? 'text-red-600 font-bold' : 'text-green-600 font-bold';
@@ -319,4 +374,118 @@ function exportToPDF() {
     });
 
     doc.save("Relatorio_Projetos.pdf");
+}
+
+function renderCostChart(labels, budgets, actuals, chartType = 'bar') {
+    const ctx = document.getElementById('costAnalysisChart').getContext('2d');
+
+    let type = 'bar';
+    let indexAxis = 'x';
+    if (chartType === 'horizontalBar') {
+        type = 'bar';
+        indexAxis = 'y';
+    } else if (chartType === 'line') {
+        type = 'line';
+    }
+
+
+
+    if (reportChart) {
+        reportChart.destroy();
+    }
+
+    if (indexAxis === 'y') {
+        const height = labels.length * 50 + 100; // 50px per bar group + padding
+        ctx.canvas.parentNode.style.height = `${height}px`;
+    } else {
+        ctx.canvas.parentNode.style.height = '400px'; // Default for vertical/line
+    }
+
+    reportChart = new Chart(ctx, {
+        type: type,
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Meta (Orçamento)',
+                    data: budgets,
+                    backgroundColor: 'rgba(107, 114, 128, 0.5)',
+                    borderColor: 'rgba(107, 114, 128, 1)',
+                    borderWidth: 1,
+                    datalabels: {
+                        align: indexAxis === 'y' ? 'end' : 'end',
+                        anchor: indexAxis === 'y' ? 'end' : 'end',
+                        color: '#6b7280',
+                        formatter: (val) => val > 0 ? 'R$' + val.toLocaleString('pt-BR') : '',
+                        display: function (context) { return context.dataset.data[context.dataIndex] > 0; }
+                    }
+                },
+                {
+                    label: 'Custo Real',
+                    data: actuals,
+                    backgroundColor: function (context) {
+                        const index = context.dataIndex;
+                        const budget = budgets[index] || 0;
+                        const actual = context.dataset.data[index] || 0;
+                        return actual > budget && budget > 0 ? 'rgba(220, 38, 38, 0.7)' : 'rgba(19, 91, 236, 0.7)';
+                    },
+                    borderColor: function (context) {
+                        const index = context.dataIndex;
+                        const budget = budgets[index] || 0;
+                        const actual = context.dataset.data[index] || 0;
+                        return actual > budget && budget > 0 ? 'rgba(220, 38, 38, 1)' : 'rgba(19, 91, 236, 1)';
+                    },
+                    borderWidth: 1,
+                    datalabels: {
+                        align: indexAxis === 'y' ? 'end' : 'end',
+                        anchor: indexAxis === 'y' ? 'end' : 'end',
+                        color: '#000',
+                        font: { weight: 'bold' },
+                        formatter: (val) => val > 0 ? 'R$' + val.toLocaleString('pt-BR') : '',
+                        display: function (context) { return context.dataset.data[context.dataIndex] > 0; }
+                    }
+                }
+            ]
+        },
+        options: {
+            indexAxis: indexAxis,
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: {
+                padding: {
+                    right: 50, // extra padding for horizontal labels
+                    top: 30
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: true,
+                    text: 'Análise Financeira: Meta vs Custo Real por Categoria',
+                    font: { size: 16 }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function (val) {
+                            return indexAxis === 'y' ? 'R$ ' + val.toLocaleString('pt-BR') : val;
+                        }
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function (val) {
+                            return indexAxis === 'x' ? 'R$ ' + val.toLocaleString('pt-BR') : this.getLabelForValue(val);
+                        }
+                    }
+                }
+            }
+        },
+        plugins: [ChartDataLabels]
+    });
 }
