@@ -36,9 +36,14 @@
     </script>
     <!-- SheetJS for XLS Export -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+
     <!-- PDF Export Libs -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 
     <!-- Supabase and Auth Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -137,6 +142,7 @@
                     class="mb-8 p-6 bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
                     <h2 class="text-lg font-bold text-[#0d121b] dark:text-white mb-4">Detalhamento Financeiro por
                         Projeto</h2>
+
                     <div class="mb-6 max-w-md">
                         <label for="report-project-select"
                             class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Selecione o
@@ -145,6 +151,56 @@
                             class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md dark:bg-gray-800 dark:text-white">
                             <option value="">Selecione um projeto...</option>
                         </select>
+                    </div>
+
+                    <!-- Filters and Chart Options -->
+                    <div id="report-filters" class="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-4 hidden">
+                        <div>
+                            <label for="report-month-filter"
+                                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mês</label>
+                            <select id="report-month-filter"
+                                class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm">
+                                <option value="">Todos</option>
+                                <option value="0">Janeiro</option>
+                                <option value="1">Fevereiro</option>
+                                <option value="2">Março</option>
+                                <option value="3">Abril</option>
+                                <option value="4">Maio</option>
+                                <option value="5">Junho</option>
+                                <option value="6">Julho</option>
+                                <option value="7">Agosto</option>
+                                <option value="8">Setembro</option>
+                                <option value="9">Outubro</option>
+                                <option value="10">Novembro</option>
+                                <option value="11">Dezembro</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="report-year-filter"
+                                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ano</label>
+                            <select id="report-year-filter"
+                                class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm">
+                                <option value="">Todos</option>
+                                <option value="2024">2024</option>
+                                <option value="2025">2025</option>
+                                <option value="2026">2026</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="chart-type-select"
+                                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Visualização</label>
+                            <select id="chart-type-select"
+                                class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm">
+                                <option value="bar">Colunas</option>
+                                <option value="horizontalBar">Barras Horizontais</option>
+                                <option value="line">Linha</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Chart Container -->
+                    <div id="chart-container" class="mb-8 hidden" style="position: relative; height:400px; width:100%">
+                        <canvas id="costAnalysisChart"></canvas>
                     </div>
 
                     <div id="detailed-report-container" class="hidden overflow-x-auto">
