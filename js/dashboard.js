@@ -1,18 +1,22 @@
 
+
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Dashboard loading...');
 
-    // Fetch data centrally to avoid redundant calls and ensure consistency
-    const [stats, projects, tasks] = await Promise.all([
-        fetchDashboardStats(),
-        fetchProjects(),
+    // Fetch data optimized - using View for projects
+    const [projects, tasks] = await Promise.all([
+        fetchProjectSummaries(),
         fetchTasks()
     ]);
 
     // Pass data to rendering functions
     allProjects = projects; // Store globally
+
+    // Calculate stats client-side
+    const stats = calculateLocalStats(projects, tasks);
+
     loadDashboardStats(stats, tasks);
-    loadProjectsTable(projects.slice(0, 5), tasks);
+    loadProjectsTable(projects.slice(0, 5));
     loadUpcomingDeadlines(tasks, projects);
     setupNotifications(projects);
 
@@ -22,25 +26,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     const statusSelect = document.getElementById('dashboardStatusFilter');
 
 
-    if (searchInput) searchInput.addEventListener('input', () => filterDashboard(tasks));
-    if (headerSearch) headerSearch.addEventListener('input', () => filterDashboard(tasks));
-    if (statusSelect) statusSelect.addEventListener('change', () => filterDashboard(tasks));
+    if (searchInput) searchInput.addEventListener('input', () => filterDashboard());
+    if (headerSearch) headerSearch.addEventListener('input', () => filterDashboard());
+    if (statusSelect) statusSelect.addEventListener('change', () => filterDashboard());
 
     // Listen for shared modal updates
     window.addEventListener('project-saved', async () => {
         // Reload everything
-        const [stats, projects, tasks] = await Promise.all([
-            fetchDashboardStats(),
-            fetchProjects(),
+        const [projects, tasks] = await Promise.all([
+            fetchProjectSummaries(),
             fetchTasks()
         ]);
         allProjects = projects;
+        const stats = calculateLocalStats(projects, tasks);
         loadDashboardStats(stats, tasks);
-        loadProjectsTable(projects.slice(0, 5), tasks);
+        loadProjectsTable(projects.slice(0, 5));
         loadUpcomingDeadlines(tasks, projects);
         setupNotifications(projects);
     });
 });
+
+function calculateLocalStats(projects, tasks) {
+    const activeProjects = projects.filter(p => p.status === 'In Progress' || p.status === 'Em Andamento').length;
+    const today = new Date().toISOString().split('T')[0];
+    const tasksDueToday = tasks.filter(t => t.due_date === today).length;
+    const overdueTasks = tasks.filter(t => t.due_date < today && t.status !== 'Done' && t.status !== 'Concluída').length;
+
+    return {
+        activeProjects,
+        tasksDueToday,
+        overdueTasks
+    };
+}
 
 // Hook for shared modal
 window.getProjectById = (id) => {
@@ -50,7 +67,8 @@ window.getProjectById = (id) => {
 let allProjects = [];
 let currentRenderId = 0;
 
-function filterDashboard(tasks) {
+
+function filterDashboard() {
     const searchValLower = document.getElementById('dashboardSearch') ? document.getElementById('dashboardSearch').value.toLowerCase() : '';
     const headerSearchVal = document.getElementById('headerSearch') ? document.getElementById('headerSearch').value.toLowerCase() : '';
     const searchVal = searchValLower || headerSearchVal;
@@ -69,7 +87,7 @@ function filterDashboard(tasks) {
         filtered = filtered.slice(0, 5);
     }
 
-    loadProjectsTable(filtered, tasks);
+    loadProjectsTable(filtered);
 }
 
 function setupNotifications(projects) {
@@ -157,7 +175,8 @@ function loadDashboardStats(stats, tasks) {
     }
 }
 
-async function loadProjectsTable(projects, tasks) {
+
+function loadProjectsTable(projects) {
     // Generate a new ID for this render cycle
     currentRenderId++;
     const thisRenderId = currentRenderId;
@@ -170,37 +189,27 @@ async function loadProjectsTable(projects, tasks) {
         // If a new render has started, abort this one
         if (thisRenderId !== currentRenderId) return;
 
-        // Calculate progress dynamically based on tasks
-        const projectTasks = tasks.filter(t => t.project_id === project.id);
-        const totalTasks = projectTasks.length;
-        const completedTasks = projectTasks.filter(t => t.status === 'Done' || t.status === 'Completed').length;
+        // Optimized: Data comes pre-calculated from View
+        const totalTasks = project.total_tasks || 0;
+        const completedTasks = project.completed_tasks || 0;
 
         let progress = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
 
-        // Calculate Cost & Balance
-        // We fetch items individually here. For a dashboard with only 5 items this is acceptable.
-        let totalCost = 0;
-        try {
-            const items = await fetchProjectItems(project.id);
-            if (items) {
-                totalCost = items.reduce((sum, item) => sum + (parseFloat(item.value || 0) * parseFloat(item.quantity || 1)), 0);
-            }
-        } catch (e) {
-            console.warn(`Could not fetch items for project ${project.id}`, e);
-        }
-
-        // Check again after async fetch
-        if (thisRenderId !== currentRenderId) return;
+        // Optimized: Cost comes from View
+        const totalCost = parseFloat(project.total_cost || 0);
 
         const budget = parseFloat(project.budget_goal || 0);
         const balance = budget - totalCost;
         const balanceClass = balance < 0 ? 'text-red-600 font-bold' : 'text-green-600 font-bold';
 
+        // Adapt Lead Name (View returns lead_name directly)
+        const leadName = project.lead_name || (project.lead ? project.lead.name : '-');
+
         const row = document.createElement('tr');
         row.className = "hover:bg-gray-50 dark:hover:bg-gray-800/50";
         row.innerHTML = `
              <td class="px-6 py-4 whitespace-nowrap text-[#0d121b] dark:text-white text-sm font-medium">${project.name}</td>
-             <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${project.lead ? project.lead.name : '-'}</td>
+             <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${leadName}</td>
              <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${formatCurrency(budget)}</td>
              <td class="px-6 py-4 whitespace-nowrap ${balanceClass} text-sm">${formatCurrency(balance)}</td>
              <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${formatDate(project.due_date)}</td>

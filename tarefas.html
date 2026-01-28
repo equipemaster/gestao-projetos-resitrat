@@ -3,9 +3,9 @@
 
 <head>
   <meta charset="utf-8" />
-  <link href="./logoresitrat.png" rel="icon" type="image/png" />
+  <link href="./favicon.svg" rel="icon" type="image/svg+xml" />
   <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-  <title>Tarefas - Resitrat</title>
+  <title>Tarefas - ProjectFlow</title>
   <meta content="light" name="color-scheme" />
   <meta content="" name="description" />
   <script src="https://cdn.tailwindcss.com"></script>
@@ -48,15 +48,12 @@
   <div class="flex h-screen w-full">
     <!-- Sidebar -->
     <aside
-      class="w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark flex-shrink-0 flex flex-col h-full">
-      <div class="p-6 pb-0">
+      class="w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark flex-shrink-0 flex flex-col justify-between">
+      <div class="p-6">
         <div class="flex items-center gap-3">
           <img src="logoresitrat.png" alt="Logo" class="h-12 w-auto object-contain">
         </div>
-      </div>
-
-      <div class="flex-1 overflow-y-auto px-6 py-4">
-        <nav class="space-y-1">
+        <nav class="mt-8 space-y-1">
           <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
             href="gerenciamentodeprojetos.html">
             <span class="material-symbols-outlined">dashboard</span>
@@ -71,21 +68,6 @@
             href="itens_projeto.html">
             <span class="material-symbols-outlined">inventory_2</span>
             <p class="text-sm font-medium leading-normal">Itens do Projeto</p>
-          </a>
-          <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-            href="saida_estoque.html">
-            <span class="material-symbols-outlined">output</span>
-            <p class="text-sm font-medium leading-normal">Saída de Estoque</p>
-          </a>
-          <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-            href="clientes.html">
-            <span class="material-symbols-outlined">person_add</span>
-            <p class="text-sm font-medium leading-normal">Clientes</p>
-          </a>
-          <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-            href="dashboard_custos.html">
-            <span class="material-symbols-outlined">attach_money</span>
-            <p class="text-sm font-medium leading-normal">Custos por Cliente</p>
           </a>
           <a class="flex items-center gap-3 rounded-lg bg-primary/10 px-3 py-2 text-primary" href="tarefas.html">
             <span class="material-symbols-outlined fill-1">check_circle</span>
@@ -106,20 +88,20 @@
 
       <div class="p-6 border-t border-gray-200 dark:border-gray-800">
         <div class="space-y-1">
-          <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-            href="ajuda.html">
-            <span class="material-symbols-outlined text-[#0d121b] dark:text-gray-300">help</span>
-            <p class="text-[#0d121b] dark:text-gray-300 text-sm font-medium leading-normal">Ajuda e Suporte</p>
+          <a class="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+            href="#">
+            <span class="material-symbols-outlined text-gray-800 dark:text-gray-200">help</span>
+            <p class="text-sm font-medium leading-normal">Ajuda e Suporte</p>
           </a>
-          <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-            href="configuracoes.html">
-            <span class="material-symbols-outlined text-[#0d121b] dark:text-gray-300">settings</span>
-            <p class="text-[#0d121b] dark:text-gray-300 text-sm font-medium leading-normal">Configurações</p>
+          <a class="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+            href="#">
+            <span class="material-symbols-outlined text-gray-800 dark:text-gray-200">settings</span>
+            <p class="text-sm font-medium leading-normal">Configurações</p>
           </a>
-          <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" href="#"
-            onclick="signOut()">
-            <span class="material-symbols-outlined text-[#0d121b] dark:text-gray-300">logout</span>
-            <p class="text-[#0d121b] dark:text-gray-300 text-sm font-medium leading-normal">Sair</p>
+          <a class="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+            href="logout">
+            <span class="material-symbols-outlined text-gray-800 dark:text-gray-200">logout</span>
+            <p class="text-sm font-medium leading-normal">Sair</p>
           </a>
         </div>
       </div>
@@ -133,7 +115,7 @@
             <div class="flex items-center gap-2 text-sm text-gray-500 mb-1">
               <span>Projetos</span>
               <span class="material-symbols-outlined text-sm">chevron_right</span>
-
+              
             </div>
             <h1 class="text-2xl font-bold text-[#0d121b] dark:text-white">Quadro de Tarefas</h1>
           </div>

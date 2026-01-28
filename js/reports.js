@@ -20,7 +20,7 @@ async function initReportFilters() {
 
 
     // Load Projects
-    allProjectsForReport = await fetchProjects();
+    allProjectsForReport = await fetchProjectSummaries();
     populateProjectSelect(allProjectsForReport);
 
     // Filter Listeners
@@ -183,7 +183,8 @@ async function loadReportsData() {
     tableBody.innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center">Carregando dados...</td></tr>';
 
     try {
-        const projects = await fetchProjects();
+
+        const projects = await fetchProjectSummaries();
         const tasks = await fetchTasks();
 
         // ... (rest of logic same until render) ...
@@ -191,13 +192,8 @@ async function loadReportsData() {
         reportData = [];
 
         for (const project of projects) {
-            // Fetch items for this project
-            const items = await fetchProjectItems(project.id);
-
-            // Calculate Total Value
-            const totalValue = items.reduce((sum, item) => {
-                return sum + (parseFloat(item.value || 0) * parseFloat(item.quantity || 1));
-            }, 0);
+            // Optimized: Use Pre-calculated Total Cost from View
+            const totalValue = parseFloat(project.total_cost || 0);
 
             // Filter tasks for this project
             const projectTasks = tasks.filter(t => t.project_id === project.id);
@@ -229,7 +225,7 @@ async function loadReportsData() {
 
             reportData.push({
                 projectName: project.name,
-                lead: project.lead ? project.lead.name : 'N/A',
+                lead: project.lead_name || 'N/A',
                 status: project.status,
                 budget: budget,
                 totalValue: totalValue, // Custo Real

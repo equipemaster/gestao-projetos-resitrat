@@ -3,9 +3,9 @@
 
 <head>
   <meta charset="utf-8" />
-  <link href="./logoresitrat.png" rel="icon" type="image/png" />
+  <link href="./favicon.svg" rel="icon" type="image/svg+xml" />
   <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-  <title>Dashboard - Resitrat</title>
+  <title>Dashboard - ProjectFlow</title>
   <meta content="light" name="color-scheme" />
   <meta content="" name="description" />
   <script src="https://cdn.tailwindcss.com"></script>
@@ -40,7 +40,6 @@
   <script src="js/supabaseClient.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/api.js" defer></script>
-  <script src="js/project_modal_shared.js" defer></script>
   <script src="js/dashboard.js" defer></script>
 </head>
 
@@ -49,15 +48,12 @@
   <div class="flex h-screen w-full">
     <!-- Sidebar -->
     <aside
-      class="w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark flex-shrink-0 flex flex-col h-full">
-      <div class="p-6 pb-0">
+      class="w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark flex-shrink-0 flex flex-col justify-between">
+      <div class="p-6">
         <div class="flex items-center gap-3">
           <img src="logoresitrat.png" alt="Logo" class="h-12 w-auto object-contain">
         </div>
-      </div>
-
-      <div class="flex-1 overflow-y-auto px-6 py-4">
-        <nav class="space-y-1">
+        <nav class="mt-8 space-y-1">
           <a class="flex items-center gap-3 rounded-lg bg-primary/10 px-3 py-2 text-primary"
             href="gerenciamentodeprojetos.html">
             <span class="material-symbols-outlined fill-1">dashboard</span>
@@ -72,21 +68,6 @@
             href="itens_projeto.html">
             <span class="material-symbols-outlined">inventory_2</span>
             <p class="text-sm font-medium leading-normal">Itens do Projeto</p>
-          </a>
-          <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-            href="saida_estoque.html">
-            <span class="material-symbols-outlined fill-1">output</span>
-            <p class="text-sm font-medium leading-normal">Saída de Estoque</p>
-          </a>
-          <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-            href="clientes.html">
-            <span class="material-symbols-outlined">person_add</span>
-            <p class="text-sm font-medium leading-normal">Clientes</p>
-          </a>
-          <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-            href="dashboard_custos.html">
-            <span class="material-symbols-outlined">attach_money</span>
-            <p class="text-sm font-medium leading-normal">Custos por Cliente</p>
           </a>
           <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
             href="tarefas.html">
@@ -109,17 +90,17 @@
       <div class="p-6 border-t border-gray-200 dark:border-gray-800">
         <div class="space-y-1">
           <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-            href="ajuda.html">
+            href="#">
             <span class="material-symbols-outlined">help</span>
             <p class="text-sm font-medium leading-normal">Ajuda e Suporte</p>
           </a>
           <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-            href="configuracoes.html">
+            href="#">
             <span class="material-symbols-outlined">settings</span>
             <p class="text-sm font-medium leading-normal">Configurações</p>
           </a>
           <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-            href="#" onclick="signOut()">
+            href="logout">
             <span class="material-symbols-outlined">logout</span>
             <p class="text-sm font-medium leading-normal">Sair</p>
           </a>
@@ -137,7 +118,7 @@
             <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
               <span class="material-symbols-outlined text-lg">search</span>
             </span>
-            <input id="headerSearch"
+            <input
               class="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 py-2 pl-10 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:text-white"
               placeholder="Pesquisar projetos, tarefas..." type="text" />
           </div>
@@ -158,7 +139,9 @@
               <div class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 text-center">Nenhuma notificação nova</div>
             </div>
           </div>
-
+          <div
+            class="size-8 rounded-full bg-gray-200 dark:bg-gray-700 bg-[url('https://cdn.usegalileo.ai/sdxl10/6879854a-7145-420d-856c-04b341c2c366.png')] bg-cover bg-center ring-2 ring-white dark:ring-gray-800">
+          </div>
         </div>
       </header>
 
@@ -248,39 +231,13 @@
 
         <!-- Main Table -->
         <div class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark shadow-sm">
-          <div
-            class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800 flex-wrap gap-4">
+          <div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800">
             <h2 class="text-lg font-bold text-[#0d121b] dark:text-white">Visão Geral dos Projetos</h2>
-
-            <div class="flex items-center gap-3 flex-1 justify-end">
-              <div class="relative max-w-xs w-full">
-                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                  <span class="material-symbols-outlined text-lg">search</span>
-                </span>
-                <input type="text" id="dashboardSearch" placeholder="Filtrar projetos..."
-                  class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 focus:ring-1 focus:ring-primary focus:border-primary text-sm">
-              </div>
-
-              <div class="relative">
-                <select id="dashboardStatusFilter"
-                  class="appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg py-2 pl-4 pr-10 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
-                  <option value="All">Status: Todos</option>
-                  <option value="In Progress">Em Andamento</option>
-                  <option value="On Hold">Em Espera</option>
-                  <option value="Completed">Concluído</option>
-                </select>
-                <div
-                  class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
-                  <span class="material-symbols-outlined text-lg">arrow_drop_down</span>
-                </div>
-              </div>
-
-              <button onclick="openNewProjectModal()"
-                class="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors whitespace-nowrap">
-                <span class="material-symbols-outlined text-lg">add</span>
-                Novo Projeto
-              </button>
-            </div>
+            <button onclick="openNewProjectModal()"
+              class="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors">
+              <span class="material-symbols-outlined text-lg">add</span>
+              Novo Projeto
+            </button>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full">

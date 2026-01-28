@@ -46,6 +46,7 @@ window.formatDate = formatDate;
 
 // ... (rest of the API functions)
 
+
 async function fetchProjects() {
     try {
         const { data, error } = await _supabase
@@ -58,6 +59,20 @@ async function fetchProjects() {
         return data;
     } catch (error) {
         console.error('Error fetching projects:', error.message);
+        return [];
+    }
+}
+
+async function fetchProjectSummaries() {
+    try {
+        const { data, error } = await _supabase
+            .from('project_summaries')
+            .select('*')
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Error fetching project summaries:', error.message);
         return [];
     }
 }

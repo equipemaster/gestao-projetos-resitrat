@@ -3,9 +3,9 @@
 
 <head>
   <meta charset="utf-8" />
-  <link href="./logoresitrat.png" rel="icon" type="image/png" />
+  <link href="./favicon.svg" rel="icon" type="image/svg+xml" />
   <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-  <title>Membros - Resitrat</title>
+  <title>Membros - ProjectFlow</title>
   <meta content="light" name="color-scheme" />
   <meta content="" name="description" />
   <script src="https://cdn.tailwindcss.com"></script>
@@ -48,15 +48,12 @@
   <div class="flex h-screen w-full">
     <!-- Sidebar -->
     <aside
-      class="w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark flex-shrink-0 flex flex-col h-full">
-      <div class="p-6 pb-0">
+      class="w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark flex-shrink-0 flex flex-col justify-between">
+      <div class="p-6">
         <div class="flex items-center gap-3">
           <img src="logoresitrat.png" alt="Logo" class="h-12 w-auto object-contain">
         </div>
-      </div>
-
-      <div class="flex-1 overflow-y-auto px-6 py-4">
-        <nav class="space-y-1">
+        <nav class="mt-8 space-y-1">
           <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
             href="gerenciamentodeprojetos.html">
             <span class="material-symbols-outlined">dashboard</span>
@@ -71,21 +68,6 @@
             href="itens_projeto.html">
             <span class="material-symbols-outlined">inventory_2</span>
             <p class="text-sm font-medium leading-normal">Itens do Projeto</p>
-          </a>
-          <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-            href="saida_estoque.html">
-            <span class="material-symbols-outlined">output</span>
-            <p class="text-sm font-medium leading-normal">Saída de Estoque</p>
-          </a>
-          <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-            href="clientes.html">
-            <span class="material-symbols-outlined">person_add</span>
-            <p class="text-sm font-medium leading-normal">Clientes</p>
-          </a>
-          <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-            href="dashboard_custos.html">
-            <span class="material-symbols-outlined">attach_money</span>
-            <p class="text-sm font-medium leading-normal">Custos por Cliente</p>
           </a>
           <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
             href="tarefas.html">
@@ -106,20 +88,20 @@
 
       <div class="p-6 border-t border-gray-200 dark:border-gray-800">
         <div class="space-y-1">
-          <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-            href="ajuda.html">
-            <span class="material-symbols-outlined text-[#0d121b] dark:text-gray-300">help</span>
-            <p class="text-[#0d121b] dark:text-gray-300 text-sm font-medium leading-normal">Ajuda e Suporte</p>
+          <a class="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+            href="#">
+            <span class="material-symbols-outlined text-gray-800 dark:text-gray-200">help</span>
+            <p class="text-sm font-medium leading-normal">Ajuda e Suporte</p>
           </a>
-          <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-            href="configuracoes.html">
-            <span class="material-symbols-outlined text-[#0d121b] dark:text-gray-300">settings</span>
-            <p class="text-[#0d121b] dark:text-gray-300 text-sm font-medium leading-normal">Configurações</p>
+          <a class="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+            href="#">
+            <span class="material-symbols-outlined text-gray-800 dark:text-gray-200">settings</span>
+            <p class="text-sm font-medium leading-normal">Configurações</p>
           </a>
-          <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" href="#"
-            onclick="signOut()">
-            <span class="material-symbols-outlined text-[#0d121b] dark:text-gray-300">logout</span>
-            <p class="text-[#0d121b] dark:text-gray-300 text-sm font-medium leading-normal">Sair</p>
+          <a class="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+            href="logout">
+            <span class="material-symbols-outlined text-gray-800 dark:text-gray-200">logout</span>
+            <p class="text-sm font-medium leading-normal">Sair</p>
           </a>
         </div>
       </div>
@@ -149,52 +131,26 @@
               <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <span class="material-symbols-outlined text-gray-400">search</span>
               </div>
-              <input type="text" id="searchInput"
+              <input type="text"
                 class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg leading-5 bg-white dark:bg-gray-700 placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:border-primary focus:ring-1 focus:ring-primary sm:text-sm dark:text-white"
                 placeholder="Pesquisar por nome ou e-mail">
             </div>
             <div class="flex gap-2 w-full lg:w-auto overflow-x-auto pb-2 lg:pb-0">
-              <div class="relative">
-                <select id="roleFilter"
-                  class="appearance-none pl-9 pr-8 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer">
-                  <option value="">Todas as Funções</option>
-                </select>
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span class="material-symbols-outlined text-gray-500 text-[20px]">filter_list</span>
-                </div>
-                <div class="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
-                  <span class="material-symbols-outlined text-gray-400 text-[20px]">expand_more</span>
-                </div>
-              </div>
-
-              <!-- Project Filter (Hidden for now as logic suggests no direct link yet, but kept structure) -->
-              <div class="relative hidden">
-                <select id="projectFilter"
-                  class="appearance-none pl-9 pr-8 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer">
-                  <option value="">Todos Projetos</option>
-                </select>
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span class="material-symbols-outlined text-gray-500 text-[20px]">work</span>
-                </div>
-                <div class="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
-                  <span class="material-symbols-outlined text-gray-400 text-[20px]">expand_more</span>
-                </div>
-              </div>
-
-              <div class="relative">
-                <select id="statusFilter"
-                  class="appearance-none pl-9 pr-8 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer">
-                  <option value="">Todos Status</option>
-                  <option value="Active">Ativo</option>
-                  <option value="Inactive">Inativo</option>
-                </select>
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span class="material-symbols-outlined text-gray-500 text-[20px]">toggle_on</span>
-                </div>
-                <div class="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
-                  <span class="material-symbols-outlined text-gray-400 text-[20px]">expand_more</span>
-                </div>
-              </div>
+              <button
+                class="flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap">
+                <span class="material-symbols-outlined text-gray-500 mr-2">filter_list</span>
+                Função: Todas
+              </button>
+              <button
+                class="flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap">
+                <span class="material-symbols-outlined text-gray-500 mr-2">work</span>
+                Projeto
+              </button>
+              <button
+                class="flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap">
+                <span class="material-symbols-outlined text-gray-500 mr-2">toggle_on</span>
+                Status
+              </button>
             </div>
           </div>
 
@@ -241,8 +197,8 @@
             <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
               <div>
                 <p class="text-sm text-gray-700 dark:text-gray-300">
-                  Mostrando <span id="showingStart" class="font-medium">1</span> de <span id="showingEnd"
-                    class="font-medium">5</span> de <span id="totalResults" class="font-medium">5</span> resultados
+                  Mostrando <span class="font-medium">1</span> de <span class="font-medium">5</span> de <span
+                    class="font-medium">5</span> resultados
                 </p>
               </div>
               <div>
