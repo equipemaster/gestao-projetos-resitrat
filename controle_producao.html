@@ -161,6 +161,33 @@
             </header>
 
             <div class="flex-1 overflow-x-auto p-8">
+                <!-- Toolbar -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sticky left-0">
+                    <div class="relative flex-1 max-w-md">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                            <span class="material-symbols-outlined text-lg">search</span>
+                        </span>
+                        <input type="text" id="searchInput" placeholder="Pesquisar ordens..."
+                            class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 focus:ring-1 focus:ring-primary focus:border-primary text-sm shadow-sm">
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <select id="filterPriority" onchange="filterOrders()"
+                            class="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-primary focus:border-primary shadow-sm cursor-pointer">
+                            <option value="All">Prioridade: Todas</option>
+                            <option value="Low">Baixa</option>
+                            <option value="Medium">Média</option>
+                            <option value="High">Alta</option>
+                            <option value="Urgent">Urgente</option>
+                        </select>
+                        <select id="sortBy" onchange="sortOrders()"
+                            class="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-primary focus:border-primary shadow-sm cursor-pointer">
+                            <option value="created_desc">Mais Recentes</option>
+                            <option value="created_asc">Mais Antigas</option>
+                            <option value="due_date">Prazo (Próximos)</option>
+                            <option value="priority">Prioridade (Alta -> Baixa)</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="flex gap-6 h-full min-w-max">
 
                     <!-- Column: Planejamento -->

@@ -42,6 +42,12 @@ function setupProjectModal() {
                                 </select>
                             </div>
                             <div>
+                                <label for="p-client" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Cliente</label>
+                                <select id="p-client" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring focus:ring-primary/50 dark:bg-gray-700 dark:text-white sm:text-sm">
+                                    <option value="">Selecione um cliente...</option>
+                                </select>
+                            </div>
+                            <div>
                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Detalhamento Financeiro</label>
                                 <div class="grid grid-cols-2 gap-4 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
                                     <div>
@@ -169,6 +175,7 @@ window.openNewProjectModal = () => {
     document.getElementById('p-code').value = '';
     document.getElementById('p-name').value = '';
     document.getElementById('p-status').value = 'In Progress';
+    document.getElementById('p-client').value = ''; // Reset client
     document.getElementById('p-budget').value = '';
 
     // Reset detailed budgets
@@ -182,13 +189,14 @@ window.openNewProjectModal = () => {
     dueInput.disabled = false;
 
     document.getElementById('project-modal').classList.remove('hidden');
+    loadClientsForModal();
 }
 
 window.closeModal = () => {
     document.getElementById('project-modal').classList.add('hidden');
 }
 
-window.editProject = (id) => {
+window.editProject = async (id) => {
     editingProjectId = id;
 
     // Abstract retrieval to support different page contexts
@@ -197,18 +205,27 @@ window.editProject = (id) => {
         project = window.getProjectById(id);
     }
 
-    // If not found in memory (unlikely if triggered from UI), we could fetch it, 
-    // but for now assume data integrity in UI.
+    // If not found, try to fetch it if API available (fallback) or error
+    if (!project && typeof _supabase !== 'undefined') {
+        try {
+            const { data } = await _supabase.from('projects').select('*').eq('id', id).single();
+            project = data;
+        } catch (e) { console.error(e); }
+    }
+
 
     if (!project) {
         console.error('Project not found for editing:', id);
         return;
     }
 
+    await loadClientsForModal();
+
     document.getElementById('modal-title').textContent = 'Editar Projeto';
     document.getElementById('p-code').value = project.code || '';
     document.getElementById('p-name').value = project.name;
     document.getElementById('p-status').value = project.status;
+    document.getElementById('p-client').value = project.client_id || '';
     document.getElementById('p-budget').value = project.budget_goal || '';
 
     // Load detailed budgets
@@ -229,6 +246,23 @@ window.editProject = (id) => {
     document.getElementById('project-modal').classList.remove('hidden');
 }
 
+async function loadClientsForModal() {
+    const select = document.getElementById('p-client');
+    if (select.options.length > 1) return; // Already loaded
+
+    try {
+        const clients = await fetchClients(); // Assumes api.js is available
+        clients.forEach(client => {
+            const option = document.createElement('option');
+            option.value = client.id;
+            option.textContent = client.name;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading clients for modal:', error);
+    }
+}
+
 window.saveProject = async () => {
     const code = document.getElementById('p-code').value;
     const name = document.getElementById('p-name').value;
@@ -246,6 +280,7 @@ window.saveProject = async () => {
     const budget_terceiros = document.getElementById('p-budget-terceiros').value || null;
     const budget_frete = document.getElementById('p-budget-frete').value || null;
     const budget_eletrolise = document.getElementById('p-budget-eletrolise').value || null;
+    const clientId = document.getElementById('p-client').value || null;
 
     if (!name) {
         alert('O Nome do Projeto é obrigatório');
@@ -256,6 +291,7 @@ window.saveProject = async () => {
         code,
         name,
         status,
+        client_id: clientId,
         due_date: dueDate || null,
         budget_goal: budget || null,
         budget_reservatorios,

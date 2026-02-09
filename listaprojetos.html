@@ -149,20 +149,25 @@
               <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
                 <span class="material-symbols-outlined text-lg">search</span>
               </span>
-              <input type="text" placeholder="Pesquisar projetos..."
+              <input type="text" id="projectSearch" placeholder="Pesquisar projetos..."
                 class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 focus:ring-1 focus:ring-primary focus:border-primary text-sm">
             </div>
             <div class="flex items-center gap-3">
-              <button
-                class="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
-                <span class="material-symbols-outlined text-lg">filter_list</span>
-                Status: Todos
-              </button>
-              <button
-                class="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
-                <span class="material-symbols-outlined text-lg">sort</span>
-                Ordenar por: Prazo
-              </button>
+              <select id="projectStatusFilter" onchange="filterProjects()"
+                class="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-primary focus:border-primary cursor-pointer shadow-sm">
+                <option value="All">Status: Todos</option>
+                <option value="Em Andamento">Em Andamento</option>
+                <option value="Concluído">Concluído</option>
+                <option value="Atrasado">Atrasado</option>
+                <option value="Cancelado">Cancelado</option>
+              </select>
+              <select id="projectSort" onchange="sortProjects()"
+                class="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-primary focus:border-primary cursor-pointer shadow-sm">
+                <option value="deadline">Ordenar por: Prazo</option>
+                <option value="created_desc">Mais Recentes</option>
+                <option value="created_asc">Mais Antigos</option>
+                <option value="name">Nome (A-Z)</option>
+              </select>
             </div>
           </div>
 

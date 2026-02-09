@@ -105,15 +105,66 @@ async function loadProductionOrders() {
         if (error) throw error;
 
         productionOrders = data;
-        renderKanbanBoard();
+        applyFiltersAndRender(); // Changed to use filter logic
 
     } catch (error) {
         console.error('Error loading production orders:', error);
-        // alert('Erro ao carregar ordens de produção');
     }
 }
 
-function renderKanbanBoard() {
+// Filter and Sort Logic
+let filteredOrders = [];
+
+window.filterOrders = () => {
+    applyFiltersAndRender();
+}
+
+window.sortOrders = () => {
+    applyFiltersAndRender();
+}
+
+document.getElementById('searchInput').addEventListener('input', (e) => {
+    applyFiltersAndRender();
+});
+
+function applyFiltersAndRender() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const priorityFilter = document.getElementById('filterPriority').value;
+    const sortBy = document.getElementById('sortBy').value;
+
+    filteredOrders = productionOrders.filter(order => {
+        const matchesSearch = (order.title && order.title.toLowerCase().includes(searchTerm)) ||
+            (order.description && order.description.toLowerCase().includes(searchTerm)) ||
+            (projectsMap[order.project_id] && projectsMap[order.project_id].toLowerCase().includes(searchTerm));
+
+        const matchesPriority = priorityFilter === 'All' || order.priority === priorityFilter;
+
+        return matchesSearch && matchesPriority;
+    });
+
+    // Sort
+    filteredOrders.sort((a, b) => {
+        switch (sortBy) {
+            case 'created_desc':
+                return new Date(b.created_at) - new Date(a.created_at);
+            case 'created_asc':
+                return new Date(a.created_at) - new Date(b.created_at);
+            case 'due_date':
+                if (!a.due_date) return 1;
+                if (!b.due_date) return -1;
+                return new Date(a.due_date) - new Date(b.due_date);
+            case 'priority':
+                const pMap = { 'Urgent': 4, 'High': 3, 'Medium': 2, 'Low': 1 };
+                return (pMap[b.priority] || 0) - (pMap[a.priority] || 0);
+            default:
+                return 0;
+        }
+    });
+
+    renderKanbanBoard(filteredOrders);
+}
+
+function renderKanbanBoard(ordersToRender = productionOrders) {
     // Clear all columns
     const columns = [
         'Planning', 'Cutting', 'Welding', 'Assembly',
@@ -129,7 +180,7 @@ function renderKanbanBoard() {
 
     const counts = {};
 
-    productionOrders.forEach(order => {
+    ordersToRender.forEach(order => {
         const colId = order.status.toLowerCase().replace(' ', '_');
         const container = document.getElementById(`col-${colId}`);
 
@@ -137,14 +188,15 @@ function renderKanbanBoard() {
             const card = createCardElement(order);
             container.appendChild(card);
 
+            // Increment specific column count
             counts[colId] = (counts[colId] || 0) + 1;
         }
     });
 
-    // Update UI counts
-    Object.keys(counts).forEach(key => {
-        const badge = document.getElementById(`count-${key}`);
-        if (badge) badge.textContent = counts[key];
+    // Update UI counts (Note: this only counts visible items now, which is correct for filters)
+    columns.forEach(col => {
+        const colId = col.toLowerCase().replace(' ', '_');
+        document.getElementById(`count-${colId}`).textContent = counts[colId] || 0;
     });
 }
 

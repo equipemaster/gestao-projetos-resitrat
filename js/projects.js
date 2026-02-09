@@ -1,99 +1,122 @@
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Projects list loading...');
     await loadProjectsList();
-    setupProjectModal();
-    setupDeleteModal();
 
-    // Setup search listener
-    const searchInput = document.getElementById('searchInput');
+    // Setup search and filter listeners
+    const searchInput = document.getElementById('projectSearch');
     if (searchInput) {
         searchInput.addEventListener('input', filterProjects);
     }
 
-    // Initial sort state
-    updateSortButton();
+    // Initial sort/filter application if elements exist
+    if (document.getElementById('projectSearch')) {
+        filterProjects();
+    }
 });
 
-let sortDateAsc = true; // Default sort: Ascending (Earliest first)
+let currentProjects = [];
+let allProjects = []; // Store original full list
 
+async function loadProjectsList() {
+    try {
+        const { data: projects, error } = await _supabase
+            .from('projects')
+            .select(`
+                *,
+                lead:users!projects_lead_id_fkey(avatar_url, name)
+            `)
+            .order('created_at', { ascending: false });
 
-function filterProjects() {
-    const statusFilter = document.getElementById('statusFilter').value;
-    const searchInput = document.getElementById('searchInput');
-    const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+        if (error) throw error;
 
-    let filtered = currentProjects.filter(project => {
+        // Fetch Clients Lookup
+        const { data: clientsData } = await _supabase.from('clients').select('id, name');
+        const clientsMap = {};
+        if (clientsData) {
+            clientsData.forEach(c => clientsMap[c.id] = c.name);
+        }
+
+        // Calculate progress and attach client name
+        allProjects = await Promise.all(projects.map(async (p) => {
+            const { data: tasks } = await _supabase.from('tasks').select('status').eq('project_id', p.id);
+            let progress = 0;
+            if (tasks && tasks.length > 0) {
+                const completed = tasks.filter(t => t.status === 'Done' || t.status === 'Completed').length;
+                progress = Math.round((completed / tasks.length) * 100);
+            }
+
+            // Map Client Name
+            const resolvedClientName = p.client_id && clientsMap[p.client_id] ? clientsMap[p.client_id] : null;
+
+            return {
+                ...p,
+                computedProgress: progress,
+                client_name: resolvedClientName // Override/Set client_name for display
+            };
+        }));
+
+        currentProjects = [...allProjects];
+        filterProjects();
+
+    } catch (error) {
+        console.error('Error loading projects:', error);
+        // alert('Erro ao carregar projetos: ' + error.message);
+    }
+}
+
+window.filterProjects = () => {
+    const searchTerm = document.getElementById('projectSearch')?.value.toLowerCase() || '';
+    const statusFilter = document.getElementById('projectStatusFilter')?.value || 'All';
+    const sortBy = document.getElementById('projectSort')?.value || 'created_desc';
+
+    let filtered = allProjects.filter(project => {
         // Status Filter
-        const matchesStatus = statusFilter === 'All' || project.status === statusFilter;
+        // Map database status to filter values if necessary, or ensure they match
+        // DB statuses: 'In Progress', 'Completed', 'On Hold', 'Cancelled'
+        // Filter values: 'Em Andamento', 'Concluído', 'Atrasado', 'Cancelado'
 
-        // Search Filter (Code or Name)
+        let statusMatch = true;
+        if (statusFilter !== 'All') {
+            const statusMap = {
+                'Em Andamento': 'In Progress',
+                'Concluído': 'Completed',
+                'Atrasado': 'On Hold', // Assuming 'On Hold' maps to 'Atrasado' concept or 'Late'
+                'Cancelado': 'Cancelled'
+            };
+            // Check if project status matches the mapped filter value
+            statusMatch = project.status === statusMap[statusFilter];
+        }
+
+        // Search Filter (Name or Client)
         const matchesSearch = (project.name && project.name.toLowerCase().includes(searchTerm)) ||
-            (project.code && project.code.toLowerCase().includes(searchTerm));
+            (project.client_name && project.client_name.toLowerCase().includes(searchTerm));
 
-        return matchesStatus && matchesSearch;
+        return statusMatch && matchesSearch;
     });
 
     // Sort logic
     filtered.sort((a, b) => {
-        const dateA = new Date(a.due_date || '9999-12-31'); // Push no-date to end if ASC
-        const dateB = new Date(b.due_date || '9999-12-31');
-
-        if (sortDateAsc) {
-            return dateA - dateB;
-        } else {
-            return dateB - dateA;
+        switch (sortBy) {
+            case 'deadline':
+                if (!a.deadline) return 1;
+                if (!b.deadline) return -1;
+                return new Date(a.deadline) - new Date(b.deadline);
+            case 'created_desc':
+                return new Date(b.created_at) - new Date(a.created_at);
+            case 'created_asc':
+                return new Date(a.created_at) - new Date(b.created_at);
+            case 'name':
+                return (a.name || '').localeCompare(b.name || '');
+            default:
+                return 0;
         }
     });
 
     renderProjectsTable(filtered);
 }
 
-// Hook for shared modal
-window.getProjectById = (id) => {
-    return currentProjects.find(p => p.id === id);
-};
-
-window.addEventListener('project-saved', async () => {
-    await loadProjectsList();
-});
-
-window.toggleSortDate = () => {
-    sortDateAsc = !sortDateAsc;
-    updateSortButton();
+window.sortProjects = () => {
     filterProjects();
-}
-
-function updateSortButton() {
-    const btn = document.getElementById('sortDateBtn');
-    if (btn) {
-        // Keep icon, update text
-        btn.innerHTML = `
-            <span class="material-symbols-outlined text-lg">sort</span>
-            Ordenar por: Prazo (${sortDateAsc ? '↑' : '↓'})
-        `;
-    }
-}
-
-let currentProjects = [];
-
-
-async function loadProjectsList() {
-    const projects = await fetchProjects();
-
-    // Enrich projects with progress calculated from tasks
-    // Ideally do this in a smarter query, but loop is fine for restricted scope
-    currentProjects = await Promise.all(projects.map(async (p) => {
-        // Using _supabase global to fetch tasks for progress calc
-        const { data: tasks } = await _supabase.from('tasks').select('status').eq('project_id', p.id);
-        let progress = 0;
-        if (tasks && tasks.length > 0) {
-            const completed = tasks.filter(t => t.status === 'Done' || t.status === 'Completed').length;
-            progress = Math.round((completed / tasks.length) * 100);
-        }
-        return { ...p, computedProgress: progress };
-    }));
-
-    renderProjectsTable(currentProjects);
 }
 
 function renderProjectsTable(projects) {
@@ -102,51 +125,47 @@ function renderProjectsTable(projects) {
     tableBody.innerHTML = '';
 
     projects.forEach(project => {
-        const leadAvatar = project.lead ? `<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-8 ring-2 ring-white dark:ring-gray-900/50" style='background-image: url("${project.lead.avatar_url}");'></div>` : '';
-
         // Translate Status for Display
         let displayStatus = project.status;
         let statusBadgeClass = '';
-        switch (project.status) {
-            case 'In Progress':
-                displayStatus = 'Em Andamento';
-                statusBadgeClass = 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-                break;
-            case 'Completed':
-                displayStatus = 'Concluído';
-                statusBadgeClass = 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-                break;
-            case 'On Hold':
-                displayStatus = 'Em Espera';
-                statusBadgeClass = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-                break;
-            default:
-                statusBadgeClass = 'bg-gray-100 text-gray-800';
+
+        // Ensure strictly matched cases
+        if (project.status === 'In Progress') {
+            displayStatus = 'Em Andamento';
+            statusBadgeClass = 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+        } else if (project.status === 'Completed') {
+            displayStatus = 'Concluído';
+            statusBadgeClass = 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
+        } else if (project.status === 'On Hold') {
+            displayStatus = 'Em Espera';
+            statusBadgeClass = 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300';
+        } else if (project.status === 'Cancelled') {
+            displayStatus = 'Cancelado';
+            statusBadgeClass = 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+        } else {
+            statusBadgeClass = 'bg-gray-100 text-gray-700';
         }
 
-        // Use computed progress
         const progressVal = project.computedProgress !== undefined ? project.computedProgress : 0;
 
         const row = document.createElement('tr');
         row.className = "hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors";
         row.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap text-[#0d121b] dark:text-white text-sm font-medium font-mono">${project.code || '-'}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-[#0d121b] dark:text-white text-sm font-medium">${project.name}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">#${(project.code || project.id).slice(0, 6)}</td>
             <td class="px-6 py-4 whitespace-nowrap">
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusBadgeClass}">${displayStatus}</span>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap">
-                <div class="flex -space-x-2">
-                    ${leadAvatar}
+                <div class="flex flex-col">
+                    <span class="text-sm font-medium text-gray-900 dark:text-white">${project.name}</span>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">${project.client_name || 'Sem cliente'}</span>
                 </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
-                <div class="flex items-center gap-3">
-                    <div class="w-24 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700 h-2"><div class="h-2 rounded-full bg-primary" style="width: ${progressVal}%;"></div></div>
-                    <p class="text-[#0d121b] dark:text-gray-300 text-sm font-medium leading-normal">${progressVal}%</p>
-                </div>
+                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusBadgeClass}">
+                    ${displayStatus}
+                </span>
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-[#4c669a] dark:text-gray-400 text-sm">${formatDate(project.due_date)}</td>
+            <td class="px-6 py-4 whitespace-nowrap">
+                ${project.deadline ? new Date(project.deadline).toLocaleDateString('pt-BR') : '-'}
+            </td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div class="flex items-center justify-end gap-2">
                     <button class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300" onclick="editProject('${project.id}')"><span class="material-symbols-outlined">edit</span></button>
@@ -158,4 +177,10 @@ function renderProjectsTable(projects) {
     });
 }
 
-// Modal logic is now handled by js/project_modal_shared.js
+// Ensure global access for listeners if needed
+window.loadProjectsList = loadProjectsList;
+
+// Provide helper for shared modal
+window.getProjectById = (id) => {
+    return allProjects.find(p => p.id === id);
+};
