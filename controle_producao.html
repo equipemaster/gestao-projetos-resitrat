@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-BR">
+
+<head>
+    <meta charset="utf-8" />
+    <link href="./favicon.svg" rel="icon" type="image/svg+xml" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Controle de Produção - ProjectFlow</title>
+    <meta content="light" name="color-scheme" />
+    <meta content="" name="description" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+        rel="stylesheet" />
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#135bec",
+                        text: {
+                            light: { primary: "#0d121b", secondary: "#526071", tertiary: "#8292a2" },
+                            dark: { primary: "#ffffff", secondary: "#9ca3af", tertiary: "#6b7280" }
+                        },
+                        background: {
+                            light: "#f6f6f8", dark: "#101622"
+                        }
+                    },
+                    fontFamily: {
+                        sans: ["Inter", "sans-serif"]
+                    }
+                }
+            }
+        };
+    </script>
+    <!-- Supabase and Auth Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script src="js/supabaseClient.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/production.js" defer></script>
+    <style>
+        /* Custom Scrollbar for Kanban Columns */
+        .kanban-col::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .kanban-col::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .kanban-col::-webkit-scrollbar-thumb {
+            background-color: rgba(156, 163, 175, 0.5);
+            border-radius: 20px;
+        }
+    </style>
+</head>
+
+<body
+    class="bg-background-light dark:bg-background-dark text-text-light-primary dark:text-text-dark-primary font-sans antialiased overflow-hidden">
+    <div class="flex h-screen w-full">
+        <!-- Sidebar -->
+        <aside
+            class="w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark flex-shrink-0 flex flex-col justify-between">
+            <div class="p-6">
+                <div class="flex items-center gap-3">
+                    <img src="logoresitrat.png" alt="Logo" class="h-12 w-auto object-contain">
+                </div>
+                <nav class="mt-8 space-y-1">
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="gerenciamentodeprojetos.html">
+                        <span class="material-symbols-outlined">dashboard</span>
+                        <p class="text-sm font-medium leading-normal">Dashboard</p>
+                    </a>
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="listaprojetos.html">
+                        <span class="material-symbols-outlined">folder</span>
+                        <p class="text-sm font-medium leading-normal">Projetos</p>
+                    </a>
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="itens_projeto.html">
+                        <span class="material-symbols-outlined">inventory_2</span>
+                        <p class="text-sm font-medium leading-normal">Itens do Projeto</p>
+                    </a>
+                    <a class="flex items-center gap-3 rounded-lg bg-primary/10 px-3 py-2 text-primary"
+                        href="controle_producao.html">
+                        <span class="material-symbols-outlined fill-1">factory</span>
+                        <p class="text-sm font-medium leading-normal">Controle de Produção</p>
+                    </a>
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="saida_estoque.html">
+                        <span class="material-symbols-outlined">output</span>
+                        <p class="text-sm font-medium leading-normal">Saída de Estoque</p>
+                    </a>
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="clientes.html">
+                        <span class="material-symbols-outlined">person_add</span>
+                        <p class="text-sm font-medium leading-normal">Clientes</p>
+                    </a>
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="dashboard_custos.html">
+                        <span class="material-symbols-outlined">attach_money</span>
+                        <p class="text-sm font-medium leading-normal">Custos por Cliente</p>
+                    </a>
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="tarefas.html">
+                        <span class="material-symbols-outlined">check_circle</span>
+                        <p class="text-sm font-medium leading-normal">Tarefas</p>
+                    </a>
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="membros.html">
+                        <span class="material-symbols-outlined">groups</span>
+                        <p class="text-sm font-medium leading-normal">Equipe</p>
+                    </a>
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="relatorios.html">
+                        <span class="material-symbols-outlined">bar_chart</span>
+                        <p class="text-sm font-medium leading-normal">Relatórios</p>
+                    </a>
+
+                </nav>
+            </div>
+
+            <div class="p-6 border-t border-gray-200 dark:border-gray-800">
+                <div class="space-y-1">
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="#">
+                        <span class="material-symbols-outlined">help</span>
+                        <p class="text-sm font-medium leading-normal">Ajuda e Suporte</p>
+                    </a>
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="#">
+                        <span class="material-symbols-outlined">settings</span>
+                        <p class="text-sm font-medium leading-normal">Configurações</p>
+                    </a>
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="logout">
+                        <span class="material-symbols-outlined">logout</span>
+                        <p class="text-sm font-medium leading-normal">Sair</p>
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 min-w-0 overflow-hidden flex flex-col">
+            <header
+                class="flex items-center justify-between border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark px-8 py-4 flex-shrink-0">
+                <h1 class="text-2xl font-bold leading-tight text-[#0d121b] dark:text-white">Controle de Produção</h1>
+                <div class="flex items-center gap-6">
+                    <button onclick="openProductionModal()"
+                        class="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors">
+                        <span class="material-symbols-outlined text-lg">add</span>
+                        Nova Ordem
+                    </button>
+                    <div
+                        class="size-8 rounded-full bg-gray-200 dark:bg-gray-700 bg-[url('https://cdn.usegalileo.ai/sdxl10/6879854a-7145-420d-856c-04b341c2c366.png')] bg-cover bg-center ring-2 ring-white dark:ring-gray-800">
+                    </div>
+                </div>
+            </header>
+
+            <div class="flex-1 overflow-x-auto p-8">
+                <div class="flex gap-6 h-full min-w-max">
+
+                    <!-- Column: Planejamento -->
+                    <div
+                        class="w-80 flex flex-col bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 h-full">
+                        <div
+                            class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                            <h3 class="font-semibold text-gray-700 dark:text-gray-200">Planejamento</h3>
+                            <span
+                                class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs px-2 py-1 rounded-full"
+                                id="count-planning">0</span>
+                        </div>
+                        <div class="p-4 flex-1 overflow-y-auto space-y-3 kanban-col" id="col-planning"
+                            ondrop="drop(event, 'Planning')" ondragover="allowDrop(event)">
+                            <!-- Items go here -->
+                        </div>
+                    </div>
+
+                    <!-- Column: Corte -->
+                    <div
+                        class="w-80 flex flex-col bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 h-full">
+                        <div
+                            class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                            <h3 class="font-semibold text-gray-700 dark:text-gray-200">Corte</h3>
+                            <span
+                                class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs px-2 py-1 rounded-full"
+                                id="count-cutting">0</span>
+                        </div>
+                        <div class="p-4 flex-1 overflow-y-auto space-y-3 kanban-col" id="col-cutting"
+                            ondrop="drop(event, 'Cutting')" ondragover="allowDrop(event)">
+                            <!-- Items go here -->
+                        </div>
+                    </div>
+
+                    <!-- Column: Solda -->
+                    <div
+                        class="w-80 flex flex-col bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 h-full">
+                        <div
+                            class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                            <h3 class="font-semibold text-gray-700 dark:text-gray-200">Solda</h3>
+                            <span
+                                class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs px-2 py-1 rounded-full"
+                                id="count-welding">0</span>
+                        </div>
+                        <div class="p-4 flex-1 overflow-y-auto space-y-3 kanban-col" id="col-welding"
+                            ondrop="drop(event, 'Welding')" ondragover="allowDrop(event)">
+                            <!-- Items go here -->
+                        </div>
+                    </div>
+
+                    <!-- Column: Montagem -->
+                    <div
+                        class="w-80 flex flex-col bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 h-full">
+                        <div
+                            class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                            <h3 class="font-semibold text-gray-700 dark:text-gray-200">Montagem</h3>
+                            <span
+                                class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs px-2 py-1 rounded-full"
+                                id="count-assembly">0</span>
+                        </div>
+                        <div class="p-4 flex-1 overflow-y-auto space-y-3 kanban-col" id="col-assembly"
+                            ondrop="drop(event, 'Assembly')" ondragover="allowDrop(event)">
+                            <!-- Items go here -->
+                        </div>
+                    </div>
+
+                    <!-- Column: Acabamento -->
+                    <div
+                        class="w-80 flex flex-col bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 h-full">
+                        <div
+                            class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                            <h3 class="font-semibold text-gray-700 dark:text-gray-200">Acabamento</h3>
+                            <span
+                                class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs px-2 py-1 rounded-full"
+                                id="count-finishing">0</span>
+                        </div>
+                        <div class="p-4 flex-1 overflow-y-auto space-y-3 kanban-col" id="col-finishing"
+                            ondrop="drop(event, 'Finishing')" ondragover="allowDrop(event)">
+                            <!-- Items go here -->
+                        </div>
+                    </div>
+
+                    <!-- Column: Controle de Qualidade -->
+                    <div
+                        class="w-80 flex flex-col bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 h-full">
+                        <div
+                            class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                            <h3 class="font-semibold text-gray-700 dark:text-gray-200">Controle de Qualidade</h3>
+                            <span
+                                class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs px-2 py-1 rounded-full"
+                                id="count-quality_control">0</span>
+                        </div>
+                        <div class="p-4 flex-1 overflow-y-auto space-y-3 kanban-col" id="col-quality_control"
+                            ondrop="drop(event, 'Quality Control')" ondragover="allowDrop(event)">
+                            <!-- Items go here -->
+                        </div>
+                    </div>
+
+                    <!-- Column: Concluído -->
+                    <div
+                        class="w-80 flex flex-col bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 h-full">
+                        <div
+                            class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                            <h3 class="font-semibold text-green-700 dark:text-green-400">Concluído</h3>
+                            <span
+                                class="bg-green-200 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs px-2 py-1 rounded-full"
+                                id="count-completed">0</span>
+                        </div>
+                        <div class="p-4 flex-1 overflow-y-auto space-y-3 kanban-col" id="col-completed"
+                            ondrop="drop(event, 'Completed')" ondragover="allowDrop(event)">
+                            <!-- Items go here -->
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal for New Production Order -->
+    <div id="productionModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-lg w-full max-w-2xl p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-900 dark:text-white" id="modalTitle">Nova Ordem de Produção
+                </h3>
+                <button onclick="closeProductionModal()"
+                    class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+
+            <!-- Tabs -->
+            <div class="border-b border-gray-200 dark:border-gray-700 mb-4">
+                <nav class="-mb-px flex gap-6">
+                    <button onclick="switchTab('details')" id="tab-details"
+                        class="border-b-2 border-primary text-primary font-medium text-sm py-2 px-1 transition-colors">
+                        Detalhes
+                    </button>
+                    <button onclick="switchTab('logs')" id="tab-logs"
+                        class="border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 font-medium text-sm py-2 px-1 transition-colors">
+                        Apontamentos (Tempo/Material)
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Details Tab -->
+            <div id="content-details">
+                <form id="productionForm" class="space-y-4">
+                    <input type="hidden" id="orderId">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Título / Descrição do
+                            Item</label>
+                        <input type="text" id="orderTitle" required
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm p-2 border">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Projeto
+                                Vinculado</label>
+                            <select id="projectSelect"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm p-2 border">
+                                <option value="">Selecione...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Prioridade</label>
+                            <select id="prioritySelect"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm p-2 border">
+                                <option value="Low">Baixa</option>
+                                <option value="Medium" selected>Média</option>
+                                <option value="High">Alta</option>
+                                <option value="Urgent">Urgente</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Prazo
+                            (Entrega)</label>
+                        <input type="date" id="orderDueDate"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm p-2 border">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Detalhes /
+                            Observações</label>
+                        <textarea id="orderDescription" rows="3"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm p-2 border"></textarea>
+                    </div>
+                    <div class="flex justify-end gap-3 mt-6">
+                        <button type="button" onclick="closeProductionModal()"
+                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600">Cancelar</button>
+                        <button type="submit"
+                            class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md shadow-sm hover:bg-primary/90">Salvar
+                            Detalhes</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Logs Tab -->
+            <div id="content-logs" class="hidden space-y-4">
+                <!-- Log Entry Form -->
+                <div class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <h4 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Novo Apontamento</h4>
+                    <div class="grid grid-cols-12 gap-3">
+                        <div class="col-span-3">
+                            <label class="text-xs font-medium text-gray-500 dark:text-gray-400">Tipo</label>
+                            <select id="logType" onchange="toggleLogFields()"
+                                class="w-full text-sm rounded-md border-gray-300 dark:bg-gray-700 dark:border-gray-600 p-2 border focus:ring-primary focus:border-primary">
+                                <option value="TIME">Tempo (Mão de Obra)</option>
+                                <option value="MATERIAL">Material</option>
+                            </select>
+                        </div>
+                        <div class="col-span-5">
+                            <label class="text-xs font-medium text-gray-500 dark:text-gray-400">Descrição</label>
+                            <input type="text" id="logDescription" placeholder="Ex: Solda, Tubo PVC..."
+                                class="w-full text-sm rounded-md border-gray-300 dark:bg-gray-700 dark:border-gray-600 p-2 border focus:ring-primary focus:border-primary">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="text-xs font-medium text-gray-500 dark:text-gray-400">Qtd</label>
+                            <input type="number" id="logQty" step="0.01"
+                                class="w-full text-sm rounded-md border-gray-300 dark:bg-gray-700 dark:border-gray-600 p-2 border focus:ring-primary focus:border-primary">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="text-xs font-medium text-gray-500 dark:text-gray-400">Unid.</label>
+                            <select id="logUnit"
+                                class="w-full text-sm rounded-md border-gray-300 dark:bg-gray-700 dark:border-gray-600 p-2 border focus:ring-primary focus:border-primary">
+                                <option value="kg">kg</option>
+                                <option value="un">un</option>
+                                <option value="mt">mt</option>
+                            </select>
+                        </div>
+                        <div class="col-span-3">
+                            <label class="text-xs font-medium text-gray-500 dark:text-gray-400">Custo Unit. (R$)</label>
+                            <input type="number" id="logCost" step="0.01"
+                                class="w-full text-sm rounded-md border-gray-300 dark:bg-gray-700 dark:border-gray-600 p-2 border focus:ring-primary focus:border-primary">
+                        </div>
+                        <div class="col-span-3 flex items-center pt-4">
+                            <label
+                                class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                                <input type="checkbox" id="logIsWaste"
+                                    class="rounded border-gray-300 text-red-600 focus:ring-red-500 h-4 w-4">
+                                <span>É Perda/Sobras?</span>
+                            </label>
+                        </div>
+                        <div class="col-span-6 flex items-end">
+                            <button onclick="addLogEntry()"
+                                class="w-full bg-green-600 text-white text-sm font-medium py-2 rounded-md hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
+                                <span class="material-symbols-outlined text-sm">add_circle</span> Adicionar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Logs Table -->
+                <div class="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead class="bg-gray-50 dark:bg-gray-800">
+                            <tr>
+                                <th
+                                    class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                                    Tipo</th>
+                                <th
+                                    class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                                    Desc.</th>
+                                <th
+                                    class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                                    Qtd</th>
+                                <th
+                                    class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                                    Total (R$)</th>
+                                <th
+                                    class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsTableBody"
+                            class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
+                            <!-- JS populated -->
+                        </tbody>
+                        <tfoot class="bg-gray-50 dark:bg-gray-800 font-semibold">
+                            <tr>
+                                <td colspan="3" class="px-3 py-2 text-right text-sm text-gray-900 dark:text-white">Total
+                                    Geral:</td>
+                                <td class="px-3 py-2 text-right text-sm text-gray-900 dark:text-white"
+                                    id="totalCostDisplay">R$ 0,00</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>

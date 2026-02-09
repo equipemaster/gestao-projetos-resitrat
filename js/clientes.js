@@ -107,7 +107,7 @@ async function saveClient() {
         email: document.getElementById('c-email').value,
         phone: document.getElementById('c-phone').value,
         address: document.getElementById('c-address').value,
-        metas: document.getElementById('c-metas').value.replace(/,/g, '.')
+        metas: document.getElementById('c-metas').value
     };
 
     if (!clientData.name) {
