@@ -333,68 +333,271 @@ function setupExportButtons() {
 }
 
 function exportToXLS() {
-    if (!reportData || reportData.length === 0) {
-        alert('Não há dados para exportar.');
-        return;
+    const projectId = document.getElementById('report-project-select').value;
+
+    if (projectId) {
+        // Export Single Project Detail
+        const projectName = document.getElementById('report-project-select').selectedOptions[0].text;
+        const tbody = document.getElementById('detailed-report-body');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+
+        if (rows.length === 0) {
+            alert('Não há detalhes para exportar.');
+            return;
+        }
+
+        const wsData = rows.map(row => {
+            const cols = row.querySelectorAll('td');
+            return {
+                "Categoria": cols[0].innerText,
+                "Meta (R$)": cols[1].innerText,
+                "Custo Real (R$)": cols[2].innerText,
+                "Saldo (R$)": cols[3].innerText
+            };
+        });
+
+        // Add Footer Total
+        const tfoot = document.getElementById('detailed-report-footer');
+        if (tfoot && tfoot.rows.length > 0) {
+            const footerCols = tfoot.rows[0].querySelectorAll('td');
+            wsData.push({
+                "Categoria": "TOTAL",
+                "Meta (R$)": footerCols[1].innerText,
+                "Custo Real (R$)": footerCols[2].innerText,
+                "Saldo (R$)": footerCols[3].innerText
+            });
+        }
+
+        const ws = XLSX.utils.json_to_sheet(wsData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Detalhes do Projeto");
+        XLSX.writeFile(wb, `Relatorio_Detalhado_${projectName.replace(/[^a-z0-9]/gi, '_')}.xlsx`);
+
+    } else {
+        // Export Global List
+        if (!reportData || reportData.length === 0) {
+            alert('Não há dados para exportar.');
+            return;
+        }
+
+        // Prepare data for SheetJS
+        const wsData = reportData.map(row => ({
+            "Projeto": row.projectName,
+            "Responsável": row.lead,
+            "Status": row.status,
+            "Meta (R$)": row.budget,
+            "Custo Real (R$)": row.totalValue,
+            "Saldo (R$)": row.balance,
+            "Tempo Gasto (Dias)": row.timeSpent,
+            "Etapa Mais Longa": row.longestStage
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(wsData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Relatório Projetos");
+        XLSX.writeFile(wb, "Relatorio_Projetos.xlsx");
     }
-
-    // Prepare data for SheetJS
-    const wsData = reportData.map(row => ({
-        "Projeto": row.projectName,
-        "Responsável": row.lead,
-        "Status": row.status,
-        "Meta (R$)": row.budget,
-        "Custo Real (R$)": row.totalValue,
-        "Saldo (R$)": row.balance,
-        "Tempo Gasto (Dias)": row.timeSpent,
-        "Etapa Mais Longa": row.longestStage
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(wsData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Relatório Projetos");
-
-    XLSX.writeFile(wb, "Relatorio_Projetos.xlsx");
 }
 
 function exportToPDF() {
-    if (!reportData || reportData.length === 0) {
-        alert('Não há dados para exportar.');
-        return;
-    }
-
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('l'); // Landscape for more columns
+    const projectId = document.getElementById('report-project-select').value;
 
-    doc.setFontSize(18);
-    doc.text("Relatório de Projetos", 14, 22);
-    doc.setFontSize(11);
-    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 30);
+    if (projectId) {
+        // Export Single Project Detail (Charts + PAD + Table)
+        const projectName = document.getElementById('report-project-select').selectedOptions[0].text;
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.getWidth();
 
-    const tableColumn = ["Projeto", "Responsável", "Status", "Meta", "Custo", "Saldo", "Tempo", "Etapa Longa"];
-    const tableRows = [];
+        // Title
+        doc.setFontSize(16);
+        doc.text(`Relatório Detalhado: ${projectName}`, 14, 20);
+        doc.setFontSize(10);
+        doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 26);
 
-    reportData.forEach(row => {
-        const reportRow = [
-            row.projectName,
-            row.lead,
-            row.status === 'In Progress' ? 'Em Andamento' : row.status,
-            formatCurrency(row.budget),
-            formatCurrency(row.totalValue),
-            formatCurrency(row.balance),
-            row.timeSpent,
-            row.longestStage
-        ];
-        tableRows.push(reportRow);
-    });
+        let currentY = 35;
 
-    doc.autoTable({
-        head: [tableColumn],
-        body: tableRows,
-        startY: 40,
-    });
+        // 1. PAD Sections
+        // 1. PAD Sections
+        const getTextWithoutIcons = (elementId) => {
+            const el = document.getElementById(elementId);
+            if (!el) return "";
+            const clone = el.cloneNode(true);
 
-    doc.save("Relatorio_Projetos.pdf");
+            // Remove icons
+            clone.querySelectorAll('.material-symbols-outlined').forEach(icon => icon.remove());
+
+            // Helper to traverse and insert newlines for block elements
+            let text = "";
+            const traverse = (node) => {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    text += node.textContent;
+                } else if (node.nodeType === Node.ELEMENT_NODE) {
+                    const tagName = node.tagName.toLowerCase();
+                    const isBlock = ['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'ul', 'ol', 'br'].includes(tagName);
+
+                    if (tagName === 'br') text += "\n";
+
+                    if (isBlock && text.length > 0 && !text.endsWith("\n")) {
+                        // Add newline before block if needed (e.g., start of list item)
+                        // But we primarily care about AFTER
+                    }
+
+                    node.childNodes.forEach(child => traverse(child));
+
+                    if (isBlock) {
+                        text += "\n"; // Add newline after block element
+                    }
+                }
+            };
+
+            traverse(clone);
+
+            // Normalize whitespace:
+            // 1. Replace multiple newlines with a single newline
+            // 2. Trim each line
+            return text.split('\n').map(line => line.trim()).filter(line => line.length > 0).join('\n');
+        };
+
+        const problemsText = getTextWithoutIcons('pad-problems');
+        const analysisText = getTextWithoutIcons('pad-analysis-summary');
+        const decisionsText = getTextWithoutIcons('pad-decisions');
+
+        doc.setFontSize(12);
+        doc.setTextColor(220, 38, 38); // Red
+        doc.text("Problema (Pontos de Atenção):", 14, currentY);
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(10);
+        const splitProblems = doc.splitTextToSize(problemsText, pageWidth - 28);
+        doc.text(splitProblems, 14, currentY + 6);
+        currentY += 6 + (splitProblems.length * 5) + 5;
+
+        doc.setFontSize(12);
+        doc.setTextColor(37, 99, 235); // Blue
+        doc.text("Análise (Resumo):", 14, currentY);
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(10);
+        const splitAnalysis = doc.splitTextToSize(analysisText, pageWidth - 28);
+        doc.text(splitAnalysis, 14, currentY + 6);
+        currentY += 6 + (splitAnalysis.length * 5) + 5;
+
+        doc.setFontSize(12);
+        doc.setTextColor(22, 163, 74); // Green
+        doc.text("Decisão (Sugestões):", 14, currentY);
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(10);
+        const splitDecisions = doc.splitTextToSize(decisionsText, pageWidth - 28);
+        doc.text(splitDecisions, 14, currentY + 6);
+        currentY += 6 + (splitDecisions.length * 5) + 10;
+
+        // 2. Charts
+        // We need to capture the canvas as image
+        const costChartCanvas = document.getElementById('costAnalysisChart');
+        const statusChartCanvas = document.getElementById('statusDistributionChart');
+
+        if (costChartCanvas) {
+            const costImg = costChartCanvas.toDataURL("image/png");
+            const imgProps = doc.getImageProperties(costImg);
+            const imgWidth = pageWidth - 28;
+            const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+
+            if (currentY + imgHeight > 280) { doc.addPage(); currentY = 20; }
+
+            doc.setFontSize(12);
+            doc.text("Gráfico de Custos:", 14, currentY);
+            doc.addImage(costImg, 'PNG', 14, currentY + 5, imgWidth, imgHeight);
+            currentY += imgHeight + 15;
+        }
+
+        if (statusChartCanvas) {
+            const statusImg = statusChartCanvas.toDataURL("image/png");
+            // Make this one smaller, maybe half width or strictly controlled
+            const imgWidth = 80;
+            const imgHeight = 80;
+
+            if (currentY + imgHeight > 280) { doc.addPage(); currentY = 20; }
+
+            doc.setFontSize(12);
+            doc.text("Gráfico de Status/Orçamento:", 14, currentY);
+            doc.addImage(statusImg, 'PNG', 14, currentY + 5, imgWidth, imgHeight);
+            currentY += imgHeight + 15;
+        }
+
+
+        // 3. Detailed Table
+        if (currentY + 20 > 280) { doc.addPage(); currentY = 20; }
+
+        doc.setFontSize(12);
+        doc.text("Detalhamento Financeiro:", 14, currentY);
+
+        const tbody = document.getElementById('detailed-report-body');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+
+        if (rows.length > 0) {
+            const tableBodyData = rows.map(row => {
+                const cols = row.querySelectorAll('td');
+                return [cols[0].innerText, cols[1].innerText, cols[2].innerText, cols[3].innerText];
+            });
+
+            // Footer
+            const tfoot = document.getElementById('detailed-report-footer');
+            if (tfoot && tfoot.rows.length > 0) {
+                const footerCols = tfoot.rows[0].querySelectorAll('td');
+                tableBodyData.push(["TOTAL", footerCols[1].innerText, footerCols[2].innerText, footerCols[3].innerText]);
+            }
+
+            doc.autoTable({
+                head: [['Categoria', 'Meta', 'Custo Real', 'Saldo']],
+                body: tableBodyData,
+                startY: currentY + 5,
+                theme: 'grid',
+                styles: { fontSize: 8 },
+                headStyles: { fillColor: [243, 244, 246], textColor: [0, 0, 0], fontStyle: 'bold' }
+            });
+        }
+
+
+        doc.save(`Relatorio_Detalhado_${projectName.replace(/[^a-z0-9]/gi, '_')}.pdf`);
+
+    } else {
+        // Export Global List
+        if (!reportData || reportData.length === 0) {
+            alert('Não há dados para exportar.');
+            return;
+        }
+
+        const doc = new jsPDF('l');
+
+        doc.setFontSize(18);
+        doc.text("Relatório de Projetos", 14, 22);
+        doc.setFontSize(11);
+        doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 30);
+
+        const tableColumn = ["Projeto", "Responsável", "Status", "Meta", "Custo", "Saldo", "Tempo", "Etapa Longa"];
+        const tableRows = [];
+
+        reportData.forEach(row => {
+            const reportRow = [
+                row.projectName,
+                row.lead,
+                row.status === 'In Progress' ? 'Em Andamento' : row.status,
+                formatCurrency(row.budget),
+                formatCurrency(row.totalValue),
+                formatCurrency(row.balance),
+                row.timeSpent,
+                row.longestStage
+            ];
+            tableRows.push(reportRow);
+        });
+
+        doc.autoTable({
+            head: [tableColumn],
+            body: tableRows,
+            startY: 40,
+        });
+
+        doc.save("Relatorio_Projetos.pdf");
+    }
 }
 
 function renderCostChart(labels, budgets, actuals, chartType = 'bar') {
@@ -540,18 +743,16 @@ function renderStatistics(data) {
     } else {
         if (problematicProjects.length > 0) {
             problemsHTML += `<div class="mb-2"><p class="font-bold text-red-600">${problematicProjects.length} Projetos acima do orçamento:</p><ul class="list-disc pl-5 text-sm text-gray-700 dark:text-gray-300">`;
-            problematicProjects.slice(0, 3).forEach(p => {
+            problematicProjects.forEach(p => {
                 problemsHTML += `<li>${p.name} (+${formatCurrency(p.extrValue)})</li>`;
             });
-            if (problematicProjects.length > 3) problemsHTML += `<li>...e mais ${problematicProjects.length - 3}</li>`;
             problemsHTML += '</ul></div>';
         }
         if (delayedProjects.length > 0) {
             problemsHTML += `<div><p class="font-bold text-orange-600">${delayedProjects.length} Projetos com atraso/parados:</p><ul class="list-disc pl-5 text-sm text-gray-700 dark:text-gray-300">`;
-            delayedProjects.slice(0, 3).forEach(p => {
+            delayedProjects.forEach(p => {
                 problemsHTML += `<li>${p.name}</li>`;
             });
-            if (delayedProjects.length > 3) problemsHTML += `<li>...e mais ${delayedProjects.length - 3}</li>`;
             problemsHTML += '</ul></div>';
         }
     }
@@ -761,11 +962,24 @@ function updatePADForProject(project, items) {
                     color: '#fff',
                     font: { weight: 'bold' },
                     formatter: (value, ctx) => {
-                        // show percentage
-                        let sum = 0;
-                        ctx.chart.data.datasets[0].data.forEach(d => sum += d);
-                        if (sum === 0) return "";
-                        return (value * 100 / sum).toFixed(0) + "%";
+                        let total = 0;
+                        ctx.chart.data.datasets[0].data.forEach(d => total += d);
+
+                        if (total === 0) return "";
+
+                        // If Over Budget, calculate percentage relative to Budget (index 0)
+                        if (overBudget && project.budget > 0) {
+                            const budgetVal = ctx.chart.data.datasets[0].data[0];
+                            const percentage = (value / budgetVal * 100).toFixed(1);
+
+                            // If it's the overflow slice (index 1)
+                            if (ctx.dataIndex === 1) return "+" + percentage + "%";
+                            // If it's the budget slice (index 0)
+                            return "100%";
+                        }
+
+                        // Default behavior (Under Budget or No Budget)
+                        return (value * 100 / total).toFixed(0) + "%";
                     }
                 }
             }
