@@ -321,14 +321,19 @@ function filterItems() {
 
     if (!searchInput || !categoryFilter) return;
 
-    const searchTerm = searchInput.value.toLowerCase();
+    // Normalize strings for accent-insensitive comparison
+    const normalize = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+    const searchTerm = normalize(searchInput.value);
     const category = categoryFilter.value;
 
     const filtered = currentItems.filter(item => {
-        const matchesSearch = (item.name || '').toLowerCase().includes(searchTerm);
-        // If item.category is null/undefined, treat it as 'Outros' to match the filter option
+        const itemName = normalize(item.name || '');
+        const matchesSearch = itemName.includes(searchTerm);
+
         const itemCategory = item.category || 'Outros';
         const matchesCategory = category === 'All' || itemCategory === category;
+
         return matchesSearch && matchesCategory;
     });
 

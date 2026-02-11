@@ -157,6 +157,45 @@
                     </div>
                 </div>
 
+                <!-- PAD Analysis Dashboard -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <!-- P: Problema -->
+                    <div class="bg-white dark:bg-background-dark p-6 rounded-xl border-l-4 border-red-500 shadow-sm">
+                        <div class="flex items-center gap-3 mb-4">
+                            <span class="material-symbols-outlined text-red-500 text-3xl">warning</span>
+                            <h3 class="text-xl font-bold text-gray-900 dark:text-white">Problema</h3>
+                        </div>
+                        <div id="pad-problems" class="space-y-3">
+                            <p class="text-gray-500 dark:text-gray-400 text-sm">Carregando análise de problemas...</p>
+                        </div>
+                    </div>
+
+                    <!-- A: Análise -->
+                    <div class="bg-white dark:bg-background-dark p-6 rounded-xl border-l-4 border-blue-500 shadow-sm">
+                        <div class="flex items-center gap-3 mb-4">
+                            <span class="material-symbols-outlined text-blue-500 text-3xl">analytics</span>
+                            <h3 class="text-xl font-bold text-gray-900 dark:text-white">Análise</h3>
+                        </div>
+                        <div style="height: 250px; position: relative;">
+                            <canvas id="statusDistributionChart"></canvas>
+                        </div>
+                        <div class="mt-4 text-center">
+                             <p class="text-sm text-gray-600 dark:text-gray-300" id="pad-analysis-summary"></p>
+                        </div>
+                    </div>
+
+                    <!-- D: Decisão -->
+                    <div class="bg-white dark:bg-background-dark p-6 rounded-xl border-l-4 border-green-500 shadow-sm">
+                        <div class="flex items-center gap-3 mb-4">
+                            <span class="material-symbols-outlined text-green-500 text-3xl">fact_check</span>
+                            <h3 class="text-xl font-bold text-gray-900 dark:text-white">Decisão</h3>
+                        </div>
+                        <div id="pad-decisions" class="space-y-3">
+                            <p class="text-gray-500 dark:text-gray-400 text-sm">Carregando sugestões de decisão...</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Detailed View Section -->
                 <div
                     class="mb-8 p-6 bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">

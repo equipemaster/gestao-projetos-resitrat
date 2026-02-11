@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 let reportChart = null;
+let statusChart = null;
 
 
 let allProjectsForReport = [];
@@ -61,6 +62,8 @@ async function loadProjectDetails(projectId) {
     if (!projectId) {
         container.classList.add('hidden');
         chartContainer.classList.add('hidden');
+        // Revert to global stats
+        renderStatistics(reportData);
         return;
     }
 
@@ -157,6 +160,26 @@ async function loadProjectDetails(projectId) {
 
         renderCostChart(chartLabels, chartBudgets, chartActuals, chartType);
 
+        // Update PAD for this specific project
+        // Find project summary data for status info
+        const projectSummary = reportData.find(p => p.projectName === project.name) || {
+            projectName: project.name,
+            status: project.status,
+            budget: totalBudget, // Use calculated total budget
+            totalValue: totalActual, // Use calculated total actual
+            timeSpent: 0, // We might need to fetch this if not available, or pass it
+            // For now let's use what we have or try to find in reportData
+        };
+
+        // If we found it in reportData, it has timeSpent and other computed fields
+        if (projectSummary) {
+            // Ensure totals match the detailed calculation if needed, or just use detaled calculation
+            projectSummary.budget = totalBudget;
+            projectSummary.totalValue = totalActual;
+        }
+
+        updatePADForProject(projectSummary, items);
+
         const totalBalance = totalBudget - totalActual;
         const totalBalanceClass = totalBalance < 0 ? 'text-red-600 font-bold' : 'text-green-600 font-bold';
 
@@ -235,6 +258,8 @@ async function loadReportsData() {
             });
         }
 
+
+        renderStatistics(reportData);
         renderReportsTable(reportData);
 
     } catch (error) {
@@ -484,4 +509,311 @@ function renderCostChart(labels, budgets, actuals, chartType = 'bar') {
         },
         plugins: [ChartDataLabels]
     });
+}
+
+
+function renderStatistics(data) {
+    const problemsContainer = document.getElementById('pad-problems');
+    const analysisContainer = document.getElementById('pad-analysis-summary');
+    const decisionsContainer = document.getElementById('pad-decisions');
+
+    if (!problemsContainer || !analysisContainer || !decisionsContainer) return;
+
+    // --- 1. Problema (Detect Issues) ---
+    const problematicProjects = [];
+    const delayedProjects = [];
+
+    data.forEach(p => {
+        // Budget vs Cost issue
+        if (p.totalValue > p.budget && p.budget > 0) {
+            problematicProjects.push({ name: p.projectName, type: 'cost', extrValue: p.totalValue - p.budget });
+        }
+        // Status issue
+        if (p.status === 'Late' || p.status === 'Atrasado' || (p.status === 'On Hold' && p.timeSpent > 30)) {
+            delayedProjects.push({ name: p.projectName, type: 'delay' });
+        }
+    });
+
+    let problemsHTML = '';
+    if (problematicProjects.length === 0 && delayedProjects.length === 0) {
+        problemsHTML = '<div class="text-green-600 flex items-center gap-2"><span class="material-symbols-outlined">check_circle</span><p>Nenhum problema crítico detectado.</p></div>';
+    } else {
+        if (problematicProjects.length > 0) {
+            problemsHTML += `<div class="mb-2"><p class="font-bold text-red-600">${problematicProjects.length} Projetos acima do orçamento:</p><ul class="list-disc pl-5 text-sm text-gray-700 dark:text-gray-300">`;
+            problematicProjects.slice(0, 3).forEach(p => {
+                problemsHTML += `<li>${p.name} (+${formatCurrency(p.extrValue)})</li>`;
+            });
+            if (problematicProjects.length > 3) problemsHTML += `<li>...e mais ${problematicProjects.length - 3}</li>`;
+            problemsHTML += '</ul></div>';
+        }
+        if (delayedProjects.length > 0) {
+            problemsHTML += `<div><p class="font-bold text-orange-600">${delayedProjects.length} Projetos com atraso/parados:</p><ul class="list-disc pl-5 text-sm text-gray-700 dark:text-gray-300">`;
+            delayedProjects.slice(0, 3).forEach(p => {
+                problemsHTML += `<li>${p.name}</li>`;
+            });
+            if (delayedProjects.length > 3) problemsHTML += `<li>...e mais ${delayedProjects.length - 3}</li>`;
+            problemsHTML += '</ul></div>';
+        }
+    }
+    problemsContainer.innerHTML = problemsHTML;
+
+    // --- 2. Análise (Visualize & Summarize) ---
+    renderStatusChart(data); // Re-use chart logic
+
+    const totalProjects = data.length;
+    const completed = data.filter(p => p.status === 'Completed' || p.status === 'Concluído').length;
+    const completionRate = totalProjects > 0 ? ((completed / totalProjects) * 100).toFixed(0) : 0;
+
+    analysisContainer.innerHTML = `
+        <span class="font-bold">${totalProjects}</span> projetos totais analisados.<br>
+        Taxa de conclusão atual: <span class="font-bold ${completionRate >= 50 ? 'text-green-600' : 'text-yellow-600'}">${completionRate}%</span>.<br>
+        Visualização da distribuição de status acima.
+    `;
+
+    // --- 3. Decisão (Actionable Insights) ---
+    let decisionsHTML = '';
+    const suggestions = [];
+
+    if (problematicProjects.length > 0) {
+        suggestions.push("Revisar planilha de custos dos projetos com estouro de orçamento.");
+        suggestions.push("Agendar reunião de alinhamento financeiro.");
+    }
+    if (delayedProjects.length > 0) {
+        suggestions.push("Verificar impedimentos dos projetos parados/atrasados.");
+    }
+    if (completionRate < 30) {
+        suggestions.push("Focar na entrega de projetos em fase final.");
+    }
+    if (suggestions.length === 0) {
+        suggestions.push("Manter o monitoramento regular.");
+        suggestions.push("Avaliar início de novos projetos.");
+    }
+
+    suggestions.forEach(s => {
+        decisionsHTML += `
+            <div class="flex items-start gap-2">
+                <span class="material-symbols-outlined text-green-500 text-lg mt-0.5">arrow_forward</span>
+                <p class="text-sm text-gray-700 dark:text-gray-300">${s}</p>
+            </div>
+        `;
+    });
+    decisionsContainer.innerHTML = decisionsHTML;
+}
+
+
+function renderStatusChart(data) {
+    const ctx = document.getElementById('statusDistributionChart').getContext('2d');
+
+    // Count statuses
+    const statusCounts = {};
+    data.forEach(p => {
+        let status = p.status;
+        if (status === 'In Progress') status = 'Em Andamento';
+        if (status === 'Completed') status = 'Concluído';
+        if (status === 'On Hold') status = 'Em Espera';
+
+        statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+
+    const labels = Object.keys(statusCounts);
+    const downloadData = Object.values(statusCounts);
+
+    if (statusChart) {
+        statusChart.destroy();
+    }
+
+    statusChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: downloadData,
+                backgroundColor: [
+                    '#3b82f6', // blue for active
+                    '#22c55e', // green for completed
+                    '#eab308', // yellow for on hold
+                    '#ef4444', // red
+                    '#a855f7'  // purple
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 20
+                    }
+                },
+                datalabels: {
+                    color: '#fff',
+                    font: {
+                        weight: 'bold'
+                    },
+                    formatter: (value, ctx) => {
+                        let sum = 0;
+                        let dataArr = ctx.chart.data.datasets[0].data;
+                        dataArr.map(data => {
+                            sum += data;
+                        });
+                        let percentage = (value * 100 / sum).toFixed(0) + "%";
+                        return percentage;
+                    }
+                }
+            }
+        },
+        plugins: [ChartDataLabels]
+    });
+}
+
+function updatePADForProject(project, items) {
+    const problemsContainer = document.getElementById('pad-problems');
+    const analysisContainer = document.getElementById('pad-analysis-summary');
+    const decisionsContainer = document.getElementById('pad-decisions');
+
+    if (!problemsContainer || !analysisContainer || !decisionsContainer) return;
+
+    // --- 1. Problema (Specific Project Issues) ---
+    let problemsHTML = '';
+    const issues = [];
+
+    // Check Cost
+    const overBudget = project.totalValue > project.budget && project.budget > 0;
+    if (overBudget) {
+        issues.push({
+            text: `Orçamento Excedido: +${formatCurrency(project.totalValue - project.budget)}`,
+            severity: 'red'
+        });
+    }
+
+    // Check Status/Time
+    let statusMsg = '';
+    if (project.status === 'Late' || project.status === 'Atrasado') {
+        issues.push({ text: "Projeto Atrasado", severity: 'orange' });
+    } else if (project.status === 'On Hold' || project.status === 'Em Espera') {
+        issues.push({ text: "Projeto Parado/Em Espera", severity: 'orange' });
+    }
+
+    if (issues.length === 0) {
+        problemsHTML = '<div class="text-green-600 flex items-center gap-2"><span class="material-symbols-outlined">check_circle</span><p>Projeto dentro dos parâmetros.</p></div>';
+    } else {
+        problemsHTML += `<div class="mb-2"><p class="font-bold text-gray-800 dark:text-gray-200 mb-2">Atenção Necessária:</p><ul class="space-y-2">`;
+        issues.forEach(issue => {
+            const colorClass = issue.severity === 'red' ? 'text-red-600' : 'text-orange-600';
+            problemsHTML += `<li class="flex items-center gap-2 ${colorClass}"><span class="material-symbols-outlined text-sm">error</span>${issue.text}</li>`;
+        });
+        problemsHTML += '</ul></div>';
+    }
+    problemsContainer.innerHTML = problemsHTML;
+
+    // --- 2. Análise (Project Specific Financial Chart) ---
+    const ctx = document.getElementById('statusDistributionChart').getContext('2d');
+    if (statusChart) {
+        statusChart.destroy();
+    }
+
+    // Chart Data: Spending vs Remaining Budget (or just Spending breakdown if over budget)
+    let chartLabels = ['Gasto (Custo Real)'];
+    let chartData = [project.totalValue];
+    let chartColors = ['#ef4444'];
+    let chartTitle = '';
+
+    if (project.budget > 0) {
+        if (project.totalValue <= project.budget) {
+            chartLabels = ['Gasto (Custo Real)', 'Saldo Restante'];
+            chartData = [project.totalValue, project.budget - project.totalValue];
+            chartColors = ['#3b82f6', '#22c55e']; // Blue spent, Green remaining
+            chartTitle = 'Uso do Orçamento';
+        } else {
+            chartLabels = ['Orçamento Inicial', 'Estouro'];
+            chartData = [project.budget, project.totalValue - project.budget];
+            chartColors = ['#9ca3af', '#ef4444']; // Gray budget, Red overflow
+            chartTitle = 'Orçamento Estourado';
+        }
+    } else {
+        chartLabels = ['Gasto Total'];
+        chartData = [project.totalValue];
+        chartColors = ['#3b82f6'];
+        chartTitle = 'Sem Orçamento Definido';
+    }
+
+    statusChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: chartLabels,
+            datasets: [{
+                data: chartData,
+                backgroundColor: chartColors,
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' },
+                title: { display: true, text: chartTitle },
+                datalabels: {
+                    color: '#fff',
+                    font: { weight: 'bold' },
+                    formatter: (value, ctx) => {
+                        // show percentage
+                        let sum = 0;
+                        ctx.chart.data.datasets[0].data.forEach(d => sum += d);
+                        if (sum === 0) return "";
+                        return (value * 100 / sum).toFixed(0) + "%";
+                    }
+                }
+            }
+        },
+        plugins: [ChartDataLabels]
+    });
+
+    const completionText = (project.budget > 0)
+        ? ((project.totalValue / project.budget) * 100).toFixed(1) + '% do orçamento utilizado.'
+        : 'Progresso financeiro indefinido (sem meta).';
+
+    analysisContainer.innerHTML = `
+        <span class="font-bold">${project.projectName}</span><br>
+        ${completionText}<br>
+        Status Atual: <span class="font-bold">${project.status || 'Desconhecido'}</span>
+    `;
+
+    // --- 3. Decisão (Specific Recommendations) ---
+    let decisionsHTML = '';
+    const suggestions = [];
+
+    if (overBudget) {
+        suggestions.push("Analisar itens mais caros (ver tabela abaixo).");
+        suggestions.push("Negociar suplementação de verba ou corte de custos.");
+    }
+    if (project.status === 'Late' || project.status === 'Atrasado') {
+        suggestions.push("Rever cronograma e prazos das tarefas pendentes.");
+    }
+    if (project.status === 'On Hold' || project.status === 'Em Espera') {
+        suggestions.push("Verificar pendências bloqueantes para retomar o projeto.");
+    }
+    if (project.budget === 0) {
+        suggestions.push("Definir meta orçamentária para melhor controle.");
+    }
+
+    // Default suggestion if mostly fine
+    if (suggestions.length === 0) {
+        suggestions.push("Seguir plano de execução atual.");
+        suggestions.push("Monitorar novas compras/gastos.");
+    }
+
+    suggestions.forEach(s => {
+        decisionsHTML += `
+            <div class="flex items-start gap-2">
+                <span class="material-symbols-outlined text-green-500 text-lg mt-0.5">arrow_forward</span>
+                <p class="text-sm text-gray-700 dark:text-gray-300">${s}</p>
+            </div>
+        `;
+    });
+    decisionsContainer.innerHTML = decisionsHTML;
 }
