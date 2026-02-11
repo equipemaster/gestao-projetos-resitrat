@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Setup handlers
     setupImportHandlers();
+    setupFilters();
 
     // Initial load
     const select = document.getElementById('project-select');
@@ -300,4 +301,36 @@ async function parsePDF(file) {
         }
     };
     reader.readAsArrayBuffer(file);
+}
+
+function setupFilters() {
+    const searchInput = document.getElementById('itemSearch');
+    const categoryFilter = document.getElementById('categoryFilter');
+
+    if (searchInput) {
+        searchInput.addEventListener('input', filterItems);
+    }
+    if (categoryFilter) {
+        categoryFilter.addEventListener('change', filterItems);
+    }
+}
+
+function filterItems() {
+    const searchInput = document.getElementById('itemSearch');
+    const categoryFilter = document.getElementById('categoryFilter');
+
+    if (!searchInput || !categoryFilter) return;
+
+    const searchTerm = searchInput.value.toLowerCase();
+    const category = categoryFilter.value;
+
+    const filtered = currentItems.filter(item => {
+        const matchesSearch = (item.name || '').toLowerCase().includes(searchTerm);
+        // If item.category is null/undefined, treat it as 'Outros' to match the filter option
+        const itemCategory = item.category || 'Outros';
+        const matchesCategory = category === 'All' || itemCategory === category;
+        return matchesSearch && matchesCategory;
+    });
+
+    renderItemsTable(filtered);
 }

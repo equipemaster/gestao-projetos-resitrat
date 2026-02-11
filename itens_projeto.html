@@ -165,6 +165,32 @@
 
                 <div
                     class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
+                    <div
+                        class="p-4 border-b border-gray-200 dark:border-gray-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div class="relative flex-1 max-w-md">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                                <span class="material-symbols-outlined text-lg">search</span>
+                            </span>
+                            <input type="text" id="itemSearch" placeholder="Pesquisar itens..."
+                                class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 focus:ring-1 focus:ring-primary focus:border-primary text-sm shadow-sm dark:text-gray-300">
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <select id="categoryFilter"
+                                class="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-primary focus:border-primary cursor-pointer shadow-sm">
+                                <option value="All">Todas Categorias</option>
+                                <option value="Outros">Outros</option>
+                                <option value="Reservatórios">Reservatórios</option>
+                                <option value="Filtros PRFV">Filtros PRFV</option>
+                                <option value="Bombas">Bombas</option>
+                                <option value="Hidráulicos">Hidráulicos</option>
+                                <option value="Elétricos">Elétricos</option>
+                                <option value="Dosadoras">Dosadoras</option>
+                                <option value="Terceiros">Terceiros</option>
+                                <option value="Frete">Frete</option>
+                                <option value="Eletrólise">Eletrólise</option>
+                            </select>
+                        </div>
+                    </div>
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
                             <thead class="bg-gray-50 dark:bg-gray-800/50">
