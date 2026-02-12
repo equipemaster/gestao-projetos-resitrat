@@ -60,9 +60,23 @@ async function loadInitialData() {
     }
 }
 
+let editingExitId = null;
+
 function setupFormSubmission() {
     const form = document.getElementById('exit-form');
     console.log('Setup Form Submission');
+
+    // Add Cancel Button logic (appended dynamically or just toggled visibility if exists, but we'll inject it)
+    if (!document.getElementById('cancel-edit-btn')) {
+        const btnContainer = document.querySelector('#exit-form .pt-4');
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.id = 'cancel-edit-btn';
+        cancelBtn.className = 'hidden w-full mt-2 flex justify-center py-3 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors';
+        cancelBtn.textContent = 'Cancelar Edição';
+        cancelBtn.onclick = cancelEdit;
+        btnContainer.appendChild(cancelBtn);
+    }
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -107,26 +121,87 @@ function setupFormSubmission() {
             // Ensure Stock Item exists (Create or Update)
             const itemId = await ensureStockItem(itemName, itemValue, qty, itemUnit);
 
-            // Call API to register exit
-            const result = await processStockExit(itemId, qty, reason, projectId, obs, clientId);
+            if (editingExitId) {
+                // UPDATE existing exit
+                await updateStockExit(editingExitId, {
+                    item_id: itemId,
+                    quantity: qty,
+                    reason: reason,
+                    project_id: projectId || null,
+                    observation: obs || null,
+                    client_id: clientId || null,
+                    unit_price: itemValue
+                });
+                alert('Saída atualizada com sucesso!');
+                cancelEdit(); // Reset form state
+            } else {
+                // CREATE new exit
+                await processStockExit(itemId, qty, reason, projectId, obs, clientId);
+                alert('Saída registrada com sucesso!');
+                form.reset();
+            }
 
-            alert('Saída registrada com sucesso!');
-            console.log('Result:', result);
-
-            // Reset form
-            form.reset();
+            console.log('Operation successful');
 
             // Reload History
             await loadExitHistory();
 
         } catch (error) {
             console.error(error);
-            alert('Erro ao registrar saída: ' + (error.message || error.error_description || 'Erro desconhecido'));
+            alert('Erro ao salvar: ' + (error.message || error.error_description || 'Erro desconhecido'));
         } finally {
             submitBtn.disabled = false;
-            submitBtn.textContent = 'Confirmar Saída';
+            if (!editingExitId) submitBtn.textContent = 'Confirmar Saída';
+            else submitBtn.textContent = 'Salvar Alterações';
         }
     });
+}
+
+function cancelEdit() {
+    editingExitId = null;
+    const form = document.getElementById('exit-form');
+    form.reset();
+
+    const submitBtn = document.getElementById('submit-btn');
+    submitBtn.textContent = 'Confirmar Saída';
+    submitBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+    submitBtn.classList.add('bg-primary', 'hover:bg-primary/90');
+
+    const cancelBtn = document.getElementById('cancel-edit-btn');
+    if (cancelBtn) cancelBtn.classList.add('hidden');
+
+    // Reset hidden ID
+    document.getElementById('selected-item-id').value = '';
+}
+
+window.editExit = (exit) => {
+    // Scroll to form
+    document.getElementById('exit-form').scrollIntoView({ behavior: 'smooth' });
+
+    editingExitId = exit.id;
+
+    // Populate Fields
+    document.getElementById('item-name').value = exit.stock_items ? exit.stock_items.name : '';
+    document.getElementById('item-unit').value = exit.stock_items ? exit.stock_items.unit : 'UN';
+
+    // Use saved unit price or current item value
+    const val = exit.unit_price || (exit.stock_items ? exit.stock_items.value : 0);
+    document.getElementById('item-value').value = val;
+
+    document.getElementById('exit-qty').value = exit.quantity;
+    document.getElementById('project-select').value = exit.project_id || '';
+    document.getElementById('client-select').value = exit.client_id || '';
+    document.getElementById('exit-reason').value = exit.reason;
+    document.getElementById('exit-obs').value = exit.observation || '';
+
+    // Update Buttons
+    const submitBtn = document.getElementById('submit-btn');
+    submitBtn.textContent = 'Salvar Alterações';
+    submitBtn.classList.remove('bg-primary', 'hover:bg-primary/90');
+    submitBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+
+    const cancelBtn = document.getElementById('cancel-edit-btn');
+    if (cancelBtn) cancelBtn.classList.remove('hidden');
 }
 
 window.exportExitHistory = async () => {
@@ -148,6 +223,7 @@ window.exportExitHistory = async () => {
         const dataToExport = exits.map(item => ({
             'Data': formatDate(item.created_at.split('T')[0]),
             'Item': item.stock_items ? item.stock_items.name : 'Item excluído',
+            'Valor Unitário': (item.unit_price || (item.stock_items ? item.stock_items.value : 0)).toFixed(2),
             'Quantidade': item.quantity,
             'Unidade': item.stock_items ? item.stock_items.unit : '-',
             'Motivo': item.reason,
@@ -280,7 +356,7 @@ async function loadExitHistory() {
     const tbody = document.getElementById('history-table-body');
     if (!tbody) return;
 
-    tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Carregando...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">Carregando...</td></tr>';
 
     try {
         let exits = await fetchStockExits();
@@ -299,7 +375,7 @@ async function loadExitHistory() {
         tbody.innerHTML = '';
 
         if (exits.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Nenhuma saída recente.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">Nenhuma saída recente.</td></tr>';
             return;
         }
 
@@ -321,6 +397,7 @@ async function loadExitHistory() {
             tr.innerHTML = `
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">${formattedDate}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">${itemName}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">R$ ${(exit.unit_price || (exit.stock_items ? exit.stock_items.value : 0)).toFixed(2)}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 font-bold">${exit.quantity} ${exit.stock_items ? exit.stock_items.unit : ''}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">${destination}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">${exit.reason}</td>
@@ -328,18 +405,33 @@ async function loadExitHistory() {
             `;
 
             const actionTd = tr.lastElementChild;
+            const container = document.createElement('div');
+            container.className = "flex items-center justify-end gap-2";
+
+            // Edit Button
+            const editBtn = document.createElement('button');
+            editBtn.className = "text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300 flex items-center gap-1";
+            editBtn.innerHTML = '<span class="material-symbols-outlined text-lg">edit</span>';
+            editBtn.title = 'Editar';
+            // We need to attach the full object. Since we are in a loop, 'exit' is available.
+            editBtn.onclick = () => editExit(exit);
+            container.appendChild(editBtn);
+
             if (exit.stock_items) {
-                const btn = document.createElement('button');
-                btn.className = "text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 flex items-center justify-end gap-1 w-full";
-                btn.innerHTML = '<span class="material-symbols-outlined text-lg">undo</span> Devolver';
-                btn.onclick = () => openReturnModal(exit);
-                actionTd.appendChild(btn);
+                const returnBtn = document.createElement('button');
+                returnBtn.className = "text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1";
+                returnBtn.innerHTML = '<span class="material-symbols-outlined text-lg">undo</span>';
+                returnBtn.title = 'Devolver';
+                returnBtn.onclick = () => openReturnModal(exit);
+                container.appendChild(returnBtn);
             }
+
+            actionTd.appendChild(container);
 
             tbody.appendChild(tr);
         });
     } catch (e) {
         console.error('Error loading history:', e);
-        tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-red-500">Erro ao carregar histórico.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-red-500">Erro ao carregar histórico.</td></tr>';
     }
 }
