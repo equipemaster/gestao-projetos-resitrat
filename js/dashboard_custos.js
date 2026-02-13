@@ -77,6 +77,7 @@ function processAndRender(exits) {
     exits.forEach(exit => {
         const clientName = exit.clients ? exit.clients.name : 'Sem Cliente';
         const quantity = parseFloat(exit.quantity) || 0;
+        const exitDate = new Date(exit.created_at);
 
         // Use historical unit price if available (preferred), otherwise fallback to current catalogue value
         let unitPrice = 0;
@@ -91,18 +92,38 @@ function processAndRender(exits) {
         if (!clientCosts[clientName]) {
             let meta = 0;
             if (exit.client_id && clientMap[exit.client_id]) {
-                meta = clientMap[exit.client_id].metas;
+                meta = parseFloat(clientMap[exit.client_id].metas) || 0;
             }
 
             clientCosts[clientName] = {
                 count: 0,
                 totalCost: 0,
-                meta: meta
+                baseMeta: meta,
+                minDate: exitDate,
+                maxDate: exitDate
             };
         }
+
+        // Update data
         clientCosts[clientName].count += quantity;
         clientCosts[clientName].totalCost += cost;
         grandTotal += cost;
+
+        // Update date range
+        if (exitDate < clientCosts[clientName].minDate) clientCosts[clientName].minDate = exitDate;
+        if (exitDate > clientCosts[clientName].maxDate) clientCosts[clientName].maxDate = exitDate;
+    });
+
+    // Calculate proportional meta
+    Object.keys(clientCosts).forEach(client => {
+        const data = clientCosts[client];
+        if (data.baseMeta > 0) {
+            // Calculate number of months involved in the range
+            const monthsDiff = (data.maxDate.getFullYear() - data.minDate.getFullYear()) * 12 + (data.maxDate.getMonth() - data.minDate.getMonth()) + 1;
+            data.meta = data.baseMeta * monthsDiff;
+        } else {
+            data.meta = 0;
+        }
     });
 
     renderTable(clientCosts);
