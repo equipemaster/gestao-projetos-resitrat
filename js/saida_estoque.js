@@ -52,6 +52,12 @@ async function loadInitialData() {
             filterSelect.addEventListener('change', () => loadExitHistory());
         }
 
+        // Date Filter Listener
+        const dateFilter = document.getElementById('history-date-filter');
+        if (dateFilter) {
+            dateFilter.addEventListener('change', () => loadExitHistory());
+        }
+
         // Load History
         await loadExitHistory();
     } catch (e) {
@@ -367,6 +373,15 @@ async function loadExitHistory() {
 
         if (filterClientId) {
             exits = exits.filter(exit => exit.client_id == filterClientId);
+        }
+
+        // Apply Date Filter (Month)
+        const dateFilter = document.getElementById('history-date-filter');
+        const filterMonth = dateFilter ? dateFilter.value : '';
+
+        if (filterMonth) {
+            // filterMonth is YYYY-MM
+            exits = exits.filter(exit => exit.created_at.startsWith(filterMonth));
         }
 
         // Filter out deleted items
