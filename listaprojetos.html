@@ -109,16 +109,18 @@
 
       <div class="p-6 border-t border-gray-200 dark:border-gray-800">
         <div class="space-y-1">
-          <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" href="#">
+          <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+            href="ajuda.html">
             <span class="material-symbols-outlined text-[#0d121b] dark:text-gray-300">help</span>
             <p class="text-[#0d121b] dark:text-gray-300 text-sm font-medium leading-normal">Ajuda e Suporte</p>
           </a>
-          <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" href="#">
+          <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+            href="configuracoes.html">
             <span class="material-symbols-outlined text-[#0d121b] dark:text-gray-300">settings</span>
             <p class="text-[#0d121b] dark:text-gray-300 text-sm font-medium leading-normal">Configurações</p>
           </a>
-          <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-            href="logout">
+          <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" href="#"
+            onclick="signOut(); return false;">
             <span class="material-symbols-outlined text-[#0d121b] dark:text-gray-300">logout</span>
             <p class="text-[#0d121b] dark:text-gray-300 text-sm font-medium leading-normal">Sair</p>
           </a>
@@ -186,10 +188,10 @@
                     Status</th>
                   <th
                     class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    Equipe</th>
+                    Prazo</th>
                   <th
                     class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    Prazo</th>
+                    Previsão a Pagar</th>
                   <th
                     class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     Ações</th>
@@ -202,13 +204,13 @@
           </div>
 
           <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between">
-            <p class="text-sm text-gray-500 dark:text-gray-400">Mostrando 1 a 10 de 24 resultados</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400" id="paginationInfo">Mostrando 0 a 0 de 0 resultados</p>
             <div class="flex items-center gap-2">
-              <button
+              <button id="prevPage"
                 class="px-3 py-1 border border-gray-300 dark:border-gray-700 rounded-md text-sm text-gray-700 dark:text-gray-300 disabled:opacity-50"
                 disabled>Anterior</button>
-              <button
-                class="px-3 py-1 border border-gray-300 dark:border-gray-700 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">Próximo</button>
+              <button id="nextPage"
+                class="px-3 py-1 border border-gray-300 dark:border-gray-700 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50">Próximo</button>
             </div>
           </div>
         </div>

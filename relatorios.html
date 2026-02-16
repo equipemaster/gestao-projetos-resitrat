@@ -121,12 +121,17 @@
             <div class="p-6 border-t border-gray-200 dark:border-gray-800">
                 <div class="space-y-1">
                     <a class="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
-                        href="#">
+                        href="ajuda.html">
+                        <span class="material-symbols-outlined text-gray-800 dark:text-gray-200">help</span>
+                        <p class="text-sm font-medium leading-normal">Ajuda e Suporte</p>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+                        href="configuracoes.html">
                         <span class="material-symbols-outlined text-gray-800 dark:text-gray-200">settings</span>
                         <p class="text-sm font-medium leading-normal">Configurações</p>
                     </a>
                     <a class="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
-                        href="logout">
+                        href="#" onclick="signOut(); return false;">
                         <span class="material-symbols-outlined text-gray-800 dark:text-gray-200">logout</span>
                         <p class="text-sm font-medium leading-normal">Sair</p>
                     </a>
@@ -180,7 +185,7 @@
                             <canvas id="statusDistributionChart"></canvas>
                         </div>
                         <div class="mt-4 text-center">
-                             <p class="text-sm text-gray-600 dark:text-gray-300" id="pad-analysis-summary"></p>
+                            <p class="text-sm text-gray-600 dark:text-gray-300" id="pad-analysis-summary"></p>
                         </div>
                     </div>
 
@@ -278,6 +283,9 @@
                                     <th
                                         class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                         Saldo (R$)</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                        Prev. A Pagar (R$)</th>
                                 </tr>
                             </thead>
                             <tbody id="detailed-report-body"
@@ -316,6 +324,9 @@
                                     <th
                                         class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                         Saldo (R$)</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                        Prev. A Pagar (R$)</th>
                                     <th
                                         class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                         Tempo Gasto</th>

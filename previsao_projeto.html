@@ -5,7 +5,7 @@
     <meta charset="utf-8" />
     <link href="./favicon.svg" rel="icon" type="image/svg+xml" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>Itens do Projeto - ProjectFlow</title>
+    <title>Previsão de Projeto - ProjectFlow</title>
     <meta content="light" name="color-scheme" />
     <meta content="" name="description" />
     <script src="https://cdn.tailwindcss.com"></script>
@@ -48,7 +48,7 @@
     <script src="js/supabaseClient.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/api.js" defer></script>
-    <script src="js/project_items.js" defer></script>
+    <script src="js/project_forecasts.js" defer></script>
 </head>
 
 <body
@@ -72,10 +72,14 @@
                         <span class="material-symbols-outlined">folder</span>
                         <p class="text-sm font-medium leading-normal">Projetos</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg bg-primary/10 px-3 py-2 text-primary"
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
                         href="itens_projeto.html">
-                        <span class="material-symbols-outlined fill-1">inventory_2</span>
+                        <span class="material-symbols-outlined">inventory_2</span>
                         <p class="text-sm font-medium leading-normal">Itens do Projeto</p>
+                    </a>
+                    <a class="flex items-center gap-3 rounded-lg bg-primary/10 px-3 py-2 text-primary" href="#">
+                        <span class="material-symbols-outlined fill-1">analytics</span>
+                        <p class="text-sm font-medium leading-normal">Previsão de Materiais</p>
                     </a>
                     <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
                         href="controle_producao.html">
@@ -141,8 +145,9 @@
             <div class="p-8">
                 <div class="flex items-center justify-between mb-8">
                     <div>
-                        <h1 class="text-2xl font-bold text-[#0d121b] dark:text-white">Itens do Projeto</h1>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Gerencie materiais e recursos</p>
+                        <h1 class="text-2xl font-bold text-[#0d121b] dark:text-white">Previsão de Materiais</h1>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Gerencie a lista de previsão de custos
+                            para o projeto</p>
                     </div>
                     <div class="flex gap-3">
                         <button onclick="triggerImport()"
@@ -176,7 +181,7 @@
                             <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
                                 <span class="material-symbols-outlined text-lg">search</span>
                             </span>
-                            <input type="text" id="itemSearch" placeholder="Pesquisar itens..."
+                            <input type="text" id="itemSearch" placeholder="Pesquisar itens de previsão..."
                                 class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 focus:ring-1 focus:ring-primary focus:border-primary text-sm shadow-sm dark:text-gray-300">
                         </div>
                         <div class="flex items-center gap-3">
@@ -219,6 +224,9 @@
                                         class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                         Total (R$)</th>
                                     <th
+                                        class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                        Pago</th>
+                                    <th
                                         class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                         Ações</th>
                                 </tr>
@@ -243,6 +251,7 @@
                 class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
                 <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                     <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title">Novo Item
+                        de Previsão
                     </h3>
                     <div class="mt-4 space-y-4">
                         <input type="hidden" id="i-id">

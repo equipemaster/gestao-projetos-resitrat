@@ -4,12 +4,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('Dashboard loading...');
 
     // Fetch data optimized - using View for projects
-    const [projects, tasks] = await Promise.all([
+    const [projects, tasks, allItems] = await Promise.all([
         fetchProjectSummaries(),
-        fetchTasks()
+        fetchTasks(),
+        _supabase.from('project_forecast_items').select('project_id, quantity, value, is_paid').then(res => res.data)
     ]);
 
+    // Map forecast costs
+    const itemsMap = {};
+    if (allItems) {
+        allItems.forEach(item => {
+            if (!itemsMap[item.project_id]) itemsMap[item.project_id] = 0;
+            // Only add if NOT paid
+            if (!item.is_paid) {
+                itemsMap[item.project_id] += (parseFloat(item.quantity) || 0) * (parseFloat(item.value) || 0);
+            }
+        });
+    }
+
     // Pass data to rendering functions
+    // Attach forecast to projects
+    projects.forEach(p => p.forecast_total = itemsMap[p.id] || 0);
+
     allProjects = projects; // Store globally
 
     // Calculate stats client-side
@@ -19,6 +35,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadProjectsTable(projects.slice(0, 5));
     loadUpcomingDeadlines(tasks, projects);
     setupNotifications(projects);
+    setupActionMenu();
 
     // Setup listeners
     const searchInput = document.getElementById('dashboardSearch');
@@ -221,8 +238,9 @@ function loadProjectsTable(projects) {
                  <span class="text-xs">${progress}%</span>
                </div>
              </td>
+             <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${formatCurrency(project.forecast_total || 0)}</td>
              <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
-                <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><span class="material-symbols-outlined">more_vert</span></button>
+                <button onclick="openProjectActionMenu(event, '${project.id}')" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"><span class="material-symbols-outlined">more_vert</span></button>
              </td>
         `;
         tableBody.appendChild(row);
@@ -265,3 +283,60 @@ function loadUpcomingDeadlines(tasks, projects) {
 }
 
 
+window.openProjectActionMenu = (event, projectId) => {
+    event.stopPropagation();
+    const menu = document.getElementById('project-action-menu');
+    if (!menu) return;
+
+    // Position menu
+    const buttonRect = event.currentTarget.getBoundingClientRect();
+    const menuWidth = 192; // w-48 = 12rem = 192px roughly
+
+    // Check if it fits on the right, else align left
+    let left = buttonRect.left - menuWidth + buttonRect.width;
+    let top = buttonRect.bottom + window.scrollY + 5;
+
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+
+    // Update Links/Actions
+    const forecastLink = document.getElementById('menu-item-forecast');
+    const editBtn = document.getElementById('menu-item-edit');
+    const deleteBtn = document.getElementById('menu-item-delete');
+
+    if (forecastLink) forecastLink.href = `previsao_projeto.html?project=${projectId}`;
+
+    if (editBtn) {
+        editBtn.onclick = () => {
+            menu.classList.add('hidden');
+            if (window.editProject) window.editProject(projectId); // Assuming shared modal is loaded
+        };
+    }
+
+    if (deleteBtn) {
+        deleteBtn.onclick = () => {
+            menu.classList.add('hidden');
+            if (window.openDeleteModal) window.openDeleteModal(projectId); // Assuming shared modal
+        };
+    }
+
+    // Toggle Visibility
+    // Close other menus if any (not implemented, but good practice)
+    menu.classList.remove('hidden');
+}
+
+function setupActionMenu() {
+    const menu = document.getElementById('project-action-menu');
+    if (!menu) return;
+
+    document.addEventListener('click', (e) => {
+        if (!menu.contains(e.target)) {
+            menu.classList.add('hidden');
+        }
+    });
+
+    // Close on scroll to avoid floating menu detachment
+    document.addEventListener('scroll', () => {
+        menu.classList.add('hidden');
+    }, true);
+}

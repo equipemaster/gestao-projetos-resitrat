@@ -220,6 +220,38 @@ async function deleteProjectItem(id) {
     if (error) throw error;
 }
 
+// Project Forecast Items (Previsão)
+async function fetchProjectForecastItems(projectId) {
+    try {
+        const { data, error } = await _supabase
+            .from('project_forecast_items')
+            .select('*')
+            .eq('project_id', projectId);
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Error fetching project forecast items:', error.message);
+        return [];
+    }
+}
+
+async function createProjectForecastItem(itemData) {
+    const { data, error } = await _supabase.from('project_forecast_items').insert([itemData]);
+    if (error) throw error;
+    return data;
+}
+
+async function updateProjectForecastItem(id, updates) {
+    const { data, error } = await _supabase.from('project_forecast_items').update(updates).eq('id', id);
+    if (error) throw error;
+    return data;
+}
+
+async function deleteProjectForecastItem(id) {
+    const { error } = await _supabase.from('project_forecast_items').delete().eq('id', id);
+    if (error) throw error;
+}
+
 // Stock Items
 async function fetchStockItems() {
     try {

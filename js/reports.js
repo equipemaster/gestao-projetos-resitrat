@@ -78,8 +78,11 @@ async function loadProjectDetails(projectId) {
         const { data: project, error } = await _supabase.from('projects').select('*').eq('id', projectId).single();
         if (error) throw error;
 
-        // Fetch items
-        const items = await fetchProjectItems(projectId);
+        // Fetch items and forecast items
+        const [items, forecastItems] = await Promise.all([
+            fetchProjectItems(projectId),
+            _supabase.from('project_forecast_items').select('*').eq('project_id', projectId).then(res => res.data || [])
+        ]);
 
         container.classList.remove('hidden');
         if (typeof chartContainer !== 'undefined' && chartContainer) {
@@ -100,11 +103,11 @@ async function loadProjectDetails(projectId) {
         const chartLabels = [];
         const chartBudgets = [];
         const chartActuals = [];
+        const chartForecasts = [];
 
         categories.forEach(cat => {
             // Get Budget
             // Map category name to column name: 'Reservatórios' -> 'budget_reservatorios'
-            // Special handling for special chars or mapping
             let budgetCol = '';
             if (cat === 'Reservatórios') budgetCol = 'budget_reservatorios';
             else if (cat === 'Filtros PRFV') budgetCol = 'budget_filtros';
@@ -118,7 +121,6 @@ async function loadProjectDetails(projectId) {
 
             const catBudget = budgetCol ? (parseFloat(project[budgetCol]) || 0) : 0;
 
-            // Get Actual Cost
             // Get Actual Cost (Filtered)
             const catItems = items.filter(i => {
                 // Category Filter
@@ -136,10 +138,18 @@ async function loadProjectDetails(projectId) {
             });
             const catActual = catItems.reduce((sum, i) => sum + (parseFloat(i.value || 0) * parseFloat(i.quantity || 1)), 0);
 
+            // Get Forecast (Payable only: is_paid === false)
+            const catForecastItems = forecastItems.filter(i => {
+                const matchCat = cat === 'Outros' ? (!i.category || i.category === 'Outros') : i.category === cat;
+                return matchCat && !i.is_paid;
+            });
+            const catForecast = catForecastItems.reduce((sum, i) => sum + (parseFloat(i.value || 0) * parseFloat(i.quantity || 1)), 0);
+
+
             const balance = catBudget - catActual;
             const balanceClass = balance < 0 ? 'text-red-600 font-bold' : 'text-green-600 font-bold';
 
-            if (cat === 'Outros' && catBudget === 0 && catActual === 0) return; // Skip empty 'Outros'
+            if (cat === 'Outros' && catBudget === 0 && catActual === 0 && catForecast === 0) return; // Skip empty 'Outros'
 
             totalBudget += catBudget;
             totalActual += catActual;
@@ -151,37 +161,39 @@ async function loadProjectDetails(projectId) {
                 <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white text-sm">${formatCurrency(catBudget)}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white text-sm">${formatCurrency(catActual)}</td>
                 <td class="px-6 py-4 whitespace-nowrap ${balanceClass} text-sm">${formatCurrency(balance)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-orange-600 font-medium text-sm">${formatCurrency(catForecast)}</td>
             `;
             tbody.appendChild(tr);
             chartLabels.push(cat);
             chartBudgets.push(catBudget);
             chartActuals.push(catActual);
+            chartForecasts.push(catForecast);
         });
 
-        renderCostChart(chartLabels, chartBudgets, chartActuals, chartType);
+        renderCostChart(chartLabels, chartBudgets, chartActuals, chartForecasts, chartType);
+
+        const totalBalance = totalBudget - totalActual;
+        const totalBalanceClass = totalBalance < 0 ? 'text-red-600 font-bold' : 'text-green-600 font-bold';
+        const totalForecast = chartForecasts.reduce((a, b) => a + b, 0);
 
         // Update PAD for this specific project
         // Find project summary data for status info
         const projectSummary = reportData.find(p => p.projectName === project.name) || {
             projectName: project.name,
             status: project.status,
-            budget: totalBudget, // Use calculated total budget
-            totalValue: totalActual, // Use calculated total actual
-            timeSpent: 0, // We might need to fetch this if not available, or pass it
-            // For now let's use what we have or try to find in reportData
+            budget: totalBudget,
+            totalValue: totalActual,
+            forecastPayable: totalForecast, // Add forecastPayable
+            timeSpent: 0,
         };
 
-        // If we found it in reportData, it has timeSpent and other computed fields
         if (projectSummary) {
-            // Ensure totals match the detailed calculation if needed, or just use detaled calculation
             projectSummary.budget = totalBudget;
             projectSummary.totalValue = totalActual;
+            projectSummary.forecastPayable = totalForecast; // Ensure it's updated
         }
 
         updatePADForProject(projectSummary, items);
-
-        const totalBalance = totalBudget - totalActual;
-        const totalBalanceClass = totalBalance < 0 ? 'text-red-600 font-bold' : 'text-green-600 font-bold';
 
         tfoot.innerHTML = `
             <tr>
@@ -189,6 +201,7 @@ async function loadProjectDetails(projectId) {
                 <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white text-sm font-bold">${formatCurrency(totalBudget)}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white text-sm font-bold">${formatCurrency(totalActual)}</td>
                 <td class="px-6 py-4 whitespace-nowrap ${totalBalanceClass} text-sm">${formatCurrency(totalBalance)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-orange-600 font-bold text-sm">${formatCurrency(totalForecast)}</td>
             </tr>
         `;
 
@@ -207,8 +220,11 @@ async function loadReportsData() {
 
     try {
 
-        const projects = await fetchProjectSummaries();
-        const tasks = await fetchTasks();
+        const [projects, tasks, forecastItems] = await Promise.all([
+            fetchProjectSummaries(),
+            fetchTasks(),
+            _supabase.from('project_forecast_items').select('project_id, quantity, value, is_paid').then(res => res.data)
+        ]);
 
         // ... (rest of logic same until render) ...
 
@@ -217,6 +233,22 @@ async function loadReportsData() {
         for (const project of projects) {
             // Optimized: Use Pre-calculated Total Cost from View
             const totalValue = parseFloat(project.total_cost || 0);
+
+            // Calculate Forecast Payment Status
+            let forecastPaid = 0;
+            let forecastPayable = 0;
+
+            if (forecastItems) {
+                const projectForecasts = forecastItems.filter(i => i.project_id === project.id);
+                projectForecasts.forEach(item => {
+                    const total = (parseFloat(item.quantity) || 0) * (parseFloat(item.value) || 0);
+                    if (item.is_paid) {
+                        forecastPaid += total;
+                    } else {
+                        forecastPayable += total;
+                    }
+                });
+            }
 
             // Filter tasks for this project
             const projectTasks = tasks.filter(t => t.project_id === project.id);
@@ -252,6 +284,8 @@ async function loadReportsData() {
                 status: project.status,
                 budget: budget,
                 totalValue: totalValue, // Custo Real
+                forecastPaid: forecastPaid,
+                forecastPayable: forecastPayable,
                 balance: balance,
                 timeSpent: timeSpentDays,
                 longestStage: longestTask.title
@@ -264,7 +298,7 @@ async function loadReportsData() {
 
     } catch (error) {
         console.error('Error loading reports:', error);
-        tableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 text-center text-red-500">Erro ao carregar dados: ${error.message}</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="10" class="px-6 py-4 text-center text-red-500">Erro ao carregar dados: ${error.message}</td></tr>`;
     }
 }
 
@@ -274,7 +308,7 @@ function renderReportsTable(data) {
     tableBody.innerHTML = '';
 
     if (data.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">Nenhum projeto encontrado.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="10" class="px-6 py-4 text-center text-gray-500">Nenhum projeto encontrado.</td></tr>';
         return;
     }
 
@@ -309,6 +343,7 @@ function renderReportsTable(data) {
             <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white text-sm">${formatCurrency(row.budget)}</td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white text-sm">${formatCurrency(row.totalValue)}</td>
             <td class="px-6 py-4 whitespace-nowrap ${balanceClass} text-sm">${formatCurrency(row.balance)}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-orange-600 font-medium text-sm">${formatCurrency(row.forecastPayable)}</td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${row.timeSpent} dias</td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm truncate max-w-xs" title="${row.longestStage}">${row.longestStage}</td>
         `;
@@ -352,7 +387,8 @@ function exportToXLS() {
                 "Categoria": cols[0].innerText,
                 "Meta (R$)": cols[1].innerText,
                 "Custo Real (R$)": cols[2].innerText,
-                "Saldo (R$)": cols[3].innerText
+                "Saldo (R$)": cols[3].innerText,
+                "Prev. A Pagar (R$)": cols[4].innerText
             };
         });
 
@@ -364,7 +400,8 @@ function exportToXLS() {
                 "Categoria": "TOTAL",
                 "Meta (R$)": footerCols[1].innerText,
                 "Custo Real (R$)": footerCols[2].innerText,
-                "Saldo (R$)": footerCols[3].innerText
+                "Saldo (R$)": footerCols[3].innerText,
+                "Prev. A Pagar (R$)": footerCols[4].innerText
             });
         }
 
@@ -388,6 +425,7 @@ function exportToXLS() {
             "Meta (R$)": row.budget,
             "Custo Real (R$)": row.totalValue,
             "Saldo (R$)": row.balance,
+            "Prev. A Pagar (R$)": row.forecastPayable,
             "Tempo Gasto (Dias)": row.timeSpent,
             "Etapa Mais Longa": row.longestStage
         }));
@@ -536,18 +574,18 @@ function exportToPDF() {
         if (rows.length > 0) {
             const tableBodyData = rows.map(row => {
                 const cols = row.querySelectorAll('td');
-                return [cols[0].innerText, cols[1].innerText, cols[2].innerText, cols[3].innerText];
+                return [cols[0].innerText, cols[1].innerText, cols[2].innerText, cols[3].innerText, cols[4].innerText];
             });
 
             // Footer
             const tfoot = document.getElementById('detailed-report-footer');
             if (tfoot && tfoot.rows.length > 0) {
                 const footerCols = tfoot.rows[0].querySelectorAll('td');
-                tableBodyData.push(["TOTAL", footerCols[1].innerText, footerCols[2].innerText, footerCols[3].innerText]);
+                tableBodyData.push(["TOTAL", footerCols[1].innerText, footerCols[2].innerText, footerCols[3].innerText, footerCols[4].innerText]);
             }
 
             doc.autoTable({
-                head: [['Categoria', 'Meta', 'Custo Real', 'Saldo']],
+                head: [['Categoria', 'Meta', 'Custo Real', 'Saldo', 'A Pagar']],
                 body: tableBodyData,
                 startY: currentY + 5,
                 theme: 'grid',
@@ -573,7 +611,7 @@ function exportToPDF() {
         doc.setFontSize(11);
         doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 30);
 
-        const tableColumn = ["Projeto", "Responsável", "Status", "Meta", "Custo", "Saldo", "Tempo", "Etapa Longa"];
+        const tableColumn = ["Projeto", "Responsável", "Status", "Meta", "Custo", "Saldo", "A Pagar", "Tempo"];
         const tableRows = [];
 
         reportData.forEach(row => {
@@ -584,8 +622,8 @@ function exportToPDF() {
                 formatCurrency(row.budget),
                 formatCurrency(row.totalValue),
                 formatCurrency(row.balance),
-                row.timeSpent,
-                row.longestStage
+                formatCurrency(row.forecastPayable),
+                row.timeSpent
             ];
             tableRows.push(reportRow);
         });
@@ -600,7 +638,7 @@ function exportToPDF() {
     }
 }
 
-function renderCostChart(labels, budgets, actuals, chartType = 'bar') {
+function renderCostChart(labels, budgets, actuals, forecasts, chartType = 'bar') {
     const ctx = document.getElementById('costAnalysisChart').getContext('2d');
 
     let type = 'bar';
@@ -668,6 +706,21 @@ function renderCostChart(labels, budgets, actuals, chartType = 'bar') {
                         formatter: (val) => val > 0 ? 'R$' + val.toLocaleString('pt-BR') : '',
                         display: function (context) { return context.dataset.data[context.dataIndex] > 0; }
                     }
+                },
+                {
+                    label: 'Prev. A Pagar',
+                    data: forecasts,
+                    backgroundColor: 'rgba(245, 158, 11, 0.7)', // Amber-500
+                    borderColor: 'rgba(245, 158, 11, 1)',
+                    borderWidth: 1,
+                    datalabels: {
+                        align: indexAxis === 'y' ? 'end' : 'end',
+                        anchor: indexAxis === 'y' ? 'end' : 'end',
+                        color: '#b45309', // Amber-700
+                        font: { weight: 'bold' },
+                        formatter: (val) => val > 0 ? 'R$' + val.toLocaleString('pt-BR') : '',
+                        display: function (context) { return context.dataset.data[context.dataIndex] > 0; }
+                    }
                 }
             ]
         },
@@ -687,7 +740,7 @@ function renderCostChart(labels, budgets, actuals, chartType = 'bar') {
                 },
                 title: {
                     display: true,
-                    text: 'Análise Financeira: Meta vs Custo Real por Categoria',
+                    text: 'Análise Financeira: Meta, Custo Real e Previsão a Pagar',
                     font: { size: 16 }
                 }
             },
@@ -891,6 +944,18 @@ function updatePADForProject(project, items) {
         });
     }
 
+    // Check Forecast vs Remaining Budget
+    const remainingBudget = Math.max(0, project.budget - project.totalValue);
+    const forecastPayable = project.forecastPayable || 0;
+    const forecastRisk = forecastPayable > remainingBudget && project.budget > 0;
+
+    if (forecastRisk) {
+        issues.push({
+            text: `Risco de Estouro: Previsão a Pagar (${formatCurrency(forecastPayable)}) maior que Saldo (${formatCurrency(remainingBudget)})`,
+            severity: 'orange'
+        });
+    }
+
     // Check Status/Time
     let statusMsg = '';
     if (project.status === 'Late' || project.status === 'Atrasado') {
@@ -994,6 +1059,7 @@ function updatePADForProject(project, items) {
     analysisContainer.innerHTML = `
         <span class="font-bold">${project.projectName}</span><br>
         ${completionText}<br>
+        Previsão a Pagar: <span class="font-bold text-orange-600">${formatCurrency(project.forecastPayable || 0)}</span><br>
         Status Atual: <span class="font-bold">${project.status || 'Desconhecido'}</span>
     `;
 
@@ -1004,6 +1070,10 @@ function updatePADForProject(project, items) {
     if (overBudget) {
         suggestions.push("Analisar itens mais caros (ver tabela abaixo).");
         suggestions.push("Negociar suplementação de verba ou corte de custos.");
+    }
+    if (forecastRisk) {
+        suggestions.push("Alerta: Previsão de gastos excede o saldo restante.");
+        suggestions.push("Revisar itens futuros para evitar estouro.");
     }
     if (project.status === 'Late' || project.status === 'Atrasado') {
         suggestions.push("Rever cronograma e prazos das tarefas pendentes.");

@@ -3,11 +3,10 @@
 
 <head>
     <meta charset="utf-8" />
-    <link href="./logoresitrat.png" rel="icon" type="image/png" />
+    <link href="./favicon.svg" rel="icon" type="image/svg+xml" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>Ajuda - Resitrat</title>
+    <title>Ajuda e Suporte - ProjectFlow</title>
     <meta content="light" name="color-scheme" />
-    <meta content="" name="description" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
@@ -34,30 +33,20 @@
             }
         };
     </script>
-    <!-- Supabase and Auth Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/config.js"></script>
-    <script src="js/supabaseClient.js"></script>
-    <script src="js/auth.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', checkSession);
-    </script>
 </head>
 
 <body
-    class="bg-background-light dark:bg-background-dark text-text-light-primary dark:text-text-dark-primary font-sans antialiased overflow-hidden">
+    class="bg-background-light dark:bg-background-dark text-text-light-primary dark:text-text-dark-primary font-sans antialiased">
     <div class="flex h-screen w-full">
-        <!-- Sidebar -->
+        <!-- Sidebar placeholder (You might want to duplicate the sidebar here or load it dynamically) -->
         <aside
-            class="w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark flex-shrink-0 flex flex-col h-full">
-            <div class="p-6 pb-0">
+            class="w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark flex-shrink-0 flex flex-col justify-between">
+            <div class="p-6">
                 <div class="flex items-center gap-3">
                     <img src="logoresitrat.png" alt="Logo" class="h-12 w-auto object-contain">
                 </div>
-            </div>
-
-            <div class="flex-1 overflow-y-auto px-6 py-4">
-                <nav class="space-y-1">
+                <!-- Navigation -->
+                <nav class="mt-8 space-y-1">
                     <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
                         href="gerenciamentodeprojetos.html">
                         <span class="material-symbols-outlined">dashboard</span>
@@ -68,52 +57,12 @@
                         <span class="material-symbols-outlined">folder</span>
                         <p class="text-sm font-medium leading-normal">Projetos</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="itens_projeto.html">
-                        <span class="material-symbols-outlined">inventory_2</span>
-                        <p class="text-sm font-medium leading-normal">Itens do Projeto</p>
-                    </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="controle_producao.html">
-                        <span class="material-symbols-outlined">factory</span>
-                        <p class="text-sm font-medium leading-normal">Controle de Produção</p>
-                    </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="saida_estoque.html">
-                        <span class="material-symbols-outlined">output</span>
-                        <p class="text-sm font-medium leading-normal">Saída de Estoque</p>
-                    </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="clientes.html">
-                        <span class="material-symbols-outlined">person_add</span>
-                        <p class="text-sm font-medium leading-normal">Clientes</p>
-                    </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="dashboard_custos.html">
-                        <span class="material-symbols-outlined">attach_money</span>
-                        <p class="text-sm font-medium leading-normal">Custos por Cliente</p>
-                    </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="tarefas.html">
-                        <span class="material-symbols-outlined">check_circle</span>
-                        <p class="text-sm font-medium leading-normal">Tarefas</p>
-                    </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="membros.html">
-                        <span class="material-symbols-outlined">groups</span>
-                        <p class="text-sm font-medium leading-normal">Equipe</p>
-                    </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="relatorios.html">
-                        <span class="material-symbols-outlined">bar_chart</span>
-                        <p class="text-sm font-medium leading-normal">Relatórios</p>
-                    </a>
+                    <!-- Back to dashboard for now as main nav -->
                 </nav>
             </div>
-
             <div class="p-6 border-t border-gray-200 dark:border-gray-800">
                 <div class="space-y-1">
-                    <a class="flex items-center gap-3 rounded-lg bg-primary/10 px-3 py-2 text-primary"
+                    <a class="flex items-center gap-3 rounded-lg bg-primary/10 px-3 py-2 text-text-primary dark:text-text-dark-primary"
                         href="ajuda.html">
                         <span class="material-symbols-outlined fill-1">help</span>
                         <p class="text-sm font-medium leading-normal">Ajuda e Suporte</p>
@@ -124,7 +73,7 @@
                         <p class="text-sm font-medium leading-normal">Configurações</p>
                     </a>
                     <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="#" onclick="signOut()">
+                        href="logout">
                         <span class="material-symbols-outlined">logout</span>
                         <p class="text-sm font-medium leading-normal">Sair</p>
                     </a>
@@ -133,72 +82,43 @@
         </aside>
 
         <!-- Main Content -->
-        <main class="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
-            <header
-                class="flex h-16 items-center justify-between border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark px-6">
-                <div class="flex items-center gap-4">
-                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Central de Ajuda</h1>
-                </div>
-            </header>
-
-            <div class="p-6 max-w-4xl mx-auto space-y-6">
-                <!-- FAQ Section -->
-                <div
-                    class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Perguntas Frequentes</h2>
-                    <div class="space-y-4">
-                        <details class="group">
-                            <summary
-                                class="flex justify-between items-center font-medium cursor-pointer list-none text-gray-800 dark:text-gray-200">
-                                <span>Como criar um novo projeto?</span>
-                                <span class="transition group-open:rotate-180">
-                                    <span class="material-symbols-outlined">expand_more</span>
-                                </span>
-                            </summary>
-                            <p class="text-gray-600 dark:text-gray-400 mt-3 group-open:animate-fadeIn">
-                                Vá até a aba "Projetos" e clique no botão "+ Novo Projeto" no canto superior direito.
-                                Preencha os detalhes e salve.
-                            </p>
-                        </details>
-                        <div class="w-full h-px bg-gray-100 dark:bg-gray-700"></div>
-                        <details class="group">
-                            <summary
-                                class="flex justify-between items-center font-medium cursor-pointer list-none text-gray-800 dark:text-gray-200">
-                                <span>Como adicionar membros à equipe?</span>
-                                <span class="transition group-open:rotate-180">
-                                    <span class="material-symbols-outlined">expand_more</span>
-                                </span>
-                            </summary>
-                            <p class="text-gray-600 dark:text-gray-400 mt-3 group-open:animate-fadeIn">
-                                Acesse a página "Equipe". Lá você verá a lista de membros e a opção de convidar novos
-                                usuários por e-mail.
-                            </p>
-                        </details>
-                        <div class="w-full h-px bg-gray-100 dark:bg-gray-700"></div>
-                        <details class="group">
-                            <summary
-                                class="flex justify-between items-center font-medium cursor-pointer list-none text-gray-800 dark:text-gray-200">
-                                <span>Onde vejo os relatórios financeiros?</span>
-                                <span class="transition group-open:rotate-180">
-                                    <span class="material-symbols-outlined">expand_more</span>
-                                </span>
-                            </summary>
-                            <p class="text-gray-600 dark:text-gray-400 mt-3 group-open:animate-fadeIn">
-                                Na aba "Relatórios", você pode visualizar o orçamento vs. custo real e exportar os dados
-                                em Excel ou PDF.
-                            </p>
-                        </details>
-                    </div>
+        <main class="flex-1 min-w-0 overflow-auto p-8">
+            <h1 class="text-2xl font-bold mb-6">Central de Ajuda</h1>
+            <div
+                class="bg-white dark:bg-background-dark p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800">
+                <h2 class="text-lg font-semibold mb-4">Perguntas Frequentes (FAQ)</h2>
+                <div class="space-y-4">
+                    <details class="group p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <summary class="flex justify-between items-center font-medium cursor-pointer list-none">
+                            <span>Como criar um novo projeto?</span>
+                            <span class="transition group-open:rotate-180">
+                                <span class="material-symbols-outlined">expand_more</span>
+                            </span>
+                        </summary>
+                        <p class="text-gray-600 dark:text-gray-400 mt-3 text-sm">
+                            Vá para a página "Projetos" ou "Dashboard" e clique no botão "Novo Projeto" no canto
+                            superior direito. Preencha os detalhes e salve.
+                        </p>
+                    </details>
+                    <details class="group p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <summary class="flex justify-between items-center font-medium cursor-pointer list-none">
+                            <span>Como adicionar membros à equipe?</span>
+                            <span class="transition group-open:rotate-180">
+                                <span class="material-symbols-outlined">expand_more</span>
+                            </span>
+                        </summary>
+                        <p class="text-gray-600 dark:text-gray-400 mt-3 text-sm">
+                            Acesse a página "Equipe" no menu lateral para visualizar e gerenciar os membros.
+                        </p>
+                    </details>
                 </div>
 
-                <!-- Contact Support -->
-                <div
-                    class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Ainda precisa de ajuda?</h2>
-                    <p class="text-gray-600 dark:text-gray-400 mb-4">Entre em contato com nosso suporte técnico.</p>
-                    <a href="mailto:supervisaoresitrat@gmail.com"
+                <div class="mt-8 border-t border-gray-100 dark:border-gray-700 pt-6">
+                    <h2 class="text-lg font-semibold mb-2">Ainda precisa de ajuda?</h2>
+                    <p class="text-gray-500 mb-4">Entre em contato com o suporte técnico.</p>
+                    <a href="mailto:suporte@projectflow.com"
                         class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
-                        <span class="material-symbols-outlined text-sm">mail</span>
+                        <span class="material-symbols-outlined">mail</span>
                         Enviar E-mail
                     </a>
                 </div>

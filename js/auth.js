@@ -71,11 +71,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Bind logout button if exists
     // Translation safe heuristic: href contains 'logout' or text contains 'Log out'/'Sair'
-    const logoutBtn = document.querySelector('a[href*="logout"]');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            signOut();
+    // Bind logout button if exists
+    // Translation safe heuristic: href contains 'logout' or text contains 'Log out'/'Sair'
+    const logoutBtns = document.querySelectorAll('a[href*="logout"]');
+    if (logoutBtns.length > 0) {
+        logoutBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                signOut();
+            });
         });
     }
 });

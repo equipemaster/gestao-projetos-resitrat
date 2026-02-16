@@ -121,7 +121,7 @@
             <p class="text-sm font-medium leading-normal">Configurações</p>
           </a>
           <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-            href="logout">
+            href="#" onclick="signOut(); return false;">
             <span class="material-symbols-outlined">logout</span>
             <p class="text-sm font-medium leading-normal">Sair</p>
           </a>
@@ -295,6 +295,9 @@
                     class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     Progresso</th>
                   <th
+                    class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    Previsão a Pagar</th>
+                  <th
                     class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   </th>
                 </tr>
@@ -318,6 +321,32 @@
         </div>
       </div>
     </main>
+  </div>
+  <!-- Global Project Action Menu -->
+  <div id="project-action-menu"
+    class="fixed z-50 hidden w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none py-1 transform transition-all duration-200 origin-top-right">
+    <a href="#" id="menu-item-forecast"
+      class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-base">analytics</span>
+        <span>Previsão</span>
+      </div>
+    </a>
+    <button id="menu-item-edit"
+      class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-base">edit</span>
+        <span>Editar</span>
+      </div>
+    </button>
+    <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+    <button id="menu-item-delete"
+      class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-base">delete</span>
+        <span>Excluir</span>
+      </div>
+    </button>
   </div>
 </body>
 
