@@ -13,6 +13,119 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 let reportChart = null;
 let statusChart = null;
+// Draggable Labels State
+let customLabelPositions = {};
+let dragState = { isDragging: false, datasetIndex: null, dataIndex: null };
+let hoveredLabelContext = null;
+
+function handleLabelDragStart(context) {
+    // If context is not passed directly (from mousedown), use hovered context
+    if (!context && hoveredLabelContext) {
+        context = hoveredLabelContext;
+    }
+    if (!context) return;
+
+    console.log('Drag Start:', context.dataIndex);
+    dragState = {
+        isDragging: true,
+        datasetIndex: context.datasetIndex,
+        dataIndex: context.dataIndex
+    };
+
+    // Attach global listeners
+    document.addEventListener('mousemove', handleLabelDragMove);
+    document.addEventListener('mouseup', handleLabelDragEnd);
+
+    return true;
+}
+
+function handleLabelDragMove(event) {
+    if (!dragState.isDragging || !reportChart) return;
+
+    // Prevent text selection
+    event.preventDefault();
+
+    const meta = reportChart.getDatasetMeta(dragState.datasetIndex);
+    const element = meta.data[dragState.dataIndex];
+    if (!element) return;
+
+    // Get mouse/touch position relative to canvas
+    const rect = reportChart.canvas.getBoundingClientRect();
+    let clientX = event.clientX;
+    let clientY = event.clientY;
+
+    if (event.touches && event.touches.length > 0) {
+        clientX = event.touches[0].clientX;
+        clientY = event.touches[0].clientY;
+    }
+
+    const mouseX = clientX - rect.left;
+    const mouseY = clientY - rect.top;
+
+    // We calculate position relative to the element's 'end' (default anchor)
+    // Note: For Bar chart, element.x/y is roughly the center of the top edge (vertical)
+
+    let anchorX = element.x;
+    let anchorY = element.y;
+
+    // Adjust if needed based on chart type/orientation, but 'element.tooltipPosition()' might be safer?
+    // Let's stick to element.x/y as a good proxy for 'end' anchor.
+
+    const dx = mouseX - anchorX;
+    const dy = mouseY - anchorY;
+
+    // Convert to angle and distance
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    const key = `${dragState.datasetIndex}-${dragState.dataIndex}`;
+    customLabelPositions[key] = {
+        angle: angle,
+        offset: distance
+    };
+
+    // Setting chart canvas style for feedback
+    reportChart.canvas.style.cursor = 'grabbing';
+
+    // Verify if update logic runs
+    // console.log('Updating chart with new position:', key, customLabelPositions[key]);
+
+    reportChart.update();
+}
+
+function handleLabelDragEnd(event) {
+    if (dragState.isDragging) {
+        console.log('Drag End');
+        dragState.isDragging = false;
+        if (reportChart) reportChart.canvas.style.cursor = 'default';
+        document.removeEventListener('mousemove', handleLabelDragMove);
+        document.removeEventListener('mouseup', handleLabelDragEnd);
+        // Touch events
+        document.removeEventListener('touchmove', handleLabelDragMove);
+        document.removeEventListener('touchend', handleLabelDragEnd);
+    }
+}
+
+// Touch Support Adapter
+function handleLabelDragStart(context) {
+    console.log('Drag Start:', context.dataIndex);
+    dragState = {
+        isDragging: true,
+        datasetIndex: context.datasetIndex,
+        dataIndex: context.dataIndex
+    };
+
+    if (reportChart) reportChart.canvas.style.cursor = 'grabbing';
+
+    // Attach global listeners
+    document.addEventListener('mousemove', handleLabelDragMove);
+    document.addEventListener('mouseup', handleLabelDragEnd);
+    // Touch events for hybrid devices
+    document.addEventListener('touchmove', handleLabelDragMove, { passive: false });
+    document.addEventListener('touchend', handleLabelDragEnd);
+
+    return true;
+}
 
 
 let allProjectsForReport = [];
@@ -663,6 +776,50 @@ function renderCostChart(labels, budgets, actuals, forecasts, chartType = 'bar')
         ctx.canvas.parentNode.style.height = '400px'; // Default for vertical/line
     }
 
+
+
+    // Add canvas mousedown listener for drag
+    ctx.canvas.onmousedown = function (e) {
+        if (hoveredLabelContext) {
+            handleLabelDragStart(hoveredLabelContext);
+        }
+    };
+
+    const leaderLinePlugin = {
+        id: 'leaderLinePlugin',
+        afterDatasetsDraw: (chart) => {
+            const ctx = chart.ctx;
+            ctx.save();
+            ctx.beginPath();
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = '#666';
+            ctx.setLineDash([2, 5]); // Dotted line
+
+            Object.keys(customLabelPositions).forEach(key => {
+                const [datasetIndex, dataIndex] = key.split('-').map(Number);
+                const meta = chart.getDatasetMeta(datasetIndex);
+                if (meta.hidden) return;
+                const element = meta.data[dataIndex];
+                if (!element) return;
+
+                const pos = customLabelPositions[key];
+
+                const startX = element.x;
+                const startY = element.y;
+
+                const angleRad = pos.angle * (Math.PI / 180);
+                const endX = startX + pos.offset * Math.cos(angleRad);
+                const endY = startY + pos.offset * Math.sin(angleRad);
+
+                ctx.moveTo(startX, startY);
+                ctx.lineTo(endX, endY);
+            });
+
+            ctx.stroke();
+            ctx.restore();
+        }
+    };
+
     reportChart = new Chart(ctx, {
         type: type,
         data: {
@@ -671,20 +828,54 @@ function renderCostChart(labels, budgets, actuals, forecasts, chartType = 'bar')
                 {
                     label: 'Meta (Orçamento)',
                     data: budgets,
+                    barPercentage: 0.6,
+                    categoryPercentage: 0.7,
                     backgroundColor: 'rgba(107, 114, 128, 0.5)',
                     borderColor: 'rgba(107, 114, 128, 1)',
                     borderWidth: 1,
                     datalabels: {
-                        align: indexAxis === 'y' ? 'end' : 'end',
+                        clamp: false,
+                        clip: false,
+                        align: function (context) {
+                            const key = `${context.datasetIndex}-${context.dataIndex}`;
+                            return customLabelPositions[key] ? customLabelPositions[key].angle : (indexAxis === 'y' ? 'end' : 'end');
+                        },
                         anchor: indexAxis === 'y' ? 'end' : 'end',
+                        offset: function (context) {
+                            const key = `${context.datasetIndex}-${context.dataIndex}`;
+                            return customLabelPositions[key] ? customLabelPositions[key].offset : 4;
+                        },
+                        rotation: 0,
+                        backgroundColor: '#fff',
+                        borderRadius: 4,
+                        borderColor: '#e5e7eb',
+                        borderWidth: 1,
+                        padding: 4,
                         color: '#6b7280',
+                        font: { size: 10, weight: 'bold' },
                         formatter: (val) => val > 0 ? 'R$' + val.toLocaleString('pt-BR') : '',
-                        display: function (context) { return context.dataset.data[context.dataIndex] > 0; }
+                        display: function (context) { return context.dataset.data[context.dataIndex] > 0; },
+                        listeners: {
+                            enter: function (context) {
+                                hoveredLabelContext = context;
+                                context.hovered = true;
+                                context.chart.canvas.style.cursor = 'move';
+                                return true;
+                            },
+                            leave: function (context) {
+                                hoveredLabelContext = null;
+                                context.hovered = false;
+                                context.chart.canvas.style.cursor = 'default';
+                                return true;
+                            }
+                        }
                     }
                 },
                 {
                     label: 'Custo Real',
                     data: actuals,
+                    barPercentage: 0.6,
+                    categoryPercentage: 0.7,
                     backgroundColor: function (context) {
                         const index = context.dataIndex;
                         const budget = budgets[index] || 0;
@@ -699,27 +890,87 @@ function renderCostChart(labels, budgets, actuals, forecasts, chartType = 'bar')
                     },
                     borderWidth: 1,
                     datalabels: {
-                        align: indexAxis === 'y' ? 'end' : 'end',
+                        clamp: false,
+                        clip: false,
+                        align: function (context) {
+                            const key = `${context.datasetIndex}-${context.dataIndex}`;
+                            return customLabelPositions[key] ? customLabelPositions[key].angle : (indexAxis === 'y' ? 'end' : 'end');
+                        },
                         anchor: indexAxis === 'y' ? 'end' : 'end',
+                        offset: function (context) {
+                            const key = `${context.datasetIndex}-${context.dataIndex}`;
+                            return customLabelPositions[key] ? customLabelPositions[key].offset : 4;
+                        },
+                        rotation: 0,
+                        backgroundColor: '#fff',
+                        borderRadius: 4,
+                        borderColor: 'rgba(220, 38, 38, 1)',
+                        borderWidth: 1,
+                        padding: 4,
                         color: '#000',
-                        font: { weight: 'bold' },
+                        font: { weight: 'bold', size: 10 },
                         formatter: (val) => val > 0 ? 'R$' + val.toLocaleString('pt-BR') : '',
-                        display: function (context) { return context.dataset.data[context.dataIndex] > 0; }
+                        display: function (context) { return context.dataset.data[context.dataIndex] > 0; },
+                        listeners: {
+                            enter: function (context) {
+                                hoveredLabelContext = context;
+                                context.hovered = true;
+                                context.chart.canvas.style.cursor = 'move';
+                                return true;
+                            },
+                            leave: function (context) {
+                                hoveredLabelContext = null;
+                                context.hovered = false;
+                                context.chart.canvas.style.cursor = 'default';
+                                return true;
+                            }
+                        }
                     }
                 },
                 {
                     label: 'Prev. A Pagar',
                     data: forecasts,
+                    barPercentage: 0.6,
+                    categoryPercentage: 0.7,
                     backgroundColor: 'rgba(245, 158, 11, 0.7)', // Amber-500
                     borderColor: 'rgba(245, 158, 11, 1)',
                     borderWidth: 1,
                     datalabels: {
-                        align: indexAxis === 'y' ? 'end' : 'end',
+                        clamp: false,
+                        clip: false,
+                        align: function (context) {
+                            const key = `${context.datasetIndex}-${context.dataIndex}`;
+                            return customLabelPositions[key] ? customLabelPositions[key].angle : (indexAxis === 'y' ? 'end' : 'end');
+                        },
                         anchor: indexAxis === 'y' ? 'end' : 'end',
+                        offset: function (context) {
+                            const key = `${context.datasetIndex}-${context.dataIndex}`;
+                            return customLabelPositions[key] ? customLabelPositions[key].offset : 4;
+                        },
+                        rotation: 0,
+                        backgroundColor: '#fff',
+                        borderRadius: 4,
+                        borderColor: 'rgba(245, 158, 11, 1)',
+                        borderWidth: 1,
+                        padding: 4,
                         color: '#b45309', // Amber-700
-                        font: { weight: 'bold' },
+                        font: { weight: 'bold', size: 10 },
                         formatter: (val) => val > 0 ? 'R$' + val.toLocaleString('pt-BR') : '',
-                        display: function (context) { return context.dataset.data[context.dataIndex] > 0; }
+                        display: function (context) { return context.dataset.data[context.dataIndex] > 0; },
+                        listeners: {
+                            enter: function (context) {
+                                hoveredLabelContext = context;
+                                context.hovered = true;
+                                context.chart.canvas.style.cursor = 'move';
+                                return true;
+                            },
+                            leave: function (context) {
+                                hoveredLabelContext = null;
+                                context.hovered = false;
+                                context.chart.canvas.style.cursor = 'default';
+                                return true;
+                            }
+                        }
                     }
                 }
             ]
@@ -730,8 +981,9 @@ function renderCostChart(labels, budgets, actuals, forecasts, chartType = 'bar')
             maintainAspectRatio: false,
             layout: {
                 padding: {
-                    right: 50, // extra padding for horizontal labels
-                    top: 30
+                    right: 80, // extra padding for horizontal labels
+                    top: 80, // increased padding for labels
+                    bottom: 20
                 }
             },
             plugins: {
@@ -763,7 +1015,7 @@ function renderCostChart(labels, budgets, actuals, forecasts, chartType = 'bar')
                 }
             }
         },
-        plugins: [ChartDataLabels]
+        plugins: [ChartDataLabels, leaderLinePlugin]
     });
 }
 

@@ -29,6 +29,11 @@ async function loadDashboardData() {
         ]);
         allExits = exits;
 
+        // Debug Alert
+        console.log(`Dados carregados: ${exits.length} saídas, ${clients.length} clientes.`);
+        if (exits.length === 0) alert('Atenção: Nenhuma saída de estoque encontrada no banco de dados.');
+        if (clients.length === 0) alert('Atenção: Nenhum cliente encontrado no banco de dados.');
+
         // Build client map
         clientMap = {};
         clients.forEach(c => clientMap[c.id] = c);

@@ -426,6 +426,7 @@ async function fetchStockExits() {
         return data;
     } catch (error) {
         console.error('Error fetching stock exits:', error.message);
+        alert('Erro ao buscar saídas de estoque: ' + error.message);
         return [];
     }
 }
@@ -453,6 +454,7 @@ async function fetchClients() {
         return data;
     } catch (error) {
         console.error('Error fetching clients:', error.message);
+        alert('Erro ao buscar clientes: ' + error.message);
         return [];
     }
 }

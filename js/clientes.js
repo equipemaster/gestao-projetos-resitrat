@@ -19,6 +19,11 @@ function renderClients(clients) {
     const tbody = document.getElementById('clients-table-body');
     tbody.innerHTML = '';
 
+    if (clients.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Nenhum cliente encontrado.</td></tr>';
+        return;
+    }
+
     clients.forEach(client => {
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors';
