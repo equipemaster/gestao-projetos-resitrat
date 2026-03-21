@@ -210,6 +210,35 @@ window.editExit = (exit) => {
     if (cancelBtn) cancelBtn.classList.remove('hidden');
 }
 
+async function getFilteredExits() {
+    let exits = await fetchStockExits();
+
+    // Apply Client Filter
+    const filterSelect = document.getElementById('history-client-filter');
+    const filterClientId = filterSelect ? filterSelect.value : '';
+
+    if (filterClientId) {
+        exits = exits.filter(exit => exit.client_id == filterClientId);
+    }
+
+    // Apply Date Filter (Month)
+    const dateFilter = document.getElementById('history-date-filter');
+    const filterMonth = dateFilter ? dateFilter.value : '';
+
+    if (filterMonth) {
+        // filterMonth is YYYY-MM
+        exits = exits.filter(exit => exit.created_at.startsWith(filterMonth));
+    }
+
+    // Filter out deleted items
+    exits = exits.filter(exit => exit.stock_items);
+
+    // Sort by date desc
+    exits.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    return exits;
+}
+
 window.exportExitHistory = async () => {
     try {
         const btn = document.querySelector('button[onclick="exportExitHistory()"]');
@@ -218,10 +247,10 @@ window.exportExitHistory = async () => {
             btn.disabled = true;
         }
 
-        const exits = await fetchStockExits();
+        const exits = await getFilteredExits();
 
         if (!exits || exits.length === 0) {
-            alert('Não há histórico de saídas para exportar.');
+            alert('Não há histórico de saídas para exportar com os filtros atuais.');
             return;
         }
 
@@ -252,7 +281,80 @@ window.exportExitHistory = async () => {
     } finally {
         const btn = document.querySelector('button[onclick="exportExitHistory()"]');
         if (btn) {
-            btn.innerHTML = '<span class="material-symbols-outlined text-xl">download</span><span class="text-sm font-medium">Exportar Histórico</span>';
+            btn.innerHTML = '<span class="material-symbols-outlined text-xl">download</span><span class="text-sm font-medium">Exportar XLS</span>';
+            btn.disabled = false;
+        }
+    }
+}
+
+window.exportExitHistoryPDF = async () => {
+    try {
+        const btn = document.querySelector('button[onclick="exportExitHistoryPDF()"]');
+        if (btn) {
+            btn.innerHTML = '<span class="material-symbols-outlined animate-spin">refresh</span> Exportando...';
+            btn.disabled = true;
+        }
+
+        const exits = await getFilteredExits();
+
+        if (!exits || exits.length === 0) {
+            alert('Não há histórico de saídas para exportar com os filtros atuais.');
+            return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('landscape');
+
+        doc.setFontSize(18);
+        doc.text('Histórico de Saídas de Estoque', 14, 22);
+
+        doc.setFontSize(11);
+        doc.setTextColor(100);
+        
+        const filterSelect = document.getElementById('history-client-filter');
+        const clientName = filterSelect && filterSelect.options[filterSelect.selectedIndex] && filterSelect.value !== ''
+            ? filterSelect.options[filterSelect.selectedIndex].text : 'Todos';
+        const dateFilter = document.getElementById('history-date-filter');
+        const monthYear = dateFilter && dateFilter.value ? dateFilter.value : 'Todos';
+        
+        doc.text(`Filtros - Cliente: ${clientName} | Mês: ${monthYear}`, 14, 30);
+
+        const tableColumn = ["Data", "Item", "Valor Unit.", "Qtd", "Unidade", "Motivo", "Cliente", "Observação"];
+        const tableRows = [];
+
+        exits.forEach(item => {
+            const rowData = [
+                formatDate(item.created_at.split('T')[0]),
+                item.stock_items ? item.stock_items.name : 'Item excluído',
+                `R$ ${(item.unit_price || (item.stock_items ? item.stock_items.value : 0)).toFixed(2)}`,
+                item.quantity.toString(),
+                item.stock_items ? item.stock_items.unit : '-',
+                item.reason,
+                item.clients ? item.clients.name : '-',
+                item.observation || ''
+            ];
+            tableRows.push(rowData);
+        });
+
+        doc.autoTable({
+            startY: 36,
+            head: [tableColumn],
+            body: tableRows,
+            theme: 'striped',
+            headStyles: { fillColor: [19, 91, 236] }, // Primary color
+            styles: { fontSize: 9 },
+            margin: { top: 30 }
+        });
+
+        doc.save('Historico_Saida_Estoque.pdf');
+
+    } catch (error) {
+        console.error('Export error:', error);
+        alert('Erro ao exportar PDF: ' + error.message);
+    } finally {
+        const btn = document.querySelector('button[onclick="exportExitHistoryPDF()"]');
+        if (btn) {
+            btn.innerHTML = '<span class="material-symbols-outlined text-xl">picture_as_pdf</span><span class="text-sm font-medium">Exportar PDF</span>';
             btn.disabled = false;
         }
     }
@@ -365,27 +467,7 @@ async function loadExitHistory() {
     tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">Carregando...</td></tr>';
 
     try {
-        let exits = await fetchStockExits();
-
-        // Apply Client Filter
-        const filterSelect = document.getElementById('history-client-filter');
-        const filterClientId = filterSelect ? filterSelect.value : '';
-
-        if (filterClientId) {
-            exits = exits.filter(exit => exit.client_id == filterClientId);
-        }
-
-        // Apply Date Filter (Month)
-        const dateFilter = document.getElementById('history-date-filter');
-        const filterMonth = dateFilter ? dateFilter.value : '';
-
-        if (filterMonth) {
-            // filterMonth is YYYY-MM
-            exits = exits.filter(exit => exit.created_at.startsWith(filterMonth));
-        }
-
-        // Filter out deleted items
-        exits = exits.filter(exit => exit.stock_items);
+        const exits = await getFilteredExits();
 
         tbody.innerHTML = '';
 
@@ -393,9 +475,6 @@ async function loadExitHistory() {
             tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">Nenhuma saída recente.</td></tr>';
             return;
         }
-
-        // Sort by date desc
-        exits.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
         exits.forEach(exit => {
             const tr = document.createElement('tr');

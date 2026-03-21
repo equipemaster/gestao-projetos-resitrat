@@ -35,6 +35,8 @@
     </script>
     <!-- Libs -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
 
     <!-- Supabase and Auth Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -141,11 +143,18 @@
                         <h1 class="text-2xl font-bold text-[#0d121b] dark:text-white">Registrar Saída de Estoque</h1>
                         <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Baixa de materiais e equipamentos</p>
                     </div>
-                    <button onclick="exportExitHistory()"
-                        class="flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors bg-white dark:bg-gray-800">
-                        <span class="material-symbols-outlined text-xl">download</span>
-                        <span class="text-sm font-medium">Exportar Histórico</span>
-                    </button>
+                    <div class="flex gap-2">
+                        <button onclick="exportExitHistoryPDF()"
+                            class="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 transition-colors shadow-sm">
+                            <span class="material-symbols-outlined text-xl">picture_as_pdf</span>
+                            <span class="text-sm font-medium">Exportar PDF</span>
+                        </button>
+                        <button onclick="exportExitHistory()"
+                            class="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 transition-colors shadow-sm">
+                            <span class="material-symbols-outlined text-xl">download</span>
+                            <span class="text-sm font-medium">Exportar XLS</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div
