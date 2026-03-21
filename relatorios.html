@@ -149,6 +149,11 @@
                         </p>
                     </div>
                     <div class="flex gap-2">
+                        <a href="montecarlo.html"
+                            class="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 transition-colors shadow-sm">
+                            <span class="material-symbols-outlined text-xl">casino</span>
+                            <span class="text-sm font-medium">Monte Carlo</span>
+                        </a>
                         <button id="export-pdf-btn"
                             class="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 transition-colors shadow-sm">
                             <span class="material-symbols-outlined text-xl">picture_as_pdf</span>
@@ -300,6 +305,18 @@
                 </div>
 
                 <!-- Main Overview Table -->
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4 mt-8">
+                    <h2 class="text-lg font-bold text-[#0d121b] dark:text-white">Resumo Global de Projetos</h2>
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <label for="global-status-filter" class="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">Filtrar por Status:</label>
+                        <select id="global-status-filter" class="w-full sm:w-auto rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm p-2">
+                            <option value="">Todos</option>
+                            <option value="Em Andamento">Em Andamento</option>
+                            <option value="Concluído">Concluído</option>
+                            <option value="Em Espera">Em Espera</option>
+                        </select>
+                    </div>
+                </div>
                 <div
                     class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
                     <div class="overflow-x-auto">

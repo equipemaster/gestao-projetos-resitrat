@@ -129,6 +129,7 @@ function handleLabelDragStart(context) {
 
 
 let allProjectsForReport = [];
+let currentFilteredData = [];
 
 async function initReportFilters() {
 
@@ -142,6 +143,34 @@ async function initReportFilters() {
     document.getElementById('report-month-filter').addEventListener('change', reloadDetails);
     document.getElementById('report-year-filter').addEventListener('change', reloadDetails);
     document.getElementById('chart-type-select').addEventListener('change', reloadDetails);
+    
+    // Global Filter Listener
+    const globalStatusFilter = document.getElementById('global-status-filter');
+    if (globalStatusFilter) {
+        globalStatusFilter.addEventListener('change', applyGlobalFilter);
+    }
+}
+
+function applyGlobalFilter() {
+    const filter = document.getElementById('global-status-filter');
+    if (!filter) return;
+    const filterVal = filter.value;
+    
+    if (filterVal) {
+        currentFilteredData = reportData.filter(row => {
+            let normalizedStatus = row.status;
+            if (row.status === 'In Progress' || row.status === 'Em Andamento') normalizedStatus = "Em Andamento";
+            else if (row.status === 'Completed' || row.status === 'Concluído') normalizedStatus = "Concluído";
+            else if (row.status === 'On Hold' || row.status === 'Em Espera') normalizedStatus = "Em Espera";
+
+            return normalizedStatus === filterVal;
+        });
+    } else {
+        currentFilteredData = [...reportData];
+    }
+
+    renderReportsTable(currentFilteredData);
+    renderStatistics(currentFilteredData);
 }
 
 
@@ -405,9 +434,8 @@ async function loadReportsData() {
             });
         }
 
-
-        renderStatistics(reportData);
-        renderReportsTable(reportData);
+        currentFilteredData = [...reportData];
+        applyGlobalFilter();
 
     } catch (error) {
         console.error('Error loading reports:', error);
@@ -525,13 +553,13 @@ function exportToXLS() {
 
     } else {
         // Export Global List
-        if (!reportData || reportData.length === 0) {
+        if (!currentFilteredData || currentFilteredData.length === 0) {
             alert('Não há dados para exportar.');
             return;
         }
 
         // Prepare data for SheetJS
-        const wsData = reportData.map(row => ({
+        const wsData = currentFilteredData.map(row => ({
             "Projeto": row.projectName,
             "Responsável": row.lead,
             "Status": row.status,
@@ -712,7 +740,7 @@ function exportToPDF() {
 
     } else {
         // Export Global List
-        if (!reportData || reportData.length === 0) {
+        if (!currentFilteredData || currentFilteredData.length === 0) {
             alert('Não há dados para exportar.');
             return;
         }
@@ -727,7 +755,7 @@ function exportToPDF() {
         const tableColumn = ["Projeto", "Responsável", "Status", "Meta", "Custo", "Saldo", "A Pagar", "Tempo"];
         const tableRows = [];
 
-        reportData.forEach(row => {
+        currentFilteredData.forEach(row => {
             const reportRow = [
                 row.projectName,
                 row.lead,
