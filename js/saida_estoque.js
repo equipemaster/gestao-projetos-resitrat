@@ -141,6 +141,27 @@ function setupFormSubmission() {
                 alert('Saída atualizada com sucesso!');
                 cancelEdit(); // Reset form state
             } else {
+                // Check for duplicates before creating
+                const todayStr = new Date().toDateString();
+                const { data: duplicates, error: dupError } = await _supabase
+                    .from('stock_exits')
+                    .select('id, created_at')
+                    .eq('client_id', clientId)
+                    .eq('reason', reason)
+                    .eq('item_id', itemId)
+                    .eq('unit_price', itemValue);
+                
+                if (dupError) throw dupError;
+
+                const isDuplicate = duplicates && duplicates.some(d => {
+                    return new Date(d.created_at).toDateString() === todayStr;
+                });
+
+                if (isDuplicate) {
+                    alert('Saída duplicada bloqueada! Já existe um registro hoje com os mesmos dados (Cliente, Aplicação, Item e Valor).');
+                    return;
+                }
+
                 // CREATE new exit
                 await processStockExit(itemId, qty, reason, projectId, obs, clientId);
                 alert('Saída registrada com sucesso!');
