@@ -2,6 +2,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Enforce that only logged in admins can view this page
     checkAdminAccess();
     setupSignupForm();
+    loadUsersList();
+    setupEditForm();
 });
 
 async function checkAdminAccess() {
@@ -131,6 +133,107 @@ function setupSignupForm() {
         } finally {
             submitBtn.disabled = false;
             submitBtn.textContent = 'Cadastrar Usuário';
+        }
+    });
+}
+
+// User List and Edit Logic
+let currentUsers = [];
+
+async function loadUsersList() {
+    try {
+        currentUsers = await fetchMembers();
+        renderUsers(currentUsers);
+    } catch (e) {
+        console.error('Error loading users:', e);
+    }
+}
+
+function renderUsers(users) {
+    const tbody = document.getElementById('users-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (!users || users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center text-sm text-gray-500">Nenhum usuário encontrado.</td></tr>';
+        return;
+    }
+
+    users.forEach(user => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-800/50';
+        tr.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">${user.name}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${user.email}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${user.role || 'Membro'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <button class="text-primary hover:text-primary/80 flex items-center gap-1 justify-end ml-auto" onclick="openEditModal('${user.id}')">
+                    <span class="material-symbols-outlined text-lg">edit</span> Editar
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+window.openEditModal = (userId) => {
+    const user = currentUsers.find(u => u.id === userId);
+    if (!user) return;
+
+    document.getElementById('edit-user-id').value = user.id;
+    document.getElementById('edit-user-fullname').value = user.name;
+    document.getElementById('edit-user-email').value = user.email;
+    document.getElementById('edit-user-role').value = user.role || 'OPERADOR-INSTALADOR';
+    document.getElementById('edit-user-password').value = ''; // leave blank
+
+    document.getElementById('edit-user-modal').classList.remove('hidden');
+};
+
+window.closeEditModal = () => {
+    document.getElementById('edit-user-modal').classList.add('hidden');
+};
+
+function setupEditForm() {
+    const form = document.getElementById('edit-user-form');
+    if (!form) return;
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const btn = document.getElementById('submit-edit-btn');
+        btn.disabled = true;
+        btn.textContent = 'Salvando...';
+
+        const userId = document.getElementById('edit-user-id').value;
+        const name = document.getElementById('edit-user-fullname').value;
+        const email = document.getElementById('edit-user-email').value;
+        const role = document.getElementById('edit-user-role').value;
+        const password = document.getElementById('edit-user-password').value;
+
+        try {
+            // 1. Update public.users
+            await updateMember(userId, { name, email, role });
+
+            // 2. Update auth.users if email or password provided (calls RPC)
+            if (email || password) {
+                try {
+                    await adminUpdateUserAuth(userId, email, password);
+                } catch (authErr) {
+                    console.error('Erro no RPC:', authErr);
+                    // It might fail if RPC does not exist yet. Alert the user, but don't stop the flow completely.
+                    alert('Os dados de perfil foram atualizados, mas houve um erro ao atualizar email/senha de login. Certifique-se de que a função SQL "admin_update_user_auth" foi criada no Supabase.');
+                }
+            }
+
+            alert('Usuário atualizado com sucesso!');
+            closeEditModal();
+            loadUsersList(); // refresh list
+        } catch (err) {
+            console.error('Erro ao editar:', err);
+            alert('Falha ao atualizar o usuário: ' + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Salvar Alterações';
         }
     });
 }

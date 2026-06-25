@@ -183,9 +183,26 @@ async function addMember(memberData) {
     return data;
 }
 
+async function updateMember(id, updates) {
+    const { data, error } = await _supabase.from('users').update(updates).eq('id', id);
+    if (error) throw error;
+    return data;
+}
+
 async function deleteMember(id) {
     const { error } = await _supabase.from('users').delete().eq('id', id);
     if (error) throw error;
+}
+
+// Custom RPC calls
+async function adminUpdateUserAuth(userId, newEmail, newPassword) {
+    const { data, error } = await _supabase.rpc('admin_update_user_auth', {
+        target_user_id: userId,
+        new_email: newEmail,
+        new_password: newPassword
+    });
+    if (error) throw error;
+    return data;
 }
 
 // Project Items
