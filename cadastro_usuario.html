@@ -1,11 +1,11 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html class="light" lang="pt-BR">
 
 <head>
     <meta charset="utf-8" />
     <link href="./logoresitrat.png" rel="icon" type="image/png" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>Clientes - Resitrat</title>
+    <title>Cadastrar Usuário - Resitrat</title>
     <meta content="light" name="color-scheme" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -33,13 +33,14 @@
             }
         };
     </script>
-    <!-- Supabase -->
+
+    <!-- Supabase and Auth Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/config.js"></script>
     <script src="js/supabaseClient.js"></script>
-    <script src="js/auth.js"></script>
-    <script src="js/api.js" defer></script>
-    <script src="js/clientes.js" defer></script>
+    <script src="js/auth.js?v=1"></script>
+    <script src="js/api.js?v=1" defer></script>
+    <script src="js/cadastro_usuario.js?v=1" defer></script>
 </head>
 
 <body
@@ -86,19 +87,14 @@
                         <span class="material-symbols-outlined">pending_actions</span>
                         <p class="text-sm font-medium leading-normal">Requisições de Estoque</p>
                     </a>
-                    <a id="nav-cad-user" class="hidden items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="cadastro_usuario.html">
-                        <span class="material-symbols-outlined">person_add_alt</span>
-                        <p class="text-sm font-medium leading-normal">Cadastrar Usuários</p>
-                    </a>
                     <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
                         href="simulacao_estoque.html">
                         <span class="material-symbols-outlined">online_prediction</span>
                         <p class="text-sm font-medium leading-normal">Previsão de Compras / Estoque</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg bg-primary/10 px-3 py-2 text-primary"
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
                         href="clientes.html">
-                        <span class="material-symbols-outlined fill-1">person_add</span>
+                        <span class="material-symbols-outlined">person_add</span>
                         <p class="text-sm font-medium leading-normal">Clientes</p>
                     </a>
                     <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
@@ -120,6 +116,11 @@
                         href="relatorios.html">
                         <span class="material-symbols-outlined">bar_chart</span>
                         <p class="text-sm font-medium leading-normal">Relatórios</p>
+                    </a>
+                    <a id="nav-cad-user" class="flex items-center gap-3 rounded-lg bg-primary/10 px-3 py-2 text-primary"
+                        href="cadastro_usuario.html">
+                        <span class="material-symbols-outlined fill-1">person_add_alt</span>
+                        <p class="text-sm font-medium leading-normal">Cadastrar Usuários</p>
                     </a>
                 </nav>
             </div>
@@ -146,121 +147,63 @@
         </aside>
 
         <!-- Main Content -->
-        <main class="flex-1 min-w-0 overflow-auto">
-            <div class="p-8">
-                <div class="flex items-center justify-between mb-8">
-                    <div>
-                        <h1 class="text-2xl font-bold text-[#0d121b] dark:text-white">Gerenciamento de Clientes</h1>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Cadastre e gerencie seus clientes</p>
-                    </div>
-                    <button onclick="openClientModal()"
-                        class="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-white hover:bg-primary/90 transition-colors">
-                        <span class="material-symbols-outlined text-xl">add</span>
-                        <span class="text-sm font-medium">Novo Cliente</span>
-                    </button>
+        <main class="flex-1 min-w-0 overflow-auto bg-gray-50 dark:bg-black/10">
+            <div class="p-8 max-w-2xl mx-auto">
+                <div class="mb-8">
+                    <h1 class="text-2xl font-bold text-[#0d121b] dark:text-white">Cadastrar Novo Usuário</h1>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Crie contas de login para operadores ou outros administradores</p>
                 </div>
 
-                <!-- Filters -->
-                <div class="flex gap-4 mb-6">
-                    <div class="relative max-w-sm w-full">
-                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
-                            <span class="material-symbols-outlined text-lg">search</span>
-                        </span>
-                        <input type="text" id="search-client" placeholder="Buscar cliente..."
-                            class="pl-10 w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 text-sm py-2">
-                    </div>
-                </div>
+                <div class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-6">
+                    <form id="signup-user-form" class="space-y-6">
+                        <!-- Full Name -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nome Completo</label>
+                            <input type="text" id="user-fullname" required placeholder="Nome completo do colaborador"
+                                class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm p-2.5">
+                        </div>
 
-                <div
-                    class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
-                            <thead class="bg-gray-50 dark:bg-gray-800/50">
-                                <tr>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                        Nome / Empresa</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                        CNPJ</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                        Email</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                        Telefone</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                        Metas</th>
-                                    <th
-                                        class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                        Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="clients-table-body"
-                                class="bg-white dark:bg-background-dark divide-y divide-gray-200 dark:divide-gray-800">
-                                <!-- Populated by JS -->
-                            </tbody>
-                        </table>
-                    </div>
+                        <!-- Email -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">E-mail (Login)</label>
+                            <input type="email" id="user-email" required placeholder="colaborador@resitrat.com.br"
+                                class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm p-2.5">
+                        </div>
+
+                        <!-- Password -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Senha Provisória</label>
+                            <input type="password" id="user-password" required minlength="6" placeholder="Mínimo 6 caracteres"
+                                class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm p-2.5">
+                        </div>
+
+                        <!-- Role / Function -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Função / Cargo</label>
+                            <select id="user-role" required
+                                class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm p-2.5">
+                                <option value="OPERADOR-INSTALADOR">Operador / Instalador</option>
+                                <option value="COORDENADOR">Coordenador</option>
+                                <option value="GERENTE">Gerente</option>
+                                <option value="GESTOR">Gestor</option>
+                                <option value="PROJETISTA">Projetista</option>
+                                <option value="FINANCEIRO">Gestor Financeiro</option>
+                                <option value="TERCEIRO">Terceiro / Prestador de Serviço</option>
+                            </select>
+                            <p class="text-xs text-gray-500 mt-1">Cargos como Coordenador, Gerente, Gestor e Financeiro terão acesso administrativo para deferir saídas e gerenciar usuários.</p>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="pt-4">
+                            <button type="submit" id="submit-signup-btn"
+                                class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                Cadastrar Usuário
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </main>
-    </div>
-
-    <!-- Modal -->
-    <div id="client-modal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog"
-        aria-modal="true">
-        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="closeClientModal()"></div>
-            <div
-                class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title">Novo
-                        Cliente</h3>
-                    <div class="mt-4 space-y-4">
-                        <input type="hidden" id="c-id">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome /
-                                Empresa</label>
-                            <input type="text" id="c-name"
-                                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">CNPJ</label>
-                            <input type="text" id="c-cnpj"
-                                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
-                            <input type="email" id="c-email"
-                                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Telefone</label>
-                            <input type="text" id="c-phone"
-                                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Endereço</label>
-                            <textarea id="c-address" rows="2"
-                                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm"></textarea>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Metas</label>
-                            <textarea id="c-metas" rows="2"
-                                class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm"></textarea>
-                        </div>
-                    </div>
-                </div>
-                <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                    <button type="button" onclick="saveClient()"
-                        class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-white hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary sm:ml-3 sm:w-auto sm:text-sm">Salvar</button>
-                    <button type="button" onclick="closeClientModal()"
-                        class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Cancelar</button>
-                </div>
-            </div>
-        </div>
     </div>
 </body>
 

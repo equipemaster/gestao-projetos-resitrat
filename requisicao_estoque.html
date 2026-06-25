@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-BR">
+
+<head>
+    <meta charset="utf-8" />
+    <link href="./logoresitrat.png" rel="icon" type="image/png" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Requisições de Estoque - Resitrat</title>
+    <meta content="light" name="color-scheme" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+        rel="stylesheet" />
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#135bec",
+                        text: {
+                            light: { primary: "#0d121b", secondary: "#526071", tertiary: "#8292a2" },
+                            dark: { primary: "#ffffff", secondary: "#9ca3af", tertiary: "#6b7280" }
+                        },
+                        background: {
+                            light: "#f6f6f8", dark: "#101622"
+                        }
+                    },
+                    fontFamily: {
+                        sans: ["Inter", "sans-serif"]
+                    }
+                }
+            }
+        };
+    </script>
+    <!-- Libs -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- Supabase and Auth Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script src="js/supabaseClient.js"></script>
+    <script src="js/auth.js?v=1"></script>
+    <script src="js/api.js?v=1" defer></script>
+    <script src="js/requisicao_estoque.js?v=1" defer></script>
+</head>
+
+<body
+    class="bg-background-light dark:bg-background-dark text-text-light-primary dark:text-text-dark-primary font-sans antialiased overflow-hidden">
+    <div class="flex h-screen w-full">
+        <!-- Sidebar -->
+        <aside
+            class="w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark flex-shrink-0 flex flex-col h-full">
+            <div class="p-6 pb-0">
+                <div class="flex items-center gap-3">
+                    <img src="logoresitrat.png" alt="Logo" class="h-12 w-auto object-contain">
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto px-6 py-4">
+                <nav class="space-y-1">
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="gerenciamentodeprojetos.html">
+                        <span class="material-symbols-outlined">dashboard</span>
+                        <p class="text-sm font-medium leading-normal">Dashboard</p>
+                    </a>
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="listaprojetos.html">
+                        <span class="material-symbols-outlined">folder</span>
+                        <p class="text-sm font-medium leading-normal">Projetos</p>
+                    </a>
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="itens_projeto.html">
+                        <span class="material-symbols-outlined">inventory_2</span>
+                        <p class="text-sm font-medium leading-normal">Itens do Projeto</p>
+                    </a>
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="controle_producao.html">
+                        <span class="material-symbols-outlined">factory</span>
+                        <p class="text-sm font-medium leading-normal">Controle de Produção</p>
+                    </a>
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="saida_estoque.html">
+                        <span class="material-symbols-outlined">output</span>
+                        <p class="text-sm font-medium leading-normal">Saída de Estoque</p>
+                    </a>
+                    <a class="flex items-center gap-3 rounded-lg bg-primary/10 px-3 py-2 text-primary"
+                        href="requisicao_estoque.html">
+                        <span class="material-symbols-outlined fill-1">pending_actions</span>
+                        <p class="text-sm font-medium leading-normal">Requisições de Estoque</p>
+                    </a>
+                    <a id="nav-cad-user"
+                        class="hidden items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="cadastro_usuario.html">
+                        <span class="material-symbols-outlined">person_add_alt</span>
+                        <p class="text-sm font-medium leading-normal">Cadastrar Usuários</p>
+                    </a>
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="simulacao_estoque.html">
+                        <span class="material-symbols-outlined">online_prediction</span>
+                        <p class="text-sm font-medium leading-normal">Previsão de Compras / Estoque</p>
+                    </a>
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="clientes.html">
+                        <span class="material-symbols-outlined">person_add</span>
+                        <p class="text-sm font-medium leading-normal">Clientes</p>
+                    </a>
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="dashboard_custos.html">
+                        <span class="material-symbols-outlined">attach_money</span>
+                        <p class="text-sm font-medium leading-normal">Custos por Cliente</p>
+                    </a>
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="tarefas.html">
+                        <span class="material-symbols-outlined">check_circle</span>
+                        <p class="text-sm font-medium leading-normal">Tarefas</p>
+                    </a>
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="membros.html">
+                        <span class="material-symbols-outlined">groups</span>
+                        <p class="text-sm font-medium leading-normal">Equipe</p>
+                    </a>
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="relatorios.html">
+                        <span class="material-symbols-outlined">bar_chart</span>
+                        <p class="text-sm font-medium leading-normal">Relatórios</p>
+                    </a>
+                </nav>
+            </div>
+
+            <div class="p-6 border-t border-gray-200 dark:border-gray-800">
+                <div class="space-y-1">
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="ajuda.html">
+                        <span class="material-symbols-outlined">help</span>
+                        <p class="text-sm font-medium leading-normal">Ajuda e Suporte</p>
+                    </a>
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="configuracoes.html">
+                        <span class="material-symbols-outlined">settings</span>
+                        <p class="text-sm font-medium leading-normal">Configurações</p>
+                    </a>
+                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
+                        href="#" onclick="signOut(); return false;">
+                        <span class="material-symbols-outlined">logout</span>
+                        <p class="text-sm font-medium leading-normal">Sair</p>
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 min-w-0 overflow-auto bg-gray-50 dark:bg-black/10">
+            <div class="p-8 max-w-6xl mx-auto">
+
+                <!-- Page Header with Role Switcher -->
+                <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
+                    <div>
+                        <h1 class="text-2xl font-bold text-[#0d121b] dark:text-white">Requisições de Estoque</h1>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Solicitação e aprovação de saídas de
+                            materiais</p>
+                    </div>
+
+                    <!-- Role Switcher Segmented Control -->
+                    <div id="role-switcher-container"
+                        class="flex items-center bg-gray-200 dark:bg-gray-800 rounded-lg p-1 shadow-inner">
+                        <button id="role-op-btn" onclick="switchRole('operator')"
+                            class="px-4 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 focus:outline-none bg-primary text-white shadow-sm">
+                            Operador
+                        </button>
+                        <button id="role-adm-btn" onclick="switchRole('admin')"
+                            class="px-4 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 focus:outline-none text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">
+                            Administrador
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Info Message Banner -->
+                <div id="role-banner"
+                    class="mb-6 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 text-xs flex items-center gap-2">
+                    <span class="material-symbols-outlined text-lg">info</span>
+                    <span>Sua conta está identificada no sistema. Você pode forçar a visualização como outro perfil
+                        acima para testes.</span>
+                </div>
+
+                <!-- ================= OPERATOR VIEW ================= -->
+                <div id="operator-view" class="space-y-8">
+                    <!-- Form Container -->
+                    <div
+                        class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-6">
+                        <h2 class="text-lg font-bold mb-4 text-[#0d121b] dark:text-white flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary">add_shopping_cart</span>
+                            Nova Requisição de Material
+                        </h2>
+
+                        <form id="req-form" class="space-y-6">
+                            <!-- Row 1: Item and Unit -->
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                                <div class="md:col-span-3">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nome
+                                        do Material/Serviço</label>
+                                    <input type="text" id="req-item-name" required
+                                        placeholder="Ex: Cabo Flexível 6mm, Conector..."
+                                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm p-2.5">
+                                </div>
+                                <div class="md:col-span-1">
+                                    <label
+                                        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Unidade</label>
+                                    <select id="req-item-unit" required
+                                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm p-2.5">
+                                        <option value="UN">UN</option>
+                                        <option value="KG">KG</option>
+                                        <option value="MT">MT</option>
+                                        <option value="M2">M2</option>
+                                        <option value="M3">M3</option>
+                                        <option value="L">L</option>
+                                        <option value="CX">CX</option>
+                                        <option value="SC">SC</option>
+                                        <option value="PCT">PCT</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Row 2: Qty, Project and Client -->
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div>
+                                    <label
+                                        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Quantidade
+                                        Solicitada</label>
+                                    <input type="number" id="req-qty" step="any" min="0.01" required placeholder="0.00"
+                                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm p-2.5">
+                                </div>
+                                <div>
+                                    <label
+                                        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Projeto
+                                        (Opcional)</label>
+                                    <select id="req-project-select"
+                                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm p-2.5">
+                                        <option value="">Selecione um projeto...</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label
+                                        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Cliente
+                                        (Opcional)</label>
+                                    <select id="req-client-select"
+                                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm p-2.5">
+                                        <option value="">Selecione um cliente...</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Row 3: Operator Name and Reason -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nome
+                                        do Operador / Solicitante</label>
+                                    <input type="text" id="req-operator-name" required
+                                        placeholder="Digite o nome de quem está solicitando..."
+                                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm p-2.5">
+                                </div>
+                                <div>
+                                    <label
+                                        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Aplicação
+                                        / Motivo</label>
+                                    <select id="req-reason" required
+                                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm p-2.5">
+                                        <option value="Industrialização">Industrialização</option>
+                                        <option value="Manutenção">Manutenção</option>
+                                        <option value="Perda/Quebra">Perda/Quebra</option>
+                                        <option value="Venda">Venda</option>
+                                        <option value="Outro">Outro</option>
+                                        <option value="Serviço">Serviço</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Row 4: Observation -->
+                            <div>
+                                <label
+                                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Observações</label>
+                                <textarea id="req-obs" rows="2"
+                                    placeholder="Informações adicionais sobre o uso do material..."
+                                    class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm p-2.5"></textarea>
+                            </div>
+
+                            <!-- Hidden ID input for edits -->
+                            <input type="hidden" id="editing-req-id">
+
+                            <!-- Submit Button and Cancel Edit -->
+                            <div class="flex flex-col sm:flex-row gap-2 pt-2">
+                                <button type="submit" id="req-submit-btn"
+                                    class="flex-1 flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                    Enviar Solicitação
+                                </button>
+                                <button type="button" id="cancel-req-edit-btn" onclick="cancelReqEdit()"
+                                    class="hidden py-3 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors">
+                                    Cancelar Edição
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Operator History -->
+                    <div>
+                        <h3 class="text-lg font-bold mb-4 text-[#0d121b] dark:text-white">Minhas Solicitações Recentes
+                        </h3>
+                        <div
+                            class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                    <thead class="bg-gray-50 dark:bg-gray-800">
+                                        <tr>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Data</th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Operador</th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Item</th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Quantidade</th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Projeto / Cliente</th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Motivo</th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Status</th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="op-history-table-body"
+                                        class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                                        <tr>
+                                            <td colspan="8" class="px-6 py-4 text-center text-gray-500">Carregando...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= ADMIN VIEW ================= -->
+                <div id="admin-view" class="space-y-8 hidden">
+
+                    <!-- Admin Tabs Navigation -->
+                    <div class="border-b border-gray-200 dark:border-gray-800">
+                        <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                            <button onclick="switchAdminTab('pending')" id="tab-pending-btn"
+                                class="border-primary text-primary whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2">
+                                Solicitações Pendentes
+                                <span id="pending-badge-count"
+                                    class="bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-300 text-xs font-bold px-2.5 py-0.5 rounded-full hidden">0</span>
+                            </button>
+                            <button onclick="switchAdminTab('history')" id="tab-history-btn"
+                                class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                                Histórico Consolidado
+                            </button>
+                        </nav>
+                    </div>
+
+                    <!-- TAB: PENDING -->
+                    <div id="tab-pending" class="space-y-4">
+                        <div
+                            class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                    <thead class="bg-gray-50 dark:bg-gray-800">
+                                        <tr>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Solicitado em</th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Operador</th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Item</th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Quantidade</th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Destino</th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Motivo</th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Observações</th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="adm-pending-table-body"
+                                        class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                                        <tr>
+                                            <td colspan="8" class="px-6 py-4 text-center text-gray-500">Carregando...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB: HISTORY -->
+                    <div id="tab-history" class="space-y-4 hidden">
+                        <!-- Filters and Exports -->
+                        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full lg:w-3/4">
+                                <div>
+                                    <label for="filter-status" class="sr-only">Filtrar por Status</label>
+                                    <select id="filter-status" onchange="loadAdminHistory()"
+                                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 text-sm p-2">
+                                        <option value="">Todos os Status</option>
+                                        <option value="DEFERIDO">Deferido (Aprovado)</option>
+                                        <option value="INDEFERIDO">Indeferido (Rejeitado)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="filter-client" class="sr-only">Filtrar por Cliente</label>
+                                    <select id="filter-client" onchange="loadAdminHistory()"
+                                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 text-sm p-2">
+                                        <option value="">Todos os Clientes</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="filter-month" class="sr-only">Filtrar por Mês</label>
+                                    <input type="month" id="filter-month" onchange="loadAdminHistory()"
+                                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 text-sm p-2">
+                                </div>
+                            </div>
+
+                            <div class="flex gap-2">
+                                <button onclick="exportHistoryPDF()"
+                                    class="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 transition-colors shadow-sm text-xs font-semibold">
+                                    <span class="material-symbols-outlined text-lg">picture_as_pdf</span>
+                                    <span>Exportar PDF</span>
+                                </button>
+                                <button onclick="exportHistoryExcel()"
+                                    class="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 transition-colors shadow-sm text-xs font-semibold">
+                                    <span class="material-symbols-outlined text-lg">download</span>
+                                    <span>Exportar XLS</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Consolidated Table -->
+                        <div
+                            class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                    <thead class="bg-gray-50 dark:bg-gray-800">
+                                        <tr>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Data</th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Operador</th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Item</th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Qtd</th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Val. Unit.</th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Val. Total</th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Destino</th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Status</th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                Mais Info</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="adm-history-table-body"
+                                        class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                                        <tr>
+                                            <td colspan="9" class="px-6 py-4 text-center text-gray-500">Nenhum histórico
+                                                encontrado.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- ================= MODALS ================= -->
+
+    <!-- APPROVE (DEFERIR) MODAL -->
+    <div id="approve-modal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title"
+        role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"
+                onclick="closeApproveModal()"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+            <div
+                class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <form id="approve-form" class="space-y-4">
+                    <div class="bg-white dark:bg-gray-800 px-6 pt-6 pb-4">
+                        <div class="sm:flex sm:items-start">
+                            <div
+                                class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100 dark:bg-green-950 sm:mx-0 sm:h-10 sm:w-10">
+                                <span
+                                    class="material-symbols-outlined text-green-600 dark:text-green-400">check_circle</span>
+                            </div>
+                            <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                                <h3 class="text-lg leading-6 font-bold text-gray-900 dark:text-white"
+                                    id="approve-modal-title">
+                                    Deferir Requisição
+                                </h3>
+                                <div class="mt-4 space-y-4">
+                                    <div class="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-xs space-y-1">
+                                        <p class="font-semibold text-gray-700 dark:text-gray-300">Resumo do Pedido:</p>
+                                        <p id="app-summary-item" class="text-gray-900 dark:text-white font-medium"></p>
+                                        <p id="app-summary-qty" class="text-gray-600 dark:text-gray-400"></p>
+                                        <p id="app-summary-dest" class="text-gray-600 dark:text-gray-400"></p>
+                                        <p id="app-summary-obs" class="text-gray-500 dark:text-gray-400 italic"></p>
+                                    </div>
+
+                                    <div>
+                                        <label
+                                            class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                            Valor Unitário do Material (R$)
+                                        </label>
+                                        <input type="number" id="app-unit-value" step="0.01" min="0" required
+                                            placeholder="0.00"
+                                            class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-green-500 focus:ring focus:ring-green-500/50 sm:text-sm p-2.5">
+                                        <p class="text-[10px] text-gray-500 mt-1">Este valor será associado ao material
+                                            no estoque e registrará o custo total da saída.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="app-request-id">
+
+                    <div class="bg-gray-50 dark:bg-gray-700/80 px-6 py-4 sm:flex sm:flex-row-reverse gap-2">
+                        <button type="submit" id="btn-confirm-approve"
+                            class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:w-auto sm:text-sm">
+                            Confirmar Saída
+                        </button>
+                        <button type="button" onclick="closeApproveModal()"
+                            class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:mt-0 sm:w-auto sm:text-sm">
+                            Cancelar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- REJECT (INDEFERIR) MODAL -->
+    <div id="reject-modal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog"
+        aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"
+                onclick="closeRejectModal()"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+            <div
+                class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <form id="reject-form" class="space-y-4">
+                    <div class="bg-white dark:bg-gray-800 px-6 pt-6 pb-4">
+                        <div class="sm:flex sm:items-start">
+                            <div
+                                class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-950 sm:mx-0 sm:h-10 sm:w-10">
+                                <span class="material-symbols-outlined text-red-600 dark:text-red-400">cancel</span>
+                            </div>
+                            <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                                <h3 class="text-lg leading-6 font-bold text-gray-900 dark:text-white"
+                                    id="reject-modal-title">
+                                    Indeferir / Rejeitar Requisição
+                                </h3>
+                                <div class="mt-4 space-y-4">
+                                    <div>
+                                        <label
+                                            class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                            Motivo do Indeferimento
+                                        </label>
+                                        <textarea id="rej-reason-text" rows="3" required
+                                            placeholder="Ex: Material indisponível, Projeto cancelado, Quantidade excedente..."
+                                            class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-red-500 focus:ring focus:ring-red-500/50 sm:text-sm p-2.5"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="rej-request-id">
+
+                    <div class="bg-gray-50 dark:bg-gray-700/80 px-6 py-4 sm:flex sm:flex-row-reverse gap-2">
+                        <button type="submit" id="btn-confirm-reject"
+                            class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:w-auto sm:text-sm">
+                            Confirmar Indeferimento
+                        </button>
+                        <button type="button" onclick="closeRejectModal()"
+                            class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:mt-0 sm:w-auto sm:text-sm">
+                            Cancelar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>

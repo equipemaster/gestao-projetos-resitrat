@@ -475,3 +475,40 @@ async function deleteClient(id) {
     const { error } = await _supabase.from('clients').delete().eq('id', id);
     if (error) throw error;
 }
+
+// --- Stock Requests CRUD Operations ---
+async function fetchStockRequests() {
+    try {
+        const { data, error } = await _supabase
+            .from('stock_requests')
+            .select(`
+                *,
+                projects (name),
+                clients (name)
+            `)
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Error fetching stock requests:', error.message);
+        return [];
+    }
+}
+
+async function createStockRequest(requestData) {
+    const { data, error } = await _supabase.from('stock_requests').insert([requestData]).select();
+    if (error) throw error;
+    return data;
+}
+
+async function updateStockRequest(id, updates) {
+    const { data, error } = await _supabase.from('stock_requests').update(updates).eq('id', id).select();
+    if (error) throw error;
+    return data;
+}
+
+async function deleteStockRequest(id) {
+    const { error } = await _supabase.from('stock_requests').delete().eq('id', id);
+    if (error) throw error;
+}
+
