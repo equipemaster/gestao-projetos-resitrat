@@ -121,7 +121,7 @@ window.openNewItemModal = () => {
     document.getElementById('i-name').value = '';
     document.getElementById('i-category').value = 'Outros';
     document.getElementById('i-nf').value = '';
-    document.getElementById('i-apply-all-nf').checked = true;
+    document.getElementById('i-apply-all-nf').checked = false;
     document.getElementById('i-qty').value = '1';
     document.getElementById('i-value').value = '0.00';
     document.getElementById('item-modal').classList.remove('hidden');
@@ -141,7 +141,7 @@ window.editItem = (id) => {
     document.getElementById('i-name').value = item.name;
     document.getElementById('i-category').value = item.category || 'Outros';
     document.getElementById('i-nf').value = item.nota_fiscal || '';
-    document.getElementById('i-apply-all-nf').checked = true;
+    document.getElementById('i-apply-all-nf').checked = false;
     document.getElementById('i-qty').value = item.quantity;
     document.getElementById('i-unit').value = item.unit;
     document.getElementById('i-value').value = item.value;
