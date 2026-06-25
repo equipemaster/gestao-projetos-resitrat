@@ -24,7 +24,7 @@ function randomNormal(mu, sigma) {
 }
 // ---------------------- //
 
-function addRow(name = '', mu = '', sigma = '', lt = '', dist = 'poisson') {
+function addRow(name = '', mu = '', sigma = '', lt = '', dist = 'poisson', category = '') {
     const tbody = document.getElementById('estoque-tbody');
     if (!tbody) return;
     
@@ -32,6 +32,12 @@ function addRow(name = '', mu = '', sigma = '', lt = '', dist = 'poisson') {
     tr.dataset.id = 'item_' + (++rowCount);
     
     tr.innerHTML = `
+        <td class="px-4 py-3 text-center">
+            <input type="checkbox" class="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4 item-select" checked>
+        </td>
+        <td class="px-4 py-3">
+            <input type="text" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm p-2 item-category" placeholder="Categoria" value="${category}">
+        </td>
         <td class="px-4 py-3">
             <input type="text" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm p-2 item-name" placeholder="Ex: Item ${rowCount}" value="${name}">
         </td>
@@ -70,15 +76,72 @@ document.addEventListener('DOMContentLoaded', () => {
     const importBtn = document.getElementById('import-history-btn');
     const horizonSel = document.getElementById('sim-horizon');
     const clearBtn = document.getElementById('clear-items-btn');
+    const filterInput = document.getElementById('filter-category-input');
+    const selectAllCheckbox = document.getElementById('select-all-items');
+    const tbody = document.getElementById('estoque-tbody');
 
     // Default rows based on instruction
-    addRow('SODA LÍQUIDA 50% - BB 30 KG', 0.25, 1.06, 7, 'poisson');
-    addRow('PAC BB 30 KG', 0.35, 1.21, 7, 'poisson');
+    addRow('SODA LÍQUIDA 50% - BB 30 KG', 0.25, 1.06, 7, 'poisson', 'Químicos');
+    addRow('PAC BB 30 KG', 0.35, 1.21, 7, 'poisson', 'Químicos');
 
     if(addBtn) addBtn.addEventListener('click', () => addRow());
     if(runBtn) runBtn.addEventListener('click', runSimulation);
     if(importBtn) importBtn.addEventListener('click', importFromHistory);
     if(clearBtn) clearBtn.addEventListener('click', clearItems);
+    
+    if(filterInput) {
+        filterInput.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('#estoque-tbody tr');
+            rows.forEach(row => {
+                const catInput = row.querySelector('.item-category');
+                if(catInput) {
+                    const cat = catInput.value.toLowerCase();
+                    if(cat.includes(term)) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                }
+            });
+            updateSelectAllState();
+        });
+    }
+
+    function updateSelectAllState() {
+        if (!selectAllCheckbox) return;
+        const allVisible = Array.from(document.querySelectorAll('#estoque-tbody tr')).filter(r => r.style.display !== 'none');
+        if (allVisible.length === 0) {
+            selectAllCheckbox.checked = false;
+            return;
+        }
+        const allChecked = allVisible.every(r => {
+            const cb = r.querySelector('.item-select');
+            return cb && cb.checked;
+        });
+        selectAllCheckbox.checked = allChecked;
+    }
+
+    if(selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            const checkboxes = document.querySelectorAll('#estoque-tbody .item-select');
+            checkboxes.forEach(cb => {
+                const row = cb.closest('tr');
+                if(row.style.display !== 'none') {
+                    cb.checked = isChecked;
+                }
+            });
+        });
+    }
+
+    if (tbody && selectAllCheckbox) {
+        tbody.addEventListener('change', (e) => {
+            if (e.target.classList.contains('item-select')) {
+                updateSelectAllState();
+            }
+        });
+    }
     
     if(horizonSel) {
         horizonSel.addEventListener('change', () => {
@@ -136,9 +199,11 @@ async function importFromHistory() {
             const d = new Date(exit.created_at);
             if (d >= horizonDaysAgo) {
                 const name = exit.stock_items ? exit.stock_items.name : ('Item ID ' + exit.item_id);
+                const category = exit.stock_items ? (exit.stock_items.category || '') : '';
                 if (!itemsMap[name]) {
                     itemsMap[name] = { 
                         name: name,
+                        category: category,
                         dailySum: Array(horizonValue).fill(0) 
                     };
                 }
@@ -174,7 +239,7 @@ async function importFromHistory() {
                 const lt = 7; 
                 
                 // Append
-                addRow(name, mu.toFixed(3), sigma.toFixed(3), lt, dist);
+                addRow(name, mu.toFixed(3), sigma.toFixed(3), lt, dist, itemsMap[name].category);
                 added++;
             }
         }
@@ -182,8 +247,8 @@ async function importFromHistory() {
         if (added === 0) {
             alert(`Não há saídas registradas nos últimos ${horizonValue} dias.\\nAdicione itens manualmente ou registre saídas para gerar um histórico.`);
             // Restore defaults if nothing found
-            addRow('SODA LÍQUIDA 50% - BB 30 KG', 0.25, 1.06, 7, 'poisson');
-            addRow('PAC BB 30 KG', 0.35, 1.21, 7, 'poisson');
+            addRow('SODA LÍQUIDA 50% - BB 30 KG', 0.25, 1.06, 7, 'poisson', 'Químicos');
+            addRow('PAC BB 30 KG', 0.35, 1.21, 7, 'poisson', 'Químicos');
         } else {
             alert(`Foram importados ${added} itens com movimentação nos últimos ${horizonValue} dias!\\n\\nO Desvio Padrão e a Média foram calculados dia a dia.\\nVocê pode alterar o Lead Time padrão (7 dias) antes de simular.`);
         }
@@ -202,6 +267,9 @@ function runSimulation() {
     const items = [];
     
     rows.forEach(row => {
+        const checkbox = row.querySelector('.item-select');
+        if (checkbox && !checkbox.checked) return; // Skip item if checkbox is unchecked
+
         const name = row.querySelector('.item-name').value;
         const muInput = row.querySelector('.item-mu').value;
         const sigmaInput = row.querySelector('.item-sigma').value;

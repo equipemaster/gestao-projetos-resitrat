@@ -232,6 +232,34 @@ async function updateProjectItem(id, updates) {
     return data;
 }
 
+async function updateProjectItemsInvoice(projectId, newNf, oldNf) {
+    let query = _supabase.from('project_items')
+        .update({ nota_fiscal: newNf })
+        .eq('project_id', projectId);
+        
+    if (oldNf && oldNf !== 'null') {
+        query = query.eq('nota_fiscal', oldNf);
+        const { data, error } = await query;
+        if (error) throw error;
+        return data;
+    } else {
+        // Se era um item sem nota, atualiza os outros itens sem nota (null ou vazio)
+        const { error: err1 } = await _supabase.from('project_items')
+            .update({ nota_fiscal: newNf })
+            .eq('project_id', projectId)
+            .is('nota_fiscal', null);
+            
+        const { error: err2 } = await _supabase.from('project_items')
+            .update({ nota_fiscal: newNf })
+            .eq('project_id', projectId)
+            .eq('nota_fiscal', '');
+            
+        if (err1) throw err1;
+        if (err2) throw err2;
+        return true;
+    }
+}
+
 async function deleteProjectItem(id) {
     const { error } = await _supabase.from('project_items').delete().eq('id', id);
     if (error) throw error;
@@ -436,7 +464,7 @@ async function fetchStockExits() {
             .from('stock_exits')
             .select(`
                 *,
-                stock_items (name, value, unit),
+                stock_items (name, value, unit, category),
                 clients (name)
             `);
         if (error) throw error;

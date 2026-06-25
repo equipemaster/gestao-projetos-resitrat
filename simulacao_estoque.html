@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html class="light" lang="pt-BR">
 <head>
     <meta charset="utf-8" />
@@ -159,7 +159,15 @@
                         </div>
                     </div>
                     
-                    <div class="flex justify-end mb-4">
+                    <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+                        <div class="w-full sm:w-1/2 md:w-1/3">
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <span class="material-symbols-outlined text-gray-400 text-base">search</span>
+                                </span>
+                                <input type="text" id="filter-category-input" class="w-full pl-10 pr-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm" placeholder="Filtrar por categoria...">
+                            </div>
+                        </div>
                         <button id="add-item-btn" class="text-sm text-primary hover:text-primary/80 font-medium flex items-center gap-1">
                             <span class="material-symbols-outlined text-base">add</span> Adicionar Item
                         </button>
@@ -168,6 +176,10 @@
                         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-800" id="estoque-table">
                             <thead class="bg-gray-50 dark:bg-gray-800/50">
                                 <tr>
+                                    <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 w-12">
+                                        <input type="checkbox" id="select-all-items" class="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4" checked title="Selecionar/Deselecionar Todos">
+                                    </th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Categoria</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Nome do Item</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500" title="Consumo médio por dia">Média Diária (μ)</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500" title="Variação diária">Desvio Padrão (σ)</th>
