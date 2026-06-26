@@ -572,7 +572,7 @@ function renderOperatorHistory() {
         const dateStr = formatDate(req.created_at.split('T')[0]);
         let dest = '-';
         if (req.projects) dest = `Proj: ${req.projects.name}`;
-        else if (req.clients) dest = `Cli: ${req.clients.name}`;
+        else if (req.clients) dest = req.clients.name;
         
         // Status Badge
         let badgeHtml = '';
@@ -653,7 +653,7 @@ function loadAdminPending() {
         const dateStr = formatDate(req.created_at.split('T')[0]);
         let dest = '-';
         if (req.projects) dest = `Proj: ${req.projects.name}`;
-        else if (req.clients) dest = `Cli: ${req.clients.name}`;
+        else if (req.clients) dest = req.clients.name;
         
         const operatorName = req.requested_by ? req.requested_by.split('@')[0].toUpperCase() : 'DESCONHECIDO';
         
@@ -764,7 +764,7 @@ function loadAdminHistory() {
         const dateStr = formatDate(req.created_at.split('T')[0]);
         let dest = '-';
         if (req.projects) dest = `Proj: ${req.projects.name}`;
-        else if (req.clients) dest = `Cli: ${req.clients.name}`;
+        else if (req.clients) dest = req.clients.name;
         
         const operatorName = req.requested_by ? req.requested_by.split('@')[0].toUpperCase() : 'DESCONHECIDO';
         
@@ -867,7 +867,7 @@ window.exportHistoryPDF = () => {
             
             let dest = '-';
             if (req.projects) dest = `Proj: ${req.projects.name}`;
-            else if (req.clients) dest = `Cli: ${req.clients.name}`;
+            else if (req.clients) dest = req.clients.name;
             
             const info = req.status === 'DEFERIDO' 
                 ? `Aprov: ${req.approved_by ? req.approved_by.split('@')[0] : ''}`
