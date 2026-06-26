@@ -1,0 +1,365 @@
+﻿diff --git a/js/api.js b/js/api.js
+index a6eb06f..369581a 100644
+--- a/js/api.js
++++ b/js/api.js
+@@ -541,7 +541,8 @@ async function fetchStockRequests() {
+ }
+ 
+ async function createStockRequest(requestData) {
+-    const { data, error } = await _supabase.from('stock_requests').insert([requestData]).select();
++    const insertData = Array.isArray(requestData) ? requestData : [requestData];
++    const { data, error } = await _supabase.from('stock_requests').insert(insertData).select();
+     if (error) throw error;
+     return data;
+ }
+diff --git a/js/requisicao_estoque.js b/js/requisicao_estoque.js
+index bed6f54..c867a4c 100644
+--- a/js/requisicao_estoque.js
++++ b/js/requisicao_estoque.js
+@@ -290,6 +290,45 @@ async function refreshRequests() {
+ // --- Form & Action Setup ---
+ function setupFormHandlers() {
+     const form = document.getElementById('req-form');
++    const addItemBtn = document.getElementById('add-item-btn');
++    
++    if (addItemBtn) {
++        addItemBtn.addEventListener('click', () => {
++            const container = document.getElementById('items-container');
++            const newRow = document.createElement('div');
++            newRow.className = "item-row grid grid-cols-1 md:grid-cols-12 gap-4 items-end p-4 border border-gray-100 dark:border-gray-800 rounded-lg relative bg-gray-50/50 dark:bg-gray-800/30";
++            newRow.innerHTML = `
++                <div class="md:col-span-6">
++                    <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Nome do Material/Servi├ºo</label>
++                    <input type="text" name="item_name" required placeholder="Ex: Cabo Flex├¡vel 6mm, Conector..." class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 text-sm p-2.5">
++                </div>
++                <div class="md:col-span-2">
++                    <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Unidade</label>
++                    <select name="item_unit" required class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 text-sm p-2.5">
++                        <option value="UN">UN</option>
++                        <option value="KG">KG</option>
++                        <option value="MT">MT</option>
++                        <option value="M2">M2</option>
++                        <option value="M3">M3</option>
++                        <option value="L">L</option>
++                        <option value="CX">CX</option>
++                        <option value="SC">SC</option>
++                        <option value="PCT">PCT</option>
++                    </select>
++                </div>
++                <div class="md:col-span-3">
++                    <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Qtd.</label>
++                    <input type="number" name="item_qty" step="any" min="0.01" required placeholder="0.00" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 text-sm p-2.5">
++                </div>
++                <div class="md:col-span-1 flex justify-center pb-1">
++                    <button type="button" class="remove-item-btn text-red-500 hover:text-red-700 p-2 transition-colors" title="Remover item" onclick="this.closest('.item-row').remove()">
++                        <span class="material-symbols-outlined">delete</span>
++                    </button>
++                </div>
++            `;
++            container.appendChild(newRow);
++        });
++    }
+     
+     form.addEventListener('submit', async (e) => {
+         e.preventDefault();
+@@ -297,39 +336,46 @@ function setupFormHandlers() {
+         const submitBtn = document.getElementById('req-submit-btn');
+         const editingId = document.getElementById('editing-req-id').value;
+         
+-        const itemName = document.getElementById('req-item-name').value;
+-        const itemUnit = document.getElementById('req-item-unit').value;
+-        const qty = parseFloat(document.getElementById('req-qty').value);
+         const projectId = document.getElementById('req-project-select').value;
+         const clientId = document.getElementById('req-client-select').value;
+         const reason = document.getElementById('req-reason').value;
+         const obs = document.getElementById('req-obs').value;
+         const operatorName = document.getElementById('req-operator-name').value;
+         
+-        if (!itemName || itemName.trim() === '') {
+-            alert('Por favor, informe o nome do material.');
+-            return;
+-        }
+-        if (isNaN(qty) || qty <= 0) {
+-            alert('Por favor, insira uma quantidade v├ílida.');
+-            return;
+-        }
+         if (!operatorName || operatorName.trim() === '') {
+             alert('Por favor, informe o nome do operador/solicitante.');
+             return;
+         }
+         
+-        const requestData = {
+-            item_name: itemName.toUpperCase().trim(),
+-            unit: itemUnit,
+-            quantity: qty,
+-            project_id: projectId || null,
+-            client_id: clientId || null,
+-            reason: reason,
+-            observation: obs || null,
+-            status: 'PENDENTE',
+-            requested_by: operatorName.toUpperCase().trim()
+-        };
++        const itemRows = document.querySelectorAll('.item-row');
++        const requestsData = [];
++        
++        for (const row of itemRows) {
++            const itemName = row.querySelector('[name="item_name"]').value;
++            const itemUnit = row.querySelector('[name="item_unit"]').value;
++            const qty = parseFloat(row.querySelector('[name="item_qty"]').value);
++            
++            if (!itemName || itemName.trim() === '') {
++                alert('Por favor, informe o nome de todos os materiais.');
++                return;
++            }
++            if (isNaN(qty) || qty <= 0) {
++                alert('Por favor, insira uma quantidade v├ílida para todos os materiais.');
++                return;
++            }
++            
++            requestsData.push({
++                item_name: itemName.toUpperCase().trim(),
++                unit: itemUnit,
++                quantity: qty,
++                project_id: projectId || null,
++                client_id: clientId || null,
++                reason: reason,
++                observation: obs || null,
++                status: 'PENDENTE',
++                requested_by: operatorName.toUpperCase().trim()
++            });
++        }
+         
+         try {
+             submitBtn.disabled = true;
+@@ -337,14 +383,17 @@ function setupFormHandlers() {
+             
+             if (editingId) {
+                 // Update
+-                await updateStockRequest(editingId, requestData);
+-                alert('Solicita├º├úo atualizada com sucesso!');
++                if (requestsData.length > 0) {
++                    await updateStockRequest(editingId, requestsData[0]);
++                    alert('Solicita├º├úo atualizada com sucesso!');
++                }
+                 cancelReqEdit();
+             } else {
+                 // Create
+-                await createStockRequest(requestData);
+-                alert('Solicita├º├úo de sa├¡da enviada com sucesso!');
++                await createStockRequest(requestsData);
++                alert('Solicita├º├úo(├Áes) enviada(s) com sucesso!');
+                 form.reset();
++                resetItemRows();
+             }
+             
+             await refreshRequests();
+@@ -359,21 +408,40 @@ function setupFormHandlers() {
+     });
+ }
+ 
++function resetItemRows() {
++    const container = document.getElementById('items-container');
++    const rows = container.querySelectorAll('.item-row');
++    // Remove all except the first one
++    for (let i = 1; i < rows.length; i++) {
++        rows[i].remove();
++    }
++}
++
+ window.cancelReqEdit = () => {
+     document.getElementById('editing-req-id').value = '';
+     document.getElementById('req-form').reset();
++    resetItemRows();
+     
+     document.getElementById('req-submit-btn').textContent = 'Enviar Solicita├º├úo';
+     document.getElementById('cancel-req-edit-btn').classList.add('hidden');
++    
++    const addItemBtn = document.getElementById('add-item-btn');
++    if (addItemBtn) addItemBtn.classList.remove('hidden');
+ };
+ 
+ window.editRequest = (req) => {
+     document.getElementById('req-form').scrollIntoView({ behavior: 'smooth' });
+     
+     document.getElementById('editing-req-id').value = req.id;
+-    document.getElementById('req-item-name').value = req.item_name;
+-    document.getElementById('req-item-unit').value = req.unit;
+-    document.getElementById('req-qty').value = req.quantity;
++    
++    resetItemRows();
++    const firstRow = document.querySelector('.item-row');
++    if (firstRow) {
++        firstRow.querySelector('[name="item_name"]').value = req.item_name;
++        firstRow.querySelector('[name="item_unit"]').value = req.unit;
++        firstRow.querySelector('[name="item_qty"]').value = req.quantity;
++    }
++    
+     document.getElementById('req-project-select').value = req.project_id || '';
+     document.getElementById('req-client-select').value = req.client_id || '';
+     document.getElementById('req-reason').value = req.reason;
+@@ -382,6 +450,9 @@ window.editRequest = (req) => {
+     
+     document.getElementById('req-submit-btn').textContent = 'Salvar Altera├º├Áes';
+     document.getElementById('cancel-req-edit-btn').classList.remove('hidden');
++    
++    const addItemBtn = document.getElementById('add-item-btn');
++    if (addItemBtn) addItemBtn.classList.add('hidden');
+ };
+ 
+ window.deleteRequest = async (id) => {
+diff --git a/requisicao_estoque.html b/requisicao_estoque.html
+index 756202d..3559cca 100644
+--- a/requisicao_estoque.html
++++ b/requisicao_estoque.html
+@@ -196,77 +196,32 @@
+                         </h2>
+ 
+                         <form id="req-form" class="space-y-6">
+-                            <!-- Row 1: Item and Unit -->
+-                            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+-                                <div class="md:col-span-3">
+-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nome
+-                                        do Material/Servi├ºo</label>
+-                                    <input type="text" id="req-item-name" required
+-                                        placeholder="Ex: Cabo Flex├¡vel 6mm, Conector..."
+-                                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm p-2.5">
+-                                </div>
+-                                <div class="md:col-span-1">
+-                                    <label
+-                                        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Unidade</label>
+-                                    <select id="req-item-unit" required
+-                                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm p-2.5">
+-                                        <option value="UN">UN</option>
+-                                        <option value="KG">KG</option>
+-                                        <option value="MT">MT</option>
+-                                        <option value="M2">M2</option>
+-                                        <option value="M3">M3</option>
+-                                        <option value="L">L</option>
+-                                        <option value="CX">CX</option>
+-                                        <option value="SC">SC</option>
+-                                        <option value="PCT">PCT</option>
+-                                    </select>
+-                                </div>
+-                            </div>
+-
+-                            <!-- Row 2: Qty, Project and Client -->
+-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+-                                <div>
+-                                    <label
+-                                        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Quantidade
+-                                        Solicitada</label>
+-                                    <input type="number" id="req-qty" step="any" min="0.01" required placeholder="0.00"
+-                                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm p-2.5">
+-                                </div>
++                            <!-- COMMON HEADER FIELDS -->
++                            <!-- Row 1: Project and Client -->
++                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                 <div>
+-                                    <label
+-                                        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Projeto
+-                                        (Opcional)</label>
+-                                    <select id="req-project-select"
+-                                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm p-2.5">
++                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Projeto (Opcional)</label>
++                                    <select id="req-project-select" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm p-2.5">
+                                         <option value="">Selecione um projeto...</option>
+                                     </select>
+                                 </div>
+                                 <div>
+-                                    <label
+-                                        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Cliente
+-                                        (Opcional)</label>
+-                                    <select id="req-client-select"
+-                                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm p-2.5">
++                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Cliente (Opcional)</label>
++                                    <select id="req-client-select" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm p-2.5">
+                                         <option value="">Selecione um cliente...</option>
+                                     </select>
+                                 </div>
+                             </div>
+ 
+-                            <!-- Row 3: Operator Name and Reason -->
++                            <!-- Row 2: Operator Name and Reason -->
+                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                 <div>
+-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nome
+-                                        do Operador / Solicitante</label>
+-                                    <input type="text" id="req-operator-name" required
+-                                        placeholder="Digite o nome de quem est├í solicitando..."
+-                                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm p-2.5">
++                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nome do Operador / Solicitante</label>
++                                    <input type="text" id="req-operator-name" required placeholder="Digite o nome de quem est├í solicitando..." class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm p-2.5">
+                                 </div>
+                                 <div>
+-                                    <label
+-                                        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Aplica├º├úo
+-                                        / Motivo</label>
+-                                    <select id="req-reason" required
+-                                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm p-2.5">
++                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Aplica├º├úo / Motivo</label>
++                                    <select id="req-reason" required class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm p-2.5">
+                                         <option value="Industrializa├º├úo">Industrializa├º├úo</option>
+                                         <option value="Manuten├º├úo">Manuten├º├úo</option>
+                                         <option value="Perda/Quebra">Perda/Quebra</option>
+@@ -277,14 +232,55 @@
+                                 </div>
+                             </div>
+ 
+-                            <!-- Row 4: Observation -->
++                            <!-- Row 3: Observation -->
+                             <div>
+-                                <label
+-                                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Observa├º├Áes</label>
+-                                <textarea id="req-obs" rows="2"
+-                                    placeholder="Informa├º├Áes adicionais sobre o uso do material..."
+-                                    class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm p-2.5"></textarea>
++                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Observa├º├Áes</label>
++                                <textarea id="req-obs" rows="2" placeholder="Informa├º├Áes adicionais sobre o uso do material..." class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 sm:text-sm p-2.5"></textarea>
+                             </div>
++                            
++                            <hr class="border-gray-200 dark:border-gray-800 my-6">
++                            
++                            <h3 class="text-md font-bold text-gray-800 dark:text-gray-200 mb-4">Itens da Requisi├º├úo</h3>
++                            
++                            <!-- ITEMS CONTAINER -->
++                            <div id="items-container" class="space-y-4">
++                                <!-- First Item Row (Default) -->
++                                <div class="item-row grid grid-cols-1 md:grid-cols-12 gap-4 items-end p-4 border border-gray-100 dark:border-gray-800 rounded-lg relative bg-gray-50/50 dark:bg-gray-800/30">
++                                    <div class="md:col-span-6">
++                                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Nome do Material/Servi├ºo</label>
++                                        <input type="text" name="item_name" required placeholder="Ex: Cabo Flex├¡vel 6mm, Conector..." class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 text-sm p-2.5">
++                                    </div>
++                                    <div class="md:col-span-2">
++                                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Unidade</label>
++                                        <select name="item_unit" required class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 text-sm p-2.5">
++                                            <option value="UN">UN</option>
++                                            <option value="KG">KG</option>
++                                            <option value="MT">MT</option>
++                                            <option value="M2">M2</option>
++                                            <option value="M3">M3</option>
++                                            <option value="L">L</option>
++                                            <option value="CX">CX</option>
++                                            <option value="SC">SC</option>
++                                            <option value="PCT">PCT</option>
++                                        </select>
++                                    </div>
++                                    <div class="md:col-span-3">
++                                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Qtd.</label>
++                                        <input type="number" name="item_qty" step="any" min="0.01" required placeholder="0.00" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 text-sm p-2.5">
++                                    </div>
++                                    <div class="md:col-span-1 flex justify-center pb-1">
++                                        <button type="button" class="remove-item-btn text-red-500 hover:text-red-700 p-2 hidden transition-colors" title="Remover item">
++                                            <span class="material-symbols-outlined">delete</span>
++                                        </button>
++                                    </div>
++                                </div>
++                            </div>
++                            
++                            <!-- Add Item Button -->
++                            <button type="button" id="add-item-btn" class="mt-2 flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80 transition-colors">
++                                <span class="material-symbols-outlined text-sm">add_circle</span>
++                                Adicionar Novo Material
++                            </button>
+ 
+                             <!-- Hidden ID input for edits -->
+                             <input type="hidden" id="editing-req-id">

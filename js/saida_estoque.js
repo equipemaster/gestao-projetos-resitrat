@@ -68,11 +68,34 @@ async function loadInitialData() {
 
 let editingExitId = null;
 
+function resetItemRows() {
+    const container = document.getElementById('items-container');
+    if (!container) return;
+    const rows = container.querySelectorAll('.item-row');
+    // Keep first row, remove others
+    for (let i = 1; i < rows.length; i++) {
+        rows[i].remove();
+    }
+    // Reset first row
+    const firstRow = rows[0];
+    const inputs = firstRow.querySelectorAll('input, select');
+    inputs.forEach(input => {
+        if(input.tagName === 'SELECT') {
+            if(input.name === 'item_unit') input.value = 'UN';
+        } else {
+            input.value = '';
+        }
+    });
+    // Hide remove btn on first row
+    const removeBtn = firstRow.querySelector('.remove-item-btn');
+    if (removeBtn) removeBtn.classList.add('hidden');
+}
+
 function setupFormSubmission() {
     const form = document.getElementById('exit-form');
     console.log('Setup Form Submission');
 
-    // Add Cancel Button logic (appended dynamically or just toggled visibility if exists, but we'll inject it)
+    // Add Cancel Button logic
     if (!document.getElementById('cancel-edit-btn')) {
         const btnContainer = document.querySelector('#exit-form .pt-4');
         const cancelBtn = document.createElement('button');
@@ -84,93 +107,141 @@ function setupFormSubmission() {
         btnContainer.appendChild(cancelBtn);
     }
 
+    const addItemBtn = document.getElementById('add-item-btn');
+    if (addItemBtn) {
+        addItemBtn.addEventListener('click', () => {
+            const container = document.getElementById('items-container');
+            const firstRow = container.querySelector('.item-row');
+            const newRow = firstRow.cloneNode(true);
+            
+            // Clear inputs
+            const inputs = newRow.querySelectorAll('input, select');
+            inputs.forEach(input => {
+                if(input.tagName === 'SELECT') {
+                    if(input.name === 'item_unit') input.value = 'UN';
+                } else {
+                    input.value = '';
+                }
+            });
+            
+            // Show remove button
+            const removeBtn = newRow.querySelector('.remove-item-btn');
+            removeBtn.classList.remove('hidden');
+            removeBtn.onclick = function() {
+                this.closest('.item-row').remove();
+            };
+            
+            container.appendChild(newRow);
+        });
+    }
+
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
         const submitBtn = document.getElementById('submit-btn');
-
-        // Manual Entry Fields
-        const itemName = document.getElementById('item-name').value;
-        const itemUnit = document.getElementById('item-unit').value;
-        const itemValue = parseFloat(document.getElementById('item-value').value);
-
-        const qty = parseFloat(document.getElementById('exit-qty').value);
         const projectId = document.getElementById('project-select').value;
         const clientId = document.getElementById('client-select').value;
         const reason = document.getElementById('exit-reason').value;
         const obs = document.getElementById('exit-obs').value;
-
-        if (!itemName || itemName.trim() === '') {
-            alert('Por favor, informe o nome do material.');
-            return;
-        }
-
-        if (isNaN(itemValue) || itemValue < 0) {
-            alert('Por favor, insira um valor unitário válido.');
-            return;
-        }
-
-        if (!qty || qty <= 0) {
-            alert('Por favor, insira uma quantidade válida.');
-            return;
-        }
 
         if (!clientId) {
             alert('Por favor, selecione um cliente.');
             return;
         }
 
+        const rows = document.querySelectorAll('.item-row');
+        let exitsData = [];
+        let validationError = false;
+
+        rows.forEach(row => {
+            const itemName = row.querySelector('[name="item_name"]').value.trim();
+            const itemUnit = row.querySelector('[name="item_unit"]').value;
+            const itemValue = parseFloat(row.querySelector('[name="item_value"]').value);
+            const qty = parseFloat(row.querySelector('[name="item_qty"]').value);
+
+            if (!itemName) {
+                alert('Por favor, informe o nome de todos os materiais.');
+                validationError = true;
+                return;
+            }
+            if (isNaN(itemValue) || itemValue < 0) {
+                alert(`Por favor, insira um valor unitário válido para ${itemName}.`);
+                validationError = true;
+                return;
+            }
+            if (isNaN(qty) || qty <= 0) {
+                alert(`Por favor, insira uma quantidade válida para ${itemName}.`);
+                validationError = true;
+                return;
+            }
+
+            exitsData.push({
+                itemName: itemName.toUpperCase(),
+                itemUnit,
+                itemValue,
+                qty
+            });
+        });
+
+        if (validationError || exitsData.length === 0) return;
+
         try {
             submitBtn.disabled = true;
             submitBtn.textContent = 'Processando...';
 
-            // Ensure Stock Item exists (Create or Update)
-            const itemId = await ensureStockItem(itemName, itemValue, qty, itemUnit);
-
             if (editingExitId) {
-                // UPDATE existing exit
+                // UPDATE existing exit (only updates the first/only item being edited)
+                const item = exitsData[0];
+                const itemId = await ensureStockItem(item.itemName, item.itemValue, item.qty, item.itemUnit);
+                
                 await updateStockExit(editingExitId, {
                     item_id: itemId,
-                    quantity: qty,
+                    quantity: item.qty,
                     reason: reason,
                     project_id: projectId || null,
                     observation: obs || null,
                     client_id: clientId || null,
-                    unit_price: itemValue
+                    unit_price: item.itemValue
                 });
                 alert('Saída atualizada com sucesso!');
-                cancelEdit(); // Reset form state
+                cancelEdit();
             } else {
+                // CREATE new exits
                 // Check for duplicates before creating
                 const todayStr = new Date().toDateString();
-                const { data: duplicates, error: dupError } = await _supabase
-                    .from('stock_exits')
-                    .select('id, created_at')
-                    .eq('client_id', clientId)
-                    .eq('reason', reason)
-                    .eq('item_id', itemId)
-                    .eq('unit_price', itemValue);
                 
-                if (dupError) throw dupError;
+                for (const item of exitsData) {
+                    const itemId = await ensureStockItem(item.itemName, item.itemValue, item.qty, item.itemUnit);
+                    
+                    const { data: duplicates, error: dupError } = await _supabase
+                        .from('stock_exits')
+                        .select('id, created_at')
+                        .eq('client_id', clientId)
+                        .eq('reason', reason)
+                        .eq('item_id', itemId)
+                        .eq('unit_price', item.itemValue);
+                    
+                    if (dupError) throw dupError;
 
-                const isDuplicate = duplicates && duplicates.some(d => {
-                    return new Date(d.created_at).toDateString() === todayStr;
-                });
+                    const isDuplicate = duplicates && duplicates.some(d => {
+                        return new Date(d.created_at).toDateString() === todayStr;
+                    });
 
-                if (isDuplicate) {
-                    alert('Saída duplicada bloqueada! Já existe um registro hoje com os mesmos dados (Cliente, Aplicação, Item e Valor).');
-                    return;
+                    if (isDuplicate) {
+                        alert(`Atenção: A saída de ${item.itemName} não foi registrada pois já existe um registro hoje com os mesmos dados.`);
+                        continue; // Skip duplicate, continue with others
+                    }
+
+                    // CREATE new exit
+                    await processStockExit(itemId, item.qty, reason, projectId, obs, clientId);
                 }
-
-                // CREATE new exit
-                await processStockExit(itemId, qty, reason, projectId, obs, clientId);
-                alert('Saída registrada com sucesso!');
+                
+                alert('Operação concluída!');
                 form.reset();
+                resetItemRows();
             }
 
             console.log('Operation successful');
-
-            // Reload History
             await loadExitHistory();
 
         } catch (error) {
@@ -188,6 +259,7 @@ function cancelEdit() {
     editingExitId = null;
     const form = document.getElementById('exit-form');
     form.reset();
+    resetItemRows();
 
     const submitBtn = document.getElementById('submit-btn');
     submitBtn.textContent = 'Confirmar Saída';
@@ -196,26 +268,29 @@ function cancelEdit() {
 
     const cancelBtn = document.getElementById('cancel-edit-btn');
     if (cancelBtn) cancelBtn.classList.add('hidden');
+    
+    const addItemBtn = document.getElementById('add-item-btn');
+    if (addItemBtn) addItemBtn.classList.remove('hidden');
 
-    // Reset hidden ID
     document.getElementById('selected-item-id').value = '';
 }
 
 window.editExit = (exit) => {
-    // Scroll to form
     document.getElementById('exit-form').scrollIntoView({ behavior: 'smooth' });
-
     editingExitId = exit.id;
+    
+    resetItemRows();
+    const container = document.getElementById('items-container');
+    const firstRow = container.querySelector('.item-row');
 
     // Populate Fields
-    document.getElementById('item-name').value = exit.stock_items ? exit.stock_items.name : '';
-    document.getElementById('item-unit').value = exit.stock_items ? exit.stock_items.unit : 'UN';
+    firstRow.querySelector('[name="item_name"]').value = exit.stock_items ? exit.stock_items.name : '';
+    firstRow.querySelector('[name="item_unit"]').value = exit.stock_items ? exit.stock_items.unit : 'UN';
 
-    // Use saved unit price or current item value
     const val = exit.unit_price || (exit.stock_items ? exit.stock_items.value : 0);
-    document.getElementById('item-value').value = val;
-
-    document.getElementById('exit-qty').value = exit.quantity;
+    firstRow.querySelector('[name="item_value"]').value = val;
+    firstRow.querySelector('[name="item_qty"]').value = exit.quantity;
+    
     document.getElementById('project-select').value = exit.project_id || '';
     document.getElementById('client-select').value = exit.client_id || '';
     document.getElementById('exit-reason').value = exit.reason;
@@ -229,6 +304,10 @@ window.editExit = (exit) => {
 
     const cancelBtn = document.getElementById('cancel-edit-btn');
     if (cancelBtn) cancelBtn.classList.remove('hidden');
+    
+    // Hide Add Item button during edit (since edit is single row)
+    const addItemBtn = document.getElementById('add-item-btn');
+    if (addItemBtn) addItemBtn.classList.add('hidden');
 }
 
 async function getFilteredExits() {
@@ -509,11 +588,15 @@ async function loadExitHistory() {
             if (exit.project_id) destination = 'Projeto';
             if (exit.clients) destination = exit.clients.name;
 
+            const unitPrice = exit.unit_price || (exit.stock_items ? exit.stock_items.value : 0);
+            const totalPrice = unitPrice * exit.quantity;
+
             tr.innerHTML = `
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">${formattedDate}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">${itemName}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">R$ ${(exit.unit_price || (exit.stock_items ? exit.stock_items.value : 0)).toFixed(2)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">R$ ${unitPrice.toFixed(2)}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 font-bold">${exit.quantity} ${exit.stock_items ? exit.stock_items.unit : ''}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white font-bold">R$ ${totalPrice.toFixed(2)}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">${destination}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">${exit.reason}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"></td>

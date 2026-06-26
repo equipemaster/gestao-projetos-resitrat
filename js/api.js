@@ -541,7 +541,8 @@ async function fetchStockRequests() {
 }
 
 async function createStockRequest(requestData) {
-    const { data, error } = await _supabase.from('stock_requests').insert([requestData]).select();
+    const insertData = Array.isArray(requestData) ? requestData : [requestData];
+    const { data, error } = await _supabase.from('stock_requests').insert(insertData).select();
     if (error) throw error;
     return data;
 }

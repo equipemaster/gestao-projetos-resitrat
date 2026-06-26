@@ -290,6 +290,45 @@ async function refreshRequests() {
 // --- Form & Action Setup ---
 function setupFormHandlers() {
     const form = document.getElementById('req-form');
+    const addItemBtn = document.getElementById('add-item-btn');
+    
+    if (addItemBtn) {
+        addItemBtn.addEventListener('click', () => {
+            const container = document.getElementById('items-container');
+            const newRow = document.createElement('div');
+            newRow.className = "item-row grid grid-cols-1 md:grid-cols-12 gap-4 items-end p-4 border border-gray-100 dark:border-gray-800 rounded-lg relative bg-gray-50/50 dark:bg-gray-800/30";
+            newRow.innerHTML = `
+                <div class="md:col-span-6">
+                    <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Nome do Material/Serviço</label>
+                    <input type="text" name="item_name" required placeholder="Ex: Cabo Flexível 6mm, Conector..." class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 text-sm p-2.5">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Unidade</label>
+                    <select name="item_unit" required class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 text-sm p-2.5">
+                        <option value="UN">UN</option>
+                        <option value="KG">KG</option>
+                        <option value="MT">MT</option>
+                        <option value="M2">M2</option>
+                        <option value="M3">M3</option>
+                        <option value="L">L</option>
+                        <option value="CX">CX</option>
+                        <option value="SC">SC</option>
+                        <option value="PCT">PCT</option>
+                    </select>
+                </div>
+                <div class="md:col-span-3">
+                    <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Qtd.</label>
+                    <input type="number" name="item_qty" step="any" min="0.01" required placeholder="0.00" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 text-sm p-2.5">
+                </div>
+                <div class="md:col-span-1 flex justify-center pb-1">
+                    <button type="button" class="remove-item-btn text-red-500 hover:text-red-700 p-2 transition-colors" title="Remover item" onclick="this.closest('.item-row').remove()">
+                        <span class="material-symbols-outlined">delete</span>
+                    </button>
+                </div>
+            `;
+            container.appendChild(newRow);
+        });
+    }
     
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -297,39 +336,46 @@ function setupFormHandlers() {
         const submitBtn = document.getElementById('req-submit-btn');
         const editingId = document.getElementById('editing-req-id').value;
         
-        const itemName = document.getElementById('req-item-name').value;
-        const itemUnit = document.getElementById('req-item-unit').value;
-        const qty = parseFloat(document.getElementById('req-qty').value);
         const projectId = document.getElementById('req-project-select').value;
         const clientId = document.getElementById('req-client-select').value;
         const reason = document.getElementById('req-reason').value;
         const obs = document.getElementById('req-obs').value;
         const operatorName = document.getElementById('req-operator-name').value;
         
-        if (!itemName || itemName.trim() === '') {
-            alert('Por favor, informe o nome do material.');
-            return;
-        }
-        if (isNaN(qty) || qty <= 0) {
-            alert('Por favor, insira uma quantidade válida.');
-            return;
-        }
         if (!operatorName || operatorName.trim() === '') {
             alert('Por favor, informe o nome do operador/solicitante.');
             return;
         }
         
-        const requestData = {
-            item_name: itemName.toUpperCase().trim(),
-            unit: itemUnit,
-            quantity: qty,
-            project_id: projectId || null,
-            client_id: clientId || null,
-            reason: reason,
-            observation: obs || null,
-            status: 'PENDENTE',
-            requested_by: operatorName.toUpperCase().trim()
-        };
+        const itemRows = document.querySelectorAll('.item-row');
+        const requestsData = [];
+        
+        for (const row of itemRows) {
+            const itemName = row.querySelector('[name="item_name"]').value;
+            const itemUnit = row.querySelector('[name="item_unit"]').value;
+            const qty = parseFloat(row.querySelector('[name="item_qty"]').value);
+            
+            if (!itemName || itemName.trim() === '') {
+                alert('Por favor, informe o nome de todos os materiais.');
+                return;
+            }
+            if (isNaN(qty) || qty <= 0) {
+                alert('Por favor, insira uma quantidade válida para todos os materiais.');
+                return;
+            }
+            
+            requestsData.push({
+                item_name: itemName.toUpperCase().trim(),
+                unit: itemUnit,
+                quantity: qty,
+                project_id: projectId || null,
+                client_id: clientId || null,
+                reason: reason,
+                observation: obs || null,
+                status: 'PENDENTE',
+                requested_by: operatorName.toUpperCase().trim()
+            });
+        }
         
         try {
             submitBtn.disabled = true;
@@ -337,14 +383,17 @@ function setupFormHandlers() {
             
             if (editingId) {
                 // Update
-                await updateStockRequest(editingId, requestData);
-                alert('Solicitação atualizada com sucesso!');
+                if (requestsData.length > 0) {
+                    await updateStockRequest(editingId, requestsData[0]);
+                    alert('Solicitação atualizada com sucesso!');
+                }
                 cancelReqEdit();
             } else {
                 // Create
-                await createStockRequest(requestData);
-                alert('Solicitação de saída enviada com sucesso!');
+                await createStockRequest(requestsData);
+                alert('Solicitação(ões) enviada(s) com sucesso!');
                 form.reset();
+                resetItemRows();
             }
             
             await refreshRequests();
@@ -359,21 +408,40 @@ function setupFormHandlers() {
     });
 }
 
+function resetItemRows() {
+    const container = document.getElementById('items-container');
+    const rows = container.querySelectorAll('.item-row');
+    // Remove all except the first one
+    for (let i = 1; i < rows.length; i++) {
+        rows[i].remove();
+    }
+}
+
 window.cancelReqEdit = () => {
     document.getElementById('editing-req-id').value = '';
     document.getElementById('req-form').reset();
+    resetItemRows();
     
     document.getElementById('req-submit-btn').textContent = 'Enviar Solicitação';
     document.getElementById('cancel-req-edit-btn').classList.add('hidden');
+    
+    const addItemBtn = document.getElementById('add-item-btn');
+    if (addItemBtn) addItemBtn.classList.remove('hidden');
 };
 
 window.editRequest = (req) => {
     document.getElementById('req-form').scrollIntoView({ behavior: 'smooth' });
     
     document.getElementById('editing-req-id').value = req.id;
-    document.getElementById('req-item-name').value = req.item_name;
-    document.getElementById('req-item-unit').value = req.unit;
-    document.getElementById('req-qty').value = req.quantity;
+    
+    resetItemRows();
+    const firstRow = document.querySelector('.item-row');
+    if (firstRow) {
+        firstRow.querySelector('[name="item_name"]').value = req.item_name;
+        firstRow.querySelector('[name="item_unit"]').value = req.unit;
+        firstRow.querySelector('[name="item_qty"]').value = req.quantity;
+    }
+    
     document.getElementById('req-project-select').value = req.project_id || '';
     document.getElementById('req-client-select').value = req.client_id || '';
     document.getElementById('req-reason').value = req.reason;
@@ -382,6 +450,9 @@ window.editRequest = (req) => {
     
     document.getElementById('req-submit-btn').textContent = 'Salvar Alterações';
     document.getElementById('cancel-req-edit-btn').classList.remove('hidden');
+    
+    const addItemBtn = document.getElementById('add-item-btn');
+    if (addItemBtn) addItemBtn.classList.add('hidden');
 };
 
 window.deleteRequest = async (id) => {
@@ -539,6 +610,127 @@ window.closeRejectModal = () => {
     document.getElementById('reject-modal').classList.add('hidden');
 };
 
+let currentReturnRequest = null;
+
+window.openReturnModal = (req) => {
+    currentReturnRequest = req;
+    const modal = document.getElementById('return-modal');
+    const desc = document.getElementById('return-modal-desc');
+    const input = document.getElementById('return-qty');
+    const maxQtySpan = document.getElementById('return-max-qty');
+
+    input.value = '';
+    desc.textContent = `Devolvendo: ${req.item_name} (Qtd Solicitada: ${req.quantity} ${req.unit})`;
+    maxQtySpan.textContent = req.quantity;
+
+    input.max = req.quantity;
+    input.min = 0.01;
+    input.step = 'any';
+
+    modal.classList.remove('hidden');
+    input.focus();
+};
+
+window.closeReturnModal = () => {
+    document.getElementById('return-modal').classList.add('hidden');
+    currentReturnRequest = null;
+};
+
+// Add Return Listener inside setupModalHandlers? 
+// No, we can just do it here since it's global
+document.addEventListener('DOMContentLoaded', () => {
+    const confirmReturnBtn = document.getElementById('confirm-return-btn');
+    if (confirmReturnBtn) {
+        confirmReturnBtn.addEventListener('click', confirmReturnRequest);
+    }
+});
+
+async function confirmReturnRequest() {
+    if (!currentReturnRequest) return;
+    
+    const input = document.getElementById('return-qty');
+    const qtyToReturn = parseFloat(input.value);
+
+    if (!qtyToReturn || qtyToReturn <= 0) {
+        alert('Por favor, insira uma quantidade válida.');
+        return;
+    }
+
+    if (qtyToReturn > currentReturnRequest.quantity) {
+        alert(`A quantidade a devolver não pode ser maior que a requisição original (${currentReturnRequest.quantity}).`);
+        return;
+    }
+    
+    const btn = document.getElementById('confirm-return-btn');
+    try {
+        btn.disabled = true;
+        btn.innerText = 'Processando...';
+
+        // Subtract from request quantity
+        const remainingQty = currentReturnRequest.quantity - qtyToReturn;
+        const safeRemaining = Math.round(remainingQty * 1000) / 1000;
+        
+        if (safeRemaining <= 0) {
+            // Se devolver tudo, podemos marcar como cancelado
+            await updateStockRequest(currentReturnRequest.id, { 
+                quantity: 0,
+                status: 'CANCELADO',
+                rejection_reason: 'Totalmente Devolvido'
+            });
+        } else {
+            // Se for devolução parcial, atualiza a quantidade para o restante
+            await updateStockRequest(currentReturnRequest.id, { 
+                quantity: safeRemaining 
+            });
+        }
+        
+        // --- DEDUCT FROM STOCK_EXITS ---
+        // Tentar encontrar o item_id no catalogo
+        const { data: items } = await _supabase.from('stock_items').select('id').eq('name', currentReturnRequest.item_name.toUpperCase().trim());
+        if (items && items.length > 0) {
+            const itemId = items[0].id;
+            
+            // Buscar a saída correspondente (match mais provável)
+            let query = _supabase.from('stock_exits')
+                .select('*')
+                .eq('item_id', itemId)
+                .eq('reason', currentReturnRequest.reason);
+                
+            if (currentReturnRequest.project_id) {
+                query = query.eq('project_id', currentReturnRequest.project_id);
+            } else if (currentReturnRequest.client_id) {
+                query = query.eq('client_id', currentReturnRequest.client_id);
+            }
+            
+            const { data: exits } = await query.order('created_at', { ascending: false }).limit(1);
+            
+            if (exits && exits.length > 0) {
+                const exit = exits[0];
+                const newExitQty = exit.quantity - qtyToReturn;
+                const safeExitQty = Math.round(newExitQty * 1000) / 1000;
+                
+                if (safeExitQty <= 0) {
+                    await deleteStockExit(exit.id);
+                } else {
+                    await updateStockExit(exit.id, { quantity: safeExitQty });
+                }
+            }
+        }
+        // -------------------------------
+
+        alert('Devolução registrada com sucesso! A saída de estoque também foi abatida.');
+        closeReturnModal();
+        await refreshRequests();
+
+    } catch (error) {
+        console.error('Error executing return:', error);
+        alert('Erro ao realizar devolução: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = 'Confirmar Devolução';
+    }
+}
+
 // --- Render Operations ---
 
 // Render Operator history (their requests)
@@ -618,6 +810,20 @@ function renderOperatorHistory() {
             container.appendChild(delBtn);
             
             actionsTd.appendChild(container);
+        } else if (req.status === 'DEFERIDO') {
+            const container = document.createElement('div');
+            container.className = "flex items-center justify-end gap-2";
+            
+            const returnBtn = document.createElement('button');
+            returnBtn.className = "text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 flex items-center";
+            returnBtn.innerHTML = '<span class="material-symbols-outlined text-lg">undo</span>';
+            returnBtn.title = 'Devolver';
+            returnBtn.onclick = () => openReturnModal(req);
+            container.appendChild(returnBtn);
+            
+            actionsTd.appendChild(container);
+        } else if (req.status === 'CANCELADO') {
+            actionsTd.innerHTML = '<span class="text-xs text-gray-400 italic">Devolvido</span>';
         } else {
             actionsTd.innerHTML = '<span class="text-xs text-gray-400 italic">Trancado</span>';
         }
@@ -795,7 +1001,20 @@ function loadAdminHistory() {
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">${dest}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm">${badgeHtml}</td>
             <td class="px-6 py-4 text-xs text-gray-500 dark:text-gray-400 italic max-w-xs truncate" title="${extraInfo}">${extraInfo}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"></td>
         `;
+        
+        const actionTd = tr.lastElementChild;
+        if (req.status === 'DEFERIDO') {
+            const returnBtn = document.createElement('button');
+            returnBtn.className = "text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 flex items-center justify-end gap-1 w-full hover:underline";
+            returnBtn.innerHTML = '<span class="material-symbols-outlined text-lg">undo</span> <span class="text-xs font-semibold">Devolver</span>';
+            returnBtn.title = 'Devolver Material';
+            returnBtn.onclick = () => openReturnModal(req);
+            actionTd.appendChild(returnBtn);
+        } else if (req.status === 'CANCELADO') {
+            actionTd.innerHTML = '<span class="text-xs text-gray-400 italic">Devolvido</span>';
+        }
         
         tbody.appendChild(tr);
     });
