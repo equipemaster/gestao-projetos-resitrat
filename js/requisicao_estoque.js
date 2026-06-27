@@ -1,37 +1,135 @@
-let currentRole = 'operator'; // 'operator' or 'admin'
-let currentAdminTab = 'pending'; // 'pending' or 'history'
+let currentRole = 'operator';
+let currentAdminTab = 'pending';
 let currentUser = null;
 let userProfile = null;
 let allProjects = [];
 let allClients = [];
 let allRequests = [];
+let duplicateCheckTimeout = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('Stock Requisitions page loading...');
-    
-    // 1. Initial Load of Dropdowns & Auth
     await initAuthAndProfile();
     await loadInitialDropdowns();
-    
-    // 2. Setup Forms and Modals
     setupFormHandlers();
     setupModalHandlers();
-    
-    // 3. Load Data
     await refreshRequests();
 });
 
-// --- Authentication and Profile Role Detection ---
+// ─── Toast Notification ─────────────────────────────────────────────────────
+
+function showToast(message, type = 'success', duration = 4000) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const icons = { success: 'check_circle', error: 'error', warning: 'warning', info: 'info' };
+    const colors = { success: 'bg-emerald-600', error: 'bg-red-600', warning: 'bg-amber-500', info: 'bg-blue-600' };
+
+    const toast = document.createElement('div');
+    toast.className = `toast pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg shadow-xl text-white text-xs font-medium max-w-sm ${colors[type] || colors.info}`;
+    toast.innerHTML = `
+        <span class="material-symbols-outlined flex-shrink-0" style="font-size:18px">${icons[type] || 'info'}</span>
+        <span class="flex-1">${message}</span>
+        <button onclick="this.parentElement.remove()" class="ml-1 opacity-70 hover:opacity-100 transition-opacity flex-shrink-0">
+            <span class="material-symbols-outlined" style="font-size:16px">close</span>
+        </button>
+    `;
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            toast.style.transition = 'all 0.3s ease-in';
+            setTimeout(() => toast.remove(), 300);
+        }
+    }, duration);
+}
+
+// ─── Duplicate Detection ─────────────────────────────────────────────────────
+
+function checkForDuplicates() {
+    const operatorName = (document.getElementById('req-operator-name')?.value || '').trim().toUpperCase();
+    const editingId = document.getElementById('editing-req-id')?.value || '';
+
+    if (!operatorName || allRequests.length === 0) {
+        hideDuplicateWarning();
+        return false;
+    }
+
+    const itemRows = document.querySelectorAll('.item-row');
+    const foundDups = [];
+
+    itemRows.forEach(row => {
+        const itemName = (row.querySelector('[name="item_name"]')?.value || '').trim().toUpperCase();
+        if (!itemName) return;
+
+        const pendingDups = allRequests.filter(r => {
+            if (editingId && r.id === editingId) return false;
+            return r.status === 'PENDENTE' &&
+                (r.item_name || '').toUpperCase().trim() === itemName &&
+                (r.requested_by || '').toUpperCase().trim() === operatorName;
+        });
+
+        if (pendingDups.length > 0) foundDups.push({ itemName, requests: pendingDups });
+    });
+
+    if (foundDups.length > 0) {
+        showDuplicateWarning(foundDups);
+        return true;
+    }
+    hideDuplicateWarning();
+    return false;
+}
+
+function showDuplicateWarning(duplicates) {
+    const warnDiv = document.getElementById('duplicate-warning');
+    if (!warnDiv) return;
+
+    const list = duplicates.map(d => {
+        const req = d.requests[0];
+        const dateStr = formatDate((req.created_at || '').split('T')[0]);
+        const timeStr = req.created_at
+            ? new Date(req.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+            : '';
+        return `<li class="flex items-start gap-1.5"><span class="material-symbols-outlined text-amber-500 flex-shrink-0 mt-px" style="font-size:13px">fiber_manual_record</span><span><strong>${d.itemName}</strong> — solicitado em ${dateStr} às ${timeStr}, aguardando aprovação</span></li>`;
+    }).join('');
+
+    warnDiv.innerHTML = `
+        <div class="flex gap-3">
+            <span class="material-symbols-outlined text-amber-600 flex-shrink-0 mt-0.5" style="font-size:20px">warning</span>
+            <div class="flex-1">
+                <p class="font-bold text-amber-800 dark:text-amber-300 text-xs mb-1.5">Possível lançamento duplicado detectado!</p>
+                <ul class="text-xs text-amber-700 dark:text-amber-400 space-y-0.5 mb-2.5">${list}</ul>
+                <p class="text-xs text-amber-600 dark:text-amber-500 mb-2.5">Este item já possui uma requisição <strong>PENDENTE</strong>. Verifique antes de enviar novamente.</p>
+                <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" id="confirm-duplicate" class="w-4 h-4 rounded border-amber-400 text-amber-600 focus:ring-amber-500">
+                    <span class="text-xs font-semibold text-amber-800 dark:text-amber-200">Confirmo que é uma nova e diferente solicitação</span>
+                </label>
+            </div>
+        </div>
+    `;
+    warnDiv.classList.remove('hidden');
+}
+
+function hideDuplicateWarning() {
+    const warnDiv = document.getElementById('duplicate-warning');
+    if (warnDiv) {
+        warnDiv.classList.add('hidden');
+        warnDiv.innerHTML = '';
+    }
+}
+
+// ─── Auth & Profile ───────────────────────────────────────────────────────────
+
 async function initAuthAndProfile() {
     try {
         const { data: { session }, error } = await _supabase.auth.getSession();
         if (error) throw error;
-        
+
         const banner = document.getElementById('role-banner');
-        
         const urlParams = new URLSearchParams(window.location.search);
         const isDev = urlParams.has('dev');
-        
+
         if (isDev && (!session || !session.user)) {
             const devVal = urlParams.get('dev');
             currentRole = (devVal === 'admin' || devVal === 'adm') ? 'admin' : 'operator';
@@ -44,591 +142,664 @@ async function initAuthAndProfile() {
                 role: currentRole === 'admin' ? 'Gestora Financeiro' : 'OPERADOR-INSTALADOR'
             };
             if (banner) {
-                banner.innerHTML = `
-                    <span class="material-symbols-outlined text-lg">construction</span>
-                    <span><strong>Modo de Desenvolvimento Ativo</strong>. Logado como: <strong>${userProfile.name}</strong> (${userProfile.role}). Perfil: <strong>${currentRole === 'admin' ? 'Administrador' : 'Operador'}</strong>.</span>
-                `;
+                banner.classList.remove('hidden');
+                banner.innerHTML = `<span class="material-symbols-outlined flex-shrink-0" style="font-size:16px">construction</span><span><strong>Modo Dev</strong> — ${userProfile.name} (${userProfile.role}) — Perfil: <strong>${currentRole === 'admin' ? 'Administrador' : 'Operador'}</strong></span>`;
             }
+            applyRoleUI(currentRole, isDev);
             switchRole(currentRole);
             return;
         }
 
         if (session && session.user) {
             currentUser = session.user;
-            
-            // Fetch profile from users table
-            const { data: profile, error: profileError } = await _supabase
-                .from('users')
-                .select('*')
-                .eq('email', currentUser.email)
-                .maybeSingle();
-                
+
+            const { data: profile } = await _supabase
+                .from('users').select('*').eq('email', currentUser.email).maybeSingle();
+
             const emailStr = (currentUser.email || '').toUpperCase();
             const emailIsAdmin = emailStr.startsWith('ADM') || emailStr.includes('ADMIN');
 
             if (profile) {
                 userProfile = profile;
-                console.log('User Profile:', profile);
-                
-                // Heuristic: If role contains coord, geren, gest, adm, dir -> Admin
                 const roleStr = (profile.role || '').toUpperCase();
-                const isAdminRole = roleStr.includes('GERENTE') || 
-                                    roleStr.includes('COORDENADOR') || 
-                                    roleStr.includes('GESTOR') || 
-                                    roleStr.includes('ADMIN') || 
-                                    roleStr.includes('DIRETOR') ||
-                                    roleStr.includes('FINANCEIRO') ||
-                                    emailIsAdmin;
-                                    
-                if (isAdminRole) {
-                    currentRole = 'admin';
-                } else {
-                    currentRole = 'operator';
-                }
-                
-                if (banner) {
-                    banner.innerHTML = `
-                        <span class="material-symbols-outlined text-lg">info</span>
-                        <span>Logado como <strong>${profile.name}</strong> (${profile.role || 'Membro'}). Perfil atribuído: <strong>${currentRole === 'admin' ? 'Administrador' : 'Operador'}</strong>.</span>
-                    `;
-                }
-            } else {
-                // User has session but no matching entry in 'users' table
-                if (emailIsAdmin) {
-                    currentRole = 'admin';
-                    userProfile = {
-                        name: currentUser.email.split('@')[0].toUpperCase(),
-                        role: 'Administrador (Fallback)'
-                    };
-                } else {
-                    currentRole = 'operator';
-                }
+                const isAdminRole = roleStr.includes('GERENTE') || roleStr.includes('COORDENADOR') ||
+                    roleStr.includes('GESTOR') || roleStr.includes('ADMIN') ||
+                    roleStr.includes('DIRETOR') || roleStr.includes('FINANCEIRO') || emailIsAdmin;
+
+                currentRole = isAdminRole ? 'admin' : 'operator';
 
                 if (banner) {
-                    if (emailIsAdmin) {
-                        banner.innerHTML = `
-                            <span class="material-symbols-outlined text-lg">info</span>
-                            <span>Sessão ativa (${currentUser.email}), logado como administrador de emergência (e-mail adm). Perfil: <strong>Administrador</strong>.</span>
-                        `;
+                    if (isAdminRole) {
+                        banner.classList.remove('hidden');
+                        banner.innerHTML = `<span class="material-symbols-outlined flex-shrink-0" style="font-size:16px">info</span><span>Logado como <strong>${profile.name}</strong> (${profile.role || 'Membro'}) — Perfil: <strong>Administrador</strong></span>`;
                     } else {
-                        banner.innerHTML = `
-                            <span class="material-symbols-outlined text-lg">info</span>
-                            <span>Sessão ativa (${currentUser.email}), mas perfil de membro não encontrado. Perfil padrão: <strong>Operador</strong>.</span>
-                        `;
+                        banner.classList.add('hidden');
                     }
+                }
+            } else {
+                currentRole = emailIsAdmin ? 'admin' : 'operator';
+                userProfile = { name: currentUser.email.split('@')[0].toUpperCase(), role: emailIsAdmin ? 'Admin' : 'Operador' };
+
+                if (banner && emailIsAdmin) {
+                    banner.classList.remove('hidden');
+                    banner.innerHTML = `<span class="material-symbols-outlined flex-shrink-0" style="font-size:16px">info</span><span>Sessão ativa (${currentUser.email}) — Perfil: <strong>Administrador</strong></span>`;
                 }
             }
         } else {
-            // No session
-            console.warn('No active session found.');
             if (banner) {
-                banner.innerHTML = `
-                    <span class="material-symbols-outlined text-lg">warning</span>
-                    <span>Nenhuma sessão ativa. Redirecionando para login...</span>
-                `;
+                banner.classList.remove('hidden');
+                banner.innerHTML = `<span class="material-symbols-outlined flex-shrink-0" style="font-size:16px">warning</span><span>Nenhuma sessão ativa. Redirecionando para login...</span>`;
             }
-            setTimeout(() => {
-                window.location.href = 'login.html';
-            }, 1500);
+            setTimeout(() => { window.location.href = 'login.html'; }, 1500);
             return;
         }
-        
-        // Apply active role view
+
+        applyRoleUI(currentRole, isDev);
         switchRole(currentRole);
-        
-        // Hide role switcher and banner if the user is not an admin
-        const switcherContainer = document.getElementById('role-switcher-container');
-        if (switcherContainer) {
-            if (!isDev && currentRole !== 'admin') {
-                switcherContainer.classList.add('hidden');
-                switcherContainer.classList.remove('flex');
-            } else {
-                switcherContainer.classList.remove('hidden');
-                switcherContainer.classList.add('flex');
-            }
-        }
-        if (banner) {
-            if (!isDev && currentRole !== 'admin') {
-                banner.classList.add('hidden');
-            } else {
-                banner.classList.remove('hidden');
-            }
-        }
-        
+
     } catch (e) {
         console.error('Error initializing auth/profile:', e);
     }
 }
 
-// Switch between Operator and Admin views manually (Role Switcher widget)
+function applyRoleUI(role, isDev) {
+    const switcherContainer = document.getElementById('role-switcher-container');
+    if (switcherContainer) {
+        if (!isDev && role !== 'admin') {
+            switcherContainer.classList.add('hidden');
+            switcherContainer.classList.remove('flex');
+        } else {
+            switcherContainer.classList.remove('hidden');
+            switcherContainer.classList.add('flex');
+        }
+    }
+
+    const navCadUser = document.getElementById('nav-cad-user');
+    if (navCadUser) {
+        if (role === 'admin') {
+            navCadUser.classList.remove('hidden');
+            navCadUser.classList.add('flex');
+        } else {
+            navCadUser.classList.add('hidden');
+            navCadUser.classList.remove('flex');
+        }
+    }
+}
+
+// ─── Role / Tab Switching ─────────────────────────────────────────────────────
+
 window.switchRole = (role) => {
     currentRole = role;
-    
+
     const opView = document.getElementById('operator-view');
     const admView = document.getElementById('admin-view');
     const opBtn = document.getElementById('role-op-btn');
     const admBtn = document.getElementById('role-adm-btn');
-    
+
+    const activeClass = 'px-3 py-1.5 rounded-md text-xs font-semibold transition-all bg-primary text-white shadow-sm';
+    const inactiveClass = 'px-3 py-1.5 rounded-md text-xs font-semibold transition-all text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200';
+
+    const navCadUser = document.getElementById('nav-cad-user');
+
     if (role === 'admin') {
-        opView.classList.add('hidden');
-        admView.classList.remove('hidden');
-        
-        admBtn.className = "px-4 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 focus:outline-none bg-primary text-white shadow-sm";
-        opBtn.className = "px-4 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 focus:outline-none text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200";
-        
+        opView?.classList.add('hidden');
+        admView?.classList.remove('hidden');
+        if (admBtn) admBtn.className = activeClass;
+        if (opBtn) opBtn.className = inactiveClass;
+        if (navCadUser) { navCadUser.classList.remove('hidden'); navCadUser.classList.add('flex'); }
+        renderAdminStats();
         switchAdminTab(currentAdminTab);
     } else {
-        admView.classList.add('hidden');
-        opView.classList.remove('hidden');
-        
-        opBtn.className = "px-4 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 focus:outline-none bg-primary text-white shadow-sm";
-        admBtn.className = "px-4 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 focus:outline-none text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200";
-        
+        admView?.classList.add('hidden');
+        opView?.classList.remove('hidden');
+        if (opBtn) opBtn.className = activeClass;
+        if (admBtn) admBtn.className = inactiveClass;
+        if (navCadUser) { navCadUser.classList.add('hidden'); navCadUser.classList.remove('flex'); }
+        renderOperatorStats();
         renderOperatorHistory();
     }
 };
 
-// Switch tabs inside Admin View
 window.switchAdminTab = (tab) => {
     currentAdminTab = tab;
-    
+
     const pendingTab = document.getElementById('tab-pending');
     const historyTab = document.getElementById('tab-history');
     const pendingBtn = document.getElementById('tab-pending-btn');
     const historyBtn = document.getElementById('tab-history-btn');
-    
+
+    const activeTab = 'flex items-center gap-2 py-3.5 px-3 border-b-2 border-primary text-primary text-xs font-semibold mr-2 transition-colors';
+    const inactiveTab = 'flex items-center gap-2 py-3.5 px-3 border-b-2 border-transparent text-gray-500 dark:text-gray-400 text-xs font-semibold hover:text-gray-700 transition-colors';
+
     if (tab === 'history') {
-        pendingTab.classList.add('hidden');
-        historyTab.classList.remove('hidden');
-        
-        historyBtn.className = "border-primary text-primary whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2";
-        pendingBtn.className = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2";
-        
+        pendingTab?.classList.add('hidden');
+        historyTab?.classList.remove('hidden');
+        if (historyBtn) historyBtn.className = activeTab;
+        if (pendingBtn) pendingBtn.className = inactiveTab;
         loadAdminHistory();
     } else {
-        historyTab.classList.add('hidden');
-        pendingTab.classList.remove('hidden');
-        
-        pendingBtn.className = "border-primary text-primary whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2";
-        historyBtn.className = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2";
-        
+        historyTab?.classList.add('hidden');
+        pendingTab?.classList.remove('hidden');
+        if (pendingBtn) pendingBtn.className = activeTab;
+        if (historyBtn) historyBtn.className = inactiveTab;
         loadAdminPending();
     }
 };
 
-// --- Dropdowns Loading ---
+// ─── Dropdowns ────────────────────────────────────────────────────────────────
+
 async function loadInitialDropdowns() {
     try {
-        // Load Projects
         allProjects = await fetchProjects();
         const reqProjectSelect = document.getElementById('req-project-select');
-        
         allProjects
             .filter(p => p.status !== 'Completed' && p.status !== 'Done')
             .forEach(p => {
                 const opt = document.createElement('option');
                 opt.value = p.id;
                 opt.textContent = p.name;
-                reqProjectSelect.appendChild(opt);
+                reqProjectSelect?.appendChild(opt);
             });
-            
-        // Load Clients
+
         allClients = await fetchClients();
         const reqClientSelect = document.getElementById('req-client-select');
         const filterClient = document.getElementById('filter-client');
-        
+
         allClients.forEach(c => {
-            let label = c.name;
-            if (c.company) label += ` (${c.company})`;
-            
-            // Form select
+            const label = c.company ? `${c.name} (${c.company})` : c.name;
             const opt1 = document.createElement('option');
-            opt1.value = c.id;
-            opt1.textContent = label;
-            reqClientSelect.appendChild(opt1);
-            
-            // Filter select
+            opt1.value = c.id; opt1.textContent = label;
+            reqClientSelect?.appendChild(opt1);
+
             const opt2 = document.createElement('option');
-            opt2.value = c.id;
-            opt2.textContent = label;
-            filterClient.appendChild(opt2);
+            opt2.value = c.id; opt2.textContent = label;
+            filterClient?.appendChild(opt2);
         });
-        
     } catch (e) {
         console.error('Error loading dropdowns:', e);
     }
 }
 
-// --- Data Refresh ---
+// ─── Data Refresh ─────────────────────────────────────────────────────────────
+
 async function refreshRequests() {
     allRequests = await fetchStockRequests();
-    
-    // Update pending count badge
+
     const pendingCount = allRequests.filter(r => r.status === 'PENDENTE').length;
     const badge = document.getElementById('pending-badge-count');
     if (badge) {
-        if (pendingCount > 0) {
-            badge.textContent = pendingCount;
-            badge.classList.remove('hidden');
-        } else {
-            badge.classList.add('hidden');
-        }
+        badge.textContent = pendingCount;
+        badge.classList.toggle('hidden', pendingCount === 0);
     }
-    
-    // Render current active view
+
+    renderOperatorStats();
+    renderAdminStats();
+
     if (currentRole === 'admin') {
-        if (currentAdminTab === 'pending') {
-            loadAdminPending();
-        } else {
-            loadAdminHistory();
-        }
+        currentAdminTab === 'pending' ? loadAdminPending() : loadAdminHistory();
     } else {
         renderOperatorHistory();
     }
 }
 
-// --- Form & Action Setup ---
+// ─── Stats Cards ──────────────────────────────────────────────────────────────
+
+function renderOperatorStats() {
+    const container = document.getElementById('op-stats');
+    if (!container) return;
+
+    const now = new Date();
+    const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    const pending = allRequests.filter(r => r.status === 'PENDENTE').length;
+    const approvedThisMonth = allRequests.filter(r => r.status === 'DEFERIDO' && (r.created_at || '').startsWith(thisMonth)).length;
+    const rejectedThisMonth = allRequests.filter(r => r.status === 'INDEFERIDO' && (r.created_at || '').startsWith(thisMonth)).length;
+
+    container.innerHTML = `
+        <div class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-4 flex items-center gap-4">
+            <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#92400e 0%,#d97706 100%)">
+                <span class="material-symbols-outlined text-white" style="font-size:18px">pending</span>
+            </div>
+            <div>
+                <p class="text-2xl font-extrabold ${pending > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-600 dark:text-gray-300'}">${pending}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">Pendentes de Aprovação</p>
+            </div>
+        </div>
+        <div class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-4 flex items-center gap-4">
+            <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#14532d 0%,#16a34a 100%)">
+                <span class="material-symbols-outlined text-white" style="font-size:18px">check_circle</span>
+            </div>
+            <div>
+                <p class="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">${approvedThisMonth}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">Aprovadas este Mês</p>
+            </div>
+        </div>
+        <div class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-4 flex items-center gap-4">
+            <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#7f1d1d 0%,#dc2626 100%)">
+                <span class="material-symbols-outlined text-white" style="font-size:18px">cancel</span>
+            </div>
+            <div>
+                <p class="text-2xl font-extrabold text-red-600 dark:text-red-400">${rejectedThisMonth}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">Indeferidas este Mês</p>
+            </div>
+        </div>
+    `;
+}
+
+function renderAdminStats() {
+    const container = document.getElementById('adm-stats');
+    if (!container) return;
+
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    const pending = allRequests.filter(r => r.status === 'PENDENTE').length;
+    const approvedToday = allRequests.filter(r => r.status === 'DEFERIDO' && (r.approved_at || '').startsWith(today)).length;
+    const approvedThisMonth = allRequests.filter(r => r.status === 'DEFERIDO' && (r.created_at || '').startsWith(thisMonth));
+    const totalValueMonth = approvedThisMonth.reduce((sum, r) => sum + ((parseFloat(r.unit_price) || 0) * (r.quantity || 0)), 0);
+
+    container.innerHTML = `
+        <div class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-4 flex items-center gap-4">
+            <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#92400e 0%,#d97706 100%)">
+                <span class="material-symbols-outlined text-white" style="font-size:18px">pending_actions</span>
+            </div>
+            <div>
+                <p class="text-2xl font-extrabold ${pending > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-600 dark:text-gray-300'}">${pending}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">Aguardando Aprovação</p>
+            </div>
+        </div>
+        <div class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-4 flex items-center gap-4">
+            <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#14532d 0%,#16a34a 100%)">
+                <span class="material-symbols-outlined text-white" style="font-size:18px">today</span>
+            </div>
+            <div>
+                <p class="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">${approvedToday}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">Aprovadas Hoje</p>
+            </div>
+        </div>
+        <div class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-4 flex items-center gap-4">
+            <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%)">
+                <span class="material-symbols-outlined text-white" style="font-size:18px">payments</span>
+            </div>
+            <div>
+                <p class="text-xl font-extrabold text-blue-600 dark:text-blue-400">R$ ${totalValueMonth.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">Valor Aprovado (mês)</p>
+            </div>
+        </div>
+    `;
+}
+
+// ─── Form Handlers ────────────────────────────────────────────────────────────
+
+function buildItemRowHTML(isFirst = false) {
+    return `
+        <div class="col-span-12 md:col-span-6">
+            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Material / Serviço <span class="text-red-500">*</span></label>
+            <input type="text" name="item_name" required placeholder="Ex: Cabo Flexível 6mm, Conector..." class="input-field">
+        </div>
+        <div class="col-span-5 md:col-span-2">
+            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Unidade</label>
+            <select name="item_unit" class="input-field">
+                <option value="UN">UN</option>
+                <option value="KG">KG</option>
+                <option value="MT">MT</option>
+                <option value="M2">M2</option>
+                <option value="M3">M3</option>
+                <option value="L">L</option>
+                <option value="CX">CX</option>
+                <option value="SC">SC</option>
+                <option value="PCT">PCT</option>
+            </select>
+        </div>
+        <div class="col-span-6 md:col-span-3">
+            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Quantidade <span class="text-red-500">*</span></label>
+            <input type="number" name="item_qty" step="any" min="0.01" required placeholder="0.00" class="input-field">
+        </div>
+        <div class="col-span-1 flex justify-center items-end pb-1">
+            <button type="button" class="remove-item-btn ${isFirst ? 'hidden' : ''} p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors" title="Remover item">
+                <span class="material-symbols-outlined" style="font-size:18px">delete</span>
+            </button>
+        </div>
+    `;
+}
+
 function setupFormHandlers() {
     const form = document.getElementById('req-form');
     const addItemBtn = document.getElementById('add-item-btn');
-    
-    if (addItemBtn) {
-        addItemBtn.addEventListener('click', () => {
-            const container = document.getElementById('items-container');
-            const newRow = document.createElement('div');
-            newRow.className = "item-row grid grid-cols-1 md:grid-cols-12 gap-4 items-end p-4 border border-gray-100 dark:border-gray-800 rounded-lg relative bg-gray-50/50 dark:bg-gray-800/30";
-            newRow.innerHTML = `
-                <div class="md:col-span-6">
-                    <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Nome do Material/Serviço</label>
-                    <input type="text" name="item_name" required placeholder="Ex: Cabo Flexível 6mm, Conector..." class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 text-sm p-2.5">
-                </div>
-                <div class="md:col-span-2">
-                    <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Unidade</label>
-                    <select name="item_unit" required class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 text-sm p-2.5">
-                        <option value="UN">UN</option>
-                        <option value="KG">KG</option>
-                        <option value="MT">MT</option>
-                        <option value="M2">M2</option>
-                        <option value="M3">M3</option>
-                        <option value="L">L</option>
-                        <option value="CX">CX</option>
-                        <option value="SC">SC</option>
-                        <option value="PCT">PCT</option>
-                    </select>
-                </div>
-                <div class="md:col-span-3">
-                    <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Qtd.</label>
-                    <input type="number" name="item_qty" step="any" min="0.01" required placeholder="0.00" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring focus:ring-primary/50 text-sm p-2.5">
-                </div>
-                <div class="md:col-span-1 flex justify-center pb-1">
-                    <button type="button" class="remove-item-btn text-red-500 hover:text-red-700 p-2 transition-colors" title="Remover item" onclick="this.closest('.item-row').remove()">
-                        <span class="material-symbols-outlined">delete</span>
-                    </button>
-                </div>
-            `;
-            container.appendChild(newRow);
+    const container = document.getElementById('items-container');
+
+    // Initialize first row
+    const firstRow = container?.querySelector('.item-row');
+    if (firstRow) {
+        firstRow.querySelector('[name="item_name"]')?.addEventListener('input', () => {
+            clearTimeout(duplicateCheckTimeout);
+            duplicateCheckTimeout = setTimeout(checkForDuplicates, 500);
         });
     }
-    
-    form.addEventListener('submit', async (e) => {
+
+    // Operator name triggers duplicate check
+    document.getElementById('req-operator-name')?.addEventListener('input', () => {
+        clearTimeout(duplicateCheckTimeout);
+        duplicateCheckTimeout = setTimeout(checkForDuplicates, 500);
+    });
+
+    // Remove item via event delegation
+    container?.addEventListener('click', (e) => {
+        if (e.target.closest('.remove-item-btn')) {
+            e.target.closest('.item-row').remove();
+            const rows = container.querySelectorAll('.item-row');
+            if (rows.length === 1) {
+                rows[0].querySelector('.remove-item-btn')?.classList.add('hidden');
+            }
+            checkForDuplicates();
+        }
+    });
+
+    // Add item row
+    addItemBtn?.addEventListener('click', () => {
+        const newRow = document.createElement('div');
+        newRow.className = 'item-row item-row-enter grid grid-cols-12 gap-3 items-end p-4 bg-gray-50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 rounded-lg';
+        newRow.innerHTML = buildItemRowHTML(false);
+        container.appendChild(newRow);
+
+        // Show delete on all rows
+        container.querySelectorAll('.item-row').forEach(row => {
+            row.querySelector('.remove-item-btn')?.classList.remove('hidden');
+        });
+
+        // Attach duplicate check to new name input
+        newRow.querySelector('[name="item_name"]')?.addEventListener('input', () => {
+            clearTimeout(duplicateCheckTimeout);
+            duplicateCheckTimeout = setTimeout(checkForDuplicates, 500);
+        });
+
+        newRow.querySelector('[name="item_name"]')?.focus();
+    });
+
+    // Form submit
+    form?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const submitBtn = document.getElementById('req-submit-btn');
         const editingId = document.getElementById('editing-req-id').value;
-        
-        const projectId = document.getElementById('req-project-select').value;
-        const clientId = document.getElementById('req-client-select').value;
-        const reason = document.getElementById('req-reason').value;
-        const obs = document.getElementById('req-obs').value;
-        const operatorName = document.getElementById('req-operator-name').value;
-        
-        if (!operatorName || operatorName.trim() === '') {
-            alert('Por favor, informe o nome do operador/solicitante.');
+        const operatorName = document.getElementById('req-operator-name').value?.trim();
+
+        if (!operatorName) {
+            showToast('Informe o nome do solicitante antes de enviar.', 'warning');
+            document.getElementById('req-operator-name').focus();
             return;
         }
-        
+
         const itemRows = document.querySelectorAll('.item-row');
         const requestsData = [];
-        
+
         for (const row of itemRows) {
-            const itemName = row.querySelector('[name="item_name"]').value;
+            const itemName = row.querySelector('[name="item_name"]').value?.trim();
             const itemUnit = row.querySelector('[name="item_unit"]').value;
             const qty = parseFloat(row.querySelector('[name="item_qty"]').value);
-            
-            if (!itemName || itemName.trim() === '') {
-                alert('Por favor, informe o nome de todos os materiais.');
+
+            if (!itemName) {
+                showToast('Informe o nome de todos os materiais.', 'warning');
+                row.querySelector('[name="item_name"]').focus();
                 return;
             }
             if (isNaN(qty) || qty <= 0) {
-                alert('Por favor, insira uma quantidade válida para todos os materiais.');
+                showToast('Informe uma quantidade válida para todos os itens.', 'warning');
+                row.querySelector('[name="item_qty"]').focus();
                 return;
             }
-            
+
             requestsData.push({
-                item_name: itemName.toUpperCase().trim(),
+                item_name: itemName.toUpperCase(),
                 unit: itemUnit,
                 quantity: qty,
-                project_id: projectId || null,
-                client_id: clientId || null,
-                reason: reason,
-                observation: obs || null,
+                project_id: document.getElementById('req-project-select').value || null,
+                client_id: document.getElementById('req-client-select').value || null,
+                reason: document.getElementById('req-reason').value,
+                observation: document.getElementById('req-obs').value || null,
                 status: 'PENDENTE',
-                requested_by: operatorName.toUpperCase().trim()
+                requested_by: operatorName.toUpperCase()
             });
         }
-        
+
+        // Duplicate check (only on new submissions)
+        if (!editingId) {
+            const hasDups = checkForDuplicates();
+            if (hasDups) {
+                const confirmed = document.getElementById('confirm-duplicate')?.checked;
+                if (!confirmed) {
+                    showToast('Requisição duplicada detectada. Confirme que é uma nova solicitação antes de enviar.', 'warning');
+                    document.getElementById('duplicate-warning')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    return;
+                }
+            }
+        }
+
         try {
             submitBtn.disabled = true;
-            submitBtn.textContent = 'Enviando...';
-            
+            submitBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:17px">hourglass_empty</span> Enviando...';
+
             if (editingId) {
-                // Update
                 if (requestsData.length > 0) {
                     await updateStockRequest(editingId, requestsData[0]);
-                    alert('Solicitação atualizada com sucesso!');
+                    showToast('Solicitação atualizada com sucesso!', 'success');
                 }
                 cancelReqEdit();
             } else {
-                // Create
                 await createStockRequest(requestsData);
-                alert('Solicitação(ões) enviada(s) com sucesso!');
+                showToast(`${requestsData.length} solicitação(ões) enviada(s) com sucesso!`, 'success');
                 form.reset();
                 resetItemRows();
+                hideDuplicateWarning();
             }
-            
+
             await refreshRequests();
-            
+
         } catch (error) {
             console.error('Error submitting request:', error);
-            alert('Erro ao enviar solicitação: ' + (error.message || 'Erro desconhecido.'));
+            showToast('Erro ao enviar solicitação: ' + (error.message || 'Erro desconhecido.'), 'error');
         } finally {
             submitBtn.disabled = false;
-            submitBtn.textContent = editingId ? 'Salvar Alterações' : 'Enviar Solicitação';
+            submitBtn.innerHTML = editingId
+                ? '<span class="material-symbols-outlined" style="font-size:17px">save</span> Salvar Alterações'
+                : '<span class="material-symbols-outlined" style="font-size:17px">send</span> Enviar Solicitação';
         }
     });
 }
 
 function resetItemRows() {
     const container = document.getElementById('items-container');
-    const rows = container.querySelectorAll('.item-row');
-    // Remove all except the first one
-    for (let i = 1; i < rows.length; i++) {
-        rows[i].remove();
-    }
+    const rows = container?.querySelectorAll('.item-row');
+    if (!rows) return;
+    for (let i = 1; i < rows.length; i++) rows[i].remove();
+    // Re-hide first row delete button
+    const firstDelete = rows[0]?.querySelector('.remove-item-btn');
+    if (firstDelete) firstDelete.classList.add('hidden');
+    // Clear first row inputs
+    rows[0]?.querySelectorAll('input').forEach(inp => { inp.value = ''; });
 }
 
 window.cancelReqEdit = () => {
     document.getElementById('editing-req-id').value = '';
     document.getElementById('req-form').reset();
     resetItemRows();
-    
-    document.getElementById('req-submit-btn').textContent = 'Enviar Solicitação';
-    document.getElementById('cancel-req-edit-btn').classList.add('hidden');
-    
-    const addItemBtn = document.getElementById('add-item-btn');
-    if (addItemBtn) addItemBtn.classList.remove('hidden');
+    hideDuplicateWarning();
+
+    const submitBtn = document.getElementById('req-submit-btn');
+    if (submitBtn) submitBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:17px">send</span> Enviar Solicitação';
+    document.getElementById('cancel-req-edit-btn')?.classList.add('hidden');
+    document.getElementById('add-item-btn')?.classList.remove('hidden');
 };
 
 window.editRequest = (req) => {
-    document.getElementById('req-form').scrollIntoView({ behavior: 'smooth' });
-    
+    const formCard = document.getElementById('req-form')?.closest('.rounded-xl');
+    formCard?.scrollIntoView({ behavior: 'smooth' });
+
     document.getElementById('editing-req-id').value = req.id;
-    
     resetItemRows();
+
     const firstRow = document.querySelector('.item-row');
     if (firstRow) {
         firstRow.querySelector('[name="item_name"]').value = req.item_name;
         firstRow.querySelector('[name="item_unit"]').value = req.unit;
         firstRow.querySelector('[name="item_qty"]').value = req.quantity;
     }
-    
+
     document.getElementById('req-project-select').value = req.project_id || '';
     document.getElementById('req-client-select').value = req.client_id || '';
     document.getElementById('req-reason').value = req.reason;
     document.getElementById('req-obs').value = req.observation || '';
     document.getElementById('req-operator-name').value = req.requested_by || '';
-    
-    document.getElementById('req-submit-btn').textContent = 'Salvar Alterações';
-    document.getElementById('cancel-req-edit-btn').classList.remove('hidden');
-    
-    const addItemBtn = document.getElementById('add-item-btn');
-    if (addItemBtn) addItemBtn.classList.add('hidden');
+
+    const submitBtn = document.getElementById('req-submit-btn');
+    if (submitBtn) submitBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:17px">save</span> Salvar Alterações';
+    document.getElementById('cancel-req-edit-btn')?.classList.remove('hidden');
+    document.getElementById('add-item-btn')?.classList.add('hidden');
+    hideDuplicateWarning();
 };
 
 window.deleteRequest = async (id) => {
-    if (confirm('Tem certeza que deseja excluir esta requisição?')) {
-        try {
-            await deleteStockRequest(id);
-            alert('Requisição excluída!');
-            await refreshRequests();
-        } catch (error) {
-            console.error('Error deleting request:', error);
-            alert('Erro ao excluir: ' + error.message);
-        }
+    if (!confirm('Tem certeza que deseja excluir esta requisição?')) return;
+    try {
+        await deleteStockRequest(id);
+        showToast('Requisição excluída.', 'info');
+        await refreshRequests();
+    } catch (error) {
+        console.error('Error deleting request:', error);
+        showToast('Erro ao excluir: ' + error.message, 'error');
     }
 };
 
-// --- Modal Handlers ---
+// ─── Modal Handlers ───────────────────────────────────────────────────────────
+
 function setupModalHandlers() {
-    // Approve Requisition Submission
-    const approveForm = document.getElementById('approve-form');
-    approveForm.addEventListener('submit', async (e) => {
+    // Approve
+    document.getElementById('approve-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
         const reqId = document.getElementById('app-request-id').value;
         const unitVal = parseFloat(document.getElementById('app-unit-value').value);
         const confirmBtn = document.getElementById('btn-confirm-approve');
-        
-        if (isNaN(unitVal) || unitVal < 0) {
-            alert('Por favor, digite um valor unitário válido.');
-            return;
-        }
-        
-        // Find Requisition details
         const req = allRequests.find(r => r.id === reqId);
-        if (!req) {
-            alert('Erro: Requisição não encontrada.');
+
+        if (isNaN(unitVal) || unitVal < 0) {
+            showToast('Digite um valor unitário válido.', 'warning');
             return;
         }
-        
+        if (!req) { showToast('Requisição não encontrada.', 'error'); return; }
+
         try {
             confirmBtn.disabled = true;
-            confirmBtn.textContent = 'Processando...';
-            
-            // 1. Ensure Stock Item exists (Creates catalogue if new)
-            // It will also freeze the unit price in the catalog
+            confirmBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">hourglass_empty</span> Processando...';
+
             const itemId = await ensureStockItem(req.item_name, unitVal, req.quantity, req.unit);
-            
-            // 2. Process stock exit (Insert to stock_exits)
             await processStockExit(itemId, req.quantity, req.reason, req.project_id, req.observation, req.client_id);
-            
-            // 3. Update stock_requests as APPROVED (DEFERIDO)
             await updateStockRequest(reqId, {
                 status: 'DEFERIDO',
                 unit_price: unitVal,
                 approved_by: currentUser ? currentUser.email : 'ADMINISTRADOR',
                 approved_at: new Date().toISOString()
             });
-            
-            alert('Saída de estoque confirmada e requisição aprovada com sucesso!');
+
+            showToast('Saída confirmada e requisição aprovada!', 'success');
             closeApproveModal();
             await refreshRequests();
-            
+
         } catch (error) {
             console.error('Error approving request:', error);
             if (error.code === '42501' || (error.message && error.message.includes('row-level security'))) {
-                alert('Erro de Permissão (RLS): O banco de dados recusou a gravação do item ou da saída.\n\nSe você estiver acessando pelo link de teste (?dev=admin), as alterações no banco são bloqueadas por falta de autenticação real. Faça login com uma conta de Administrador real para confirmar a saída de materiais.');
+                showToast('Erro de permissão (RLS). Faça login com uma conta de Administrador real.', 'error', 6000);
             } else {
-                alert('Erro ao aprovar requisição: ' + (error.message || 'Desconhecido'));
+                showToast('Erro ao aprovar: ' + (error.message || 'Desconhecido'), 'error');
             }
         } finally {
             confirmBtn.disabled = false;
-            confirmBtn.textContent = 'Confirmar Saída';
+            confirmBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">check</span> Confirmar Saída';
         }
     });
-    
-    // Reject Requisition Submission
-    const rejectForm = document.getElementById('reject-form');
-    rejectForm.addEventListener('submit', async (e) => {
+
+    // Reject
+    document.getElementById('reject-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
         const reqId = document.getElementById('rej-request-id').value;
-        const reasonText = document.getElementById('rej-reason-text').value;
+        const reasonText = document.getElementById('rej-reason-text').value?.trim();
         const confirmBtn = document.getElementById('btn-confirm-reject');
-        
-        if (!reasonText || reasonText.trim() === '') {
-            alert('Por favor, informe o motivo do indeferimento.');
-            return;
-        }
-        
+
+        if (!reasonText) { showToast('Informe o motivo do indeferimento.', 'warning'); return; }
+
         try {
             confirmBtn.disabled = true;
-            confirmBtn.textContent = 'Gravando...';
-            
-            // Update request
+            confirmBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">hourglass_empty</span> Gravando...';
+
             await updateStockRequest(reqId, {
                 status: 'INDEFERIDO',
-                rejection_reason: reasonText.trim(),
+                rejection_reason: reasonText,
                 approved_by: currentUser ? currentUser.email : 'ADMINISTRADOR',
                 approved_at: new Date().toISOString()
             });
-            
-            alert('Requisição indeferida com sucesso!');
+
+            showToast('Requisição indeferida com sucesso.', 'info');
             closeRejectModal();
             await refreshRequests();
-            
+
         } catch (error) {
             console.error('Error rejecting request:', error);
             if (error.code === '42501' || (error.message && error.message.includes('row-level security'))) {
-                alert('Erro de Permissão (RLS): O banco de dados recusou a alteração do status da requisição.\n\nSe você estiver acessando pelo link de teste (?dev=admin), faça login com uma conta de Administrador real.');
+                showToast('Erro de permissão (RLS). Faça login com uma conta de Administrador real.', 'error', 6000);
             } else {
-                alert('Erro ao rejeitar: ' + error.message);
+                showToast('Erro ao indeferir: ' + error.message, 'error');
             }
         } finally {
             confirmBtn.disabled = false;
-            confirmBtn.textContent = 'Confirmar Indeferimento';
+            confirmBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">block</span> Confirmar Indeferimento';
         }
     });
 }
 
-// Modal open/close actions
+// Modal open/close
 window.openApproveModal = (reqId) => {
     const req = allRequests.find(r => r.id === reqId);
     if (!req) return;
-    
+
     document.getElementById('app-request-id').value = reqId;
     document.getElementById('app-unit-value').value = '';
-    
-    // Setup summary fields
     document.getElementById('app-summary-item').textContent = req.item_name;
     document.getElementById('app-summary-qty').textContent = `Quantidade: ${req.quantity} ${req.unit}`;
-    
+
     let dest = '-';
     if (req.projects) dest = `Projeto: ${req.projects.name}`;
     else if (req.clients) dest = `Cliente: ${req.clients.name}`;
     document.getElementById('app-summary-dest').textContent = dest;
-    
     document.getElementById('app-summary-obs').textContent = req.observation ? `Obs: "${req.observation}"` : '';
-    
+
     document.getElementById('approve-modal').classList.remove('hidden');
-    document.getElementById('app-unit-value').focus();
+    setTimeout(() => document.getElementById('app-unit-value').focus(), 100);
 };
 
-window.closeApproveModal = () => {
-    document.getElementById('approve-modal').classList.add('hidden');
-};
+window.closeApproveModal = () => document.getElementById('approve-modal').classList.add('hidden');
 
 window.openRejectModal = (reqId) => {
     document.getElementById('rej-request-id').value = reqId;
     document.getElementById('rej-reason-text').value = '';
-    
     document.getElementById('reject-modal').classList.remove('hidden');
-    document.getElementById('rej-reason-text').focus();
+    setTimeout(() => document.getElementById('rej-reason-text').focus(), 100);
 };
 
-window.closeRejectModal = () => {
-    document.getElementById('reject-modal').classList.add('hidden');
-};
+window.closeRejectModal = () => document.getElementById('reject-modal').classList.add('hidden');
 
 let currentReturnRequest = null;
 
 window.openReturnModal = (req) => {
     currentReturnRequest = req;
-    const modal = document.getElementById('return-modal');
-    const desc = document.getElementById('return-modal-desc');
     const input = document.getElementById('return-qty');
-    const maxQtySpan = document.getElementById('return-max-qty');
-
+    document.getElementById('return-modal-desc').textContent = `${req.item_name} — Qtd Requisitada: ${req.quantity} ${req.unit}`;
+    document.getElementById('return-max-qty').textContent = `${req.quantity} ${req.unit}`;
     input.value = '';
-    desc.textContent = `Devolvendo: ${req.item_name} (Qtd Solicitada: ${req.quantity} ${req.unit})`;
-    maxQtySpan.textContent = req.quantity;
-
     input.max = req.quantity;
     input.min = 0.01;
     input.step = 'any';
-
-    modal.classList.remove('hidden');
-    input.focus();
+    document.getElementById('return-modal').classList.remove('hidden');
+    setTimeout(() => input.focus(), 100);
 };
 
 window.closeReturnModal = () => {
@@ -636,489 +807,381 @@ window.closeReturnModal = () => {
     currentReturnRequest = null;
 };
 
-// Add Return Listener inside setupModalHandlers? 
-// No, we can just do it here since it's global
 document.addEventListener('DOMContentLoaded', () => {
-    const confirmReturnBtn = document.getElementById('confirm-return-btn');
-    if (confirmReturnBtn) {
-        confirmReturnBtn.addEventListener('click', confirmReturnRequest);
-    }
+    document.getElementById('confirm-return-btn')?.addEventListener('click', confirmReturnRequest);
 });
 
 async function confirmReturnRequest() {
     if (!currentReturnRequest) return;
-    
     const input = document.getElementById('return-qty');
     const qtyToReturn = parseFloat(input.value);
 
     if (!qtyToReturn || qtyToReturn <= 0) {
-        alert('Por favor, insira uma quantidade válida.');
+        showToast('Insira uma quantidade válida.', 'warning');
+        return;
+    }
+    if (qtyToReturn > currentReturnRequest.quantity) {
+        showToast(`Quantidade não pode ser maior que a original (${currentReturnRequest.quantity}).`, 'warning');
         return;
     }
 
-    if (qtyToReturn > currentReturnRequest.quantity) {
-        alert(`A quantidade a devolver não pode ser maior que a requisição original (${currentReturnRequest.quantity}).`);
-        return;
-    }
-    
     const btn = document.getElementById('confirm-return-btn');
     try {
         btn.disabled = true;
-        btn.innerText = 'Processando...';
+        btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">hourglass_empty</span> Processando...';
 
-        // Subtract from request quantity
-        const remainingQty = currentReturnRequest.quantity - qtyToReturn;
-        const safeRemaining = Math.round(remainingQty * 1000) / 1000;
-        
-        if (safeRemaining <= 0) {
-            // Se devolver tudo, podemos marcar como cancelado
-            await updateStockRequest(currentReturnRequest.id, { 
-                quantity: 0,
-                status: 'CANCELADO',
-                rejection_reason: 'Totalmente Devolvido'
+        const remainingQty = Math.round((currentReturnRequest.quantity - qtyToReturn) * 1000) / 1000;
+
+        if (remainingQty <= 0) {
+            await updateStockRequest(currentReturnRequest.id, {
+                quantity: 0, status: 'CANCELADO', rejection_reason: 'Totalmente Devolvido'
             });
         } else {
-            // Se for devolução parcial, atualiza a quantidade para o restante
-            await updateStockRequest(currentReturnRequest.id, { 
-                quantity: safeRemaining 
-            });
+            await updateStockRequest(currentReturnRequest.id, { quantity: remainingQty });
         }
-        
-        // --- DEDUCT FROM STOCK_EXITS ---
-        // Tentar encontrar o item_id no catalogo
+
+        // Try to update stock_exits
         const { data: items } = await _supabase.from('stock_items').select('id').eq('name', currentReturnRequest.item_name.toUpperCase().trim());
         if (items && items.length > 0) {
-            const itemId = items[0].id;
-            
-            // Buscar a saída correspondente (match mais provável)
-            let query = _supabase.from('stock_exits')
-                .select('*')
-                .eq('item_id', itemId)
-                .eq('reason', currentReturnRequest.reason);
-                
-            if (currentReturnRequest.project_id) {
-                query = query.eq('project_id', currentReturnRequest.project_id);
-            } else if (currentReturnRequest.client_id) {
-                query = query.eq('client_id', currentReturnRequest.client_id);
-            }
-            
+            let query = _supabase.from('stock_exits').select('*').eq('item_id', items[0].id).eq('reason', currentReturnRequest.reason);
+            if (currentReturnRequest.project_id) query = query.eq('project_id', currentReturnRequest.project_id);
+            else if (currentReturnRequest.client_id) query = query.eq('client_id', currentReturnRequest.client_id);
+
             const { data: exits } = await query.order('created_at', { ascending: false }).limit(1);
-            
             if (exits && exits.length > 0) {
-                const exit = exits[0];
-                const newExitQty = exit.quantity - qtyToReturn;
-                const safeExitQty = Math.round(newExitQty * 1000) / 1000;
-                
-                if (safeExitQty <= 0) {
-                    await deleteStockExit(exit.id);
-                } else {
-                    await updateStockExit(exit.id, { quantity: safeExitQty });
-                }
+                const newExitQty = Math.round((exits[0].quantity - qtyToReturn) * 1000) / 1000;
+                if (newExitQty <= 0) await deleteStockExit(exits[0].id);
+                else await updateStockExit(exits[0].id, { quantity: newExitQty });
             }
         }
-        // -------------------------------
 
-        alert('Devolução registrada com sucesso! A saída de estoque também foi abatida.');
+        showToast('Devolução registrada e saída de estoque abatida!', 'success');
         closeReturnModal();
         await refreshRequests();
 
     } catch (error) {
         console.error('Error executing return:', error);
-        alert('Erro ao realizar devolução: ' + error.message);
+        showToast('Erro ao realizar devolução: ' + error.message, 'error');
     } finally {
         btn.disabled = false;
-        btn.innerText = 'Confirmar Devolução';
+        btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">undo</span> Confirmar Devolução';
     }
 }
 
-// --- Render Operations ---
+// ─── Status Badge Helper ──────────────────────────────────────────────────────
 
-// Render Operator history (their requests)
+function statusBadge(status, rejectionReason = '') {
+    if (status === 'PENDENTE') {
+        return `<span class="inline-flex items-center gap-1.5 rounded-full bg-amber-100 dark:bg-amber-900/40 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300"><span class="size-1.5 rounded-full bg-amber-500 animate-pulse"></span>Pendente</span>`;
+    } else if (status === 'DEFERIDO') {
+        return `<span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300"><span class="size-1.5 rounded-full bg-emerald-500"></span>Deferido</span>`;
+    } else if (status === 'INDEFERIDO') {
+        return `<span class="inline-flex items-center gap-1.5 rounded-full bg-red-100 dark:bg-red-900/40 px-2.5 py-1 text-xs font-semibold text-red-700 dark:text-red-300" title="${rejectionReason || ''}"><span class="size-1.5 rounded-full bg-red-500"></span>Indeferido</span>`;
+    } else if (status === 'CANCELADO') {
+        return `<span class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-xs font-semibold text-gray-600 dark:text-gray-400"><span class="size-1.5 rounded-full bg-gray-400"></span>Devolvido</span>`;
+    }
+    return `<span class="text-xs text-gray-400">${status}</span>`;
+}
+
+function destLabel(req) {
+    if (req.projects) return `<span class="font-medium text-blue-600 dark:text-blue-400">Proj:</span> ${req.projects.name}`;
+    if (req.clients) return req.clients.name;
+    return '-';
+}
+
+// ─── Render Operator History ──────────────────────────────────────────────────
+
 function renderOperatorHistory() {
     const tbody = document.getElementById('op-history-table-body');
+    const countLabel = document.getElementById('op-history-count');
     if (!tbody) return;
-    
-    tbody.innerHTML = '';
-    
-    // Sort allRequests by created_at desc
-    const sorted = [...allRequests].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    
-    // Show all recent requests in the terminal
-    const filtered = sorted;
-        
+
+    const statusFilter = document.getElementById('op-filter-status')?.value || '';
+    let filtered = [...allRequests].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    if (statusFilter) {
+        if (statusFilter === 'CANCELADO') {
+            filtered = filtered.filter(r => r.status === 'CANCELADO' || r.status === 'DEVOLVIDO');
+        } else {
+            filtered = filtered.filter(r => r.status === statusFilter);
+        }
+    }
+
+    if (countLabel) {
+        countLabel.textContent = `${filtered.length} registro${filtered.length !== 1 ? 's' : ''}${statusFilter ? ' filtrados' : ''}`;
+    }
+
     if (filtered.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="8" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400 text-sm">
-                    Nenhuma requisição realizada ainda.
-                </td>
-            </tr>
-        `;
+        tbody.innerHTML = `<tr><td colspan="8" class="px-6 py-10 text-center">
+            <div class="flex flex-col items-center gap-2">
+                <span class="material-symbols-outlined text-gray-300 dark:text-gray-600" style="font-size:36px">inventory_2</span>
+                <p class="text-sm text-gray-400">Nenhuma requisição encontrada.</p>
+            </div>
+        </td></tr>`;
         return;
     }
-    
+
+    tbody.innerHTML = '';
     filtered.forEach(req => {
         const tr = document.createElement('tr');
-        tr.className = "hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors";
-        
-        const dateStr = formatDate(req.created_at.split('T')[0]);
-        let dest = '-';
-        if (req.projects) dest = `Proj: ${req.projects.name}`;
-        else if (req.clients) dest = req.clients.name;
-        
-        // Status Badge
-        let badgeHtml = '';
-        if (req.status === 'PENDENTE') {
-            badgeHtml = `<span class="inline-flex items-center gap-1.5 rounded-full bg-yellow-100 dark:bg-yellow-900/50 px-2.5 py-1 text-xs font-semibold text-yellow-700 dark:text-yellow-300"><span class="size-1.5 rounded-full bg-yellow-500 animate-pulse"></span>Pendente</span>`;
-        } else if (req.status === 'DEFERIDO') {
-            badgeHtml = `<span class="inline-flex items-center gap-1.5 rounded-full bg-green-100 dark:bg-green-900/50 px-2.5 py-1 text-xs font-semibold text-green-700 dark:text-green-300"><span class="size-1.5 rounded-full bg-green-500"></span>Deferido</span>`;
-        } else {
-            badgeHtml = `<span class="inline-flex items-center gap-1.5 rounded-full bg-red-100 dark:bg-red-900/50 px-2.5 py-1 text-xs font-semibold text-red-700 dark:text-red-300" title="Motivo: ${req.rejection_reason || 'Não informado'}"><span class="size-1.5 rounded-full bg-red-500"></span>Indeferido</span>`;
-        }
-        
+        tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors';
+
+        const dateStr = formatDate((req.created_at || '').split('T')[0]);
+
         tr.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">${dateStr}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white">${req.requested_by || '-'}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white">${req.item_name}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">${req.quantity} ${req.unit}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">${dest}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">${req.reason}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm">${badgeHtml}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"></td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">${dateStr}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs font-semibold text-gray-800 dark:text-gray-200">${req.requested_by || '-'}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs font-bold text-gray-900 dark:text-white">${req.item_name}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${req.quantity} <span class="text-gray-400">${req.unit}</span></td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${destLabel(req)}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${req.reason}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs">${statusBadge(req.status, req.rejection_reason)}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-right"></td>
         `;
-        
-        // Actions
+
         const actionsTd = tr.lastElementChild;
         if (req.status === 'PENDENTE') {
-            const container = document.createElement('div');
-            container.className = "flex items-center justify-end gap-2";
-            
-            // Edit
+            const div = document.createElement('div');
+            div.className = 'flex items-center justify-end gap-1.5';
+
             const editBtn = document.createElement('button');
-            editBtn.className = "text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300 flex items-center";
-            editBtn.innerHTML = '<span class="material-symbols-outlined text-lg">edit</span>';
-            editBtn.title = 'Editar';
+            editBtn.className = 'flex items-center gap-1 px-2 py-1 rounded-md text-xs text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors font-medium';
+            editBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:14px">edit</span>Editar';
             editBtn.onclick = () => editRequest(req);
-            container.appendChild(editBtn);
-            
-            // Delete
+            div.appendChild(editBtn);
+
             const delBtn = document.createElement('button');
-            delBtn.className = "text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 flex items-center";
-            delBtn.innerHTML = '<span class="material-symbols-outlined text-lg">delete</span>';
-            delBtn.title = 'Excluir';
+            delBtn.className = 'flex items-center gap-1 px-2 py-1 rounded-md text-xs text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors font-medium';
+            delBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:14px">delete</span>Excluir';
             delBtn.onclick = () => deleteRequest(req.id);
-            container.appendChild(delBtn);
-            
-            actionsTd.appendChild(container);
+            div.appendChild(delBtn);
+
+            actionsTd.appendChild(div);
         } else if (req.status === 'DEFERIDO') {
-            const container = document.createElement('div');
-            container.className = "flex items-center justify-end gap-2";
-            
-            const returnBtn = document.createElement('button');
-            returnBtn.className = "text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 flex items-center";
-            returnBtn.innerHTML = '<span class="material-symbols-outlined text-lg">undo</span>';
-            returnBtn.title = 'Devolver';
-            returnBtn.onclick = () => openReturnModal(req);
-            container.appendChild(returnBtn);
-            
-            actionsTd.appendChild(container);
-        } else if (req.status === 'CANCELADO') {
-            actionsTd.innerHTML = '<span class="text-xs text-gray-400 italic">Devolvido</span>';
+            const retBtn = document.createElement('button');
+            retBtn.className = 'flex items-center justify-end gap-1 px-2 py-1 rounded-md text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors font-medium ml-auto';
+            retBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:14px">undo</span>Devolver';
+            retBtn.onclick = () => openReturnModal(req);
+            actionsTd.appendChild(retBtn);
+        } else if (req.status === 'INDEFERIDO') {
+            actionsTd.innerHTML = `<span class="text-xs text-gray-400 italic" title="${req.rejection_reason || ''}">Motivo: ${(req.rejection_reason || 'N/A').substring(0, 30)}${(req.rejection_reason || '').length > 30 ? '...' : ''}</span>`;
         } else {
-            actionsTd.innerHTML = '<span class="text-xs text-gray-400 italic">Trancado</span>';
+            actionsTd.innerHTML = '<span class="text-xs text-gray-400 italic">Encerrado</span>';
         }
-        
+
         tbody.appendChild(tr);
     });
 }
 
-// Render Admin Pending Tab
+// ─── Admin: Pending Tab ───────────────────────────────────────────────────────
+
 function loadAdminPending() {
     const tbody = document.getElementById('adm-pending-table-body');
     if (!tbody) return;
-    
-    tbody.innerHTML = '';
-    
+
     const pendings = allRequests.filter(r => r.status === 'PENDENTE');
-    
+
     if (pendings.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="8" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400 text-sm">
-                    Nenhuma requisição pendente de aprovação.
-                </td>
-            </tr>
-        `;
+        tbody.innerHTML = `<tr><td colspan="8" class="px-6 py-10 text-center">
+            <div class="flex flex-col items-center gap-2">
+                <span class="material-symbols-outlined text-gray-300 dark:text-gray-600" style="font-size:36px">done_all</span>
+                <p class="text-sm text-gray-400">Nenhuma requisição pendente. Tudo em dia!</p>
+            </div>
+        </td></tr>`;
         return;
     }
-    
+
+    tbody.innerHTML = '';
     pendings.forEach(req => {
         const tr = document.createElement('tr');
-        tr.className = "hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors";
-        
-        const dateStr = formatDate(req.created_at.split('T')[0]);
-        let dest = '-';
-        if (req.projects) dest = `Proj: ${req.projects.name}`;
-        else if (req.clients) dest = req.clients.name;
-        
-        const operatorName = req.requested_by ? req.requested_by.split('@')[0].toUpperCase() : 'DESCONHECIDO';
-        
+        tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors';
+
+        const dateStr = formatDate((req.created_at || '').split('T')[0]);
+        const opName = (req.requested_by || 'DESCONHECIDO').split('@')[0].toUpperCase();
+
         tr.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">${dateStr}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white" title="${req.requested_by}">${operatorName}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white">${req.item_name}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">${req.quantity} ${req.unit}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">${dest}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">${req.reason}</td>
-            <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate" title="${req.observation || ''}">${req.observation || '-'}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"></td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">${dateStr}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs font-semibold text-gray-800 dark:text-gray-200" title="${req.requested_by || ''}">${opName}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs font-bold text-gray-900 dark:text-white">${req.item_name}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${req.quantity} <span class="text-gray-400">${req.unit}</span></td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${destLabel(req)}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${req.reason}</td>
+            <td class="px-5 py-3.5 text-xs text-gray-500 dark:text-gray-400 max-w-[160px] truncate" title="${req.observation || ''}">${req.observation || '-'}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-right"></td>
         `;
-        
-        // Actions: Approve & Reject
+
         const actionTd = tr.lastElementChild;
-        const container = document.createElement('div');
-        container.className = "flex items-center justify-end gap-3";
-        
-        // Editar
-        const editBtn = document.createElement('button');
-        editBtn.className = "text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-0.5 hover:underline";
-        editBtn.innerHTML = '<span class="material-symbols-outlined text-lg">edit</span> <span class="text-xs font-semibold">Editar</span>';
-        editBtn.onclick = () => {
+        const div = document.createElement('div');
+        div.className = 'flex items-center justify-end gap-1';
+
+        const addBtn = (icon, label, cls, handler) => {
+            const btn = document.createElement('button');
+            btn.className = `flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold ${cls} transition-colors`;
+            btn.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px">${icon}</span>${label}`;
+            btn.onclick = handler;
+            div.appendChild(btn);
+        };
+
+        addBtn('edit', 'Editar', 'text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30', () => {
             switchRole('operator');
             setTimeout(() => editRequest(req), 100);
-        };
-        container.appendChild(editBtn);
+        });
+        addBtn('delete', 'Excluir', 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700', () => deleteRequest(req.id));
+        addBtn('check_circle', 'Deferir', 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30', () => openApproveModal(req.id));
+        addBtn('cancel', 'Indeferir', 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30', () => openRejectModal(req.id));
 
-        // Excluir
-        const delBtn = document.createElement('button');
-        delBtn.className = "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-300 flex items-center gap-0.5 hover:underline";
-        delBtn.innerHTML = '<span class="material-symbols-outlined text-lg">delete</span> <span class="text-xs font-semibold">Excluir</span>';
-        delBtn.onclick = () => deleteRequest(req.id);
-        container.appendChild(delBtn);
-        
-        // Deferir (Approve)
-        const appBtn = document.createElement('button');
-        appBtn.className = "text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 flex items-center gap-0.5 hover:underline";
-        appBtn.innerHTML = '<span class="material-symbols-outlined text-lg">check_circle</span> <span class="text-xs font-semibold">Deferir</span>';
-        appBtn.onclick = () => openApproveModal(req.id);
-        container.appendChild(appBtn);
-        
-        // Indeferir (Reject)
-        const rejBtn = document.createElement('button');
-        rejBtn.className = "text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 flex items-center gap-0.5 hover:underline";
-        rejBtn.innerHTML = '<span class="material-symbols-outlined text-lg">cancel</span> <span class="text-xs font-semibold">Indeferir</span>';
-        rejBtn.onclick = () => openRejectModal(req.id);
-        container.appendChild(rejBtn);
-        
-        actionTd.appendChild(container);
+        actionTd.appendChild(div);
         tbody.appendChild(tr);
     });
 }
 
-// Get filtered consolidated history
+// ─── Admin: History Tab ───────────────────────────────────────────────────────
+
 function getFilteredHistory() {
     let history = allRequests.filter(r => r.status !== 'PENDENTE');
-    
-    // Status Filter
-    const filterStatus = document.getElementById('filter-status').value;
-    if (filterStatus) {
-        history = history.filter(r => r.status === filterStatus);
-    }
-    
-    // Client Filter
-    const filterClientId = document.getElementById('filter-client').value;
-    if (filterClientId) {
-        history = history.filter(r => r.client_id == filterClientId);
-    }
-    
-    // Month Filter (YYYY-MM)
-    const filterMonth = document.getElementById('filter-month').value;
-    if (filterMonth) {
-        history = history.filter(r => r.created_at.startsWith(filterMonth));
-    }
-    
-    // Sort desc
-    history.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    
-    return history;
+    const filterStatus = document.getElementById('filter-status')?.value;
+    const filterClientId = document.getElementById('filter-client')?.value;
+    const filterMonth = document.getElementById('filter-month')?.value;
+
+    if (filterStatus) history = history.filter(r => r.status === filterStatus);
+    if (filterClientId) history = history.filter(r => r.client_id == filterClientId);
+    if (filterMonth) history = history.filter(r => (r.created_at || '').startsWith(filterMonth));
+
+    return history.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 }
 
-// Render Admin History Tab
 function loadAdminHistory() {
     const tbody = document.getElementById('adm-history-table-body');
     if (!tbody) return;
-    
-    tbody.innerHTML = '';
-    
+
     const filtered = getFilteredHistory();
-    
+
     if (filtered.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="9" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400 text-sm">
-                    Nenhuma requisição no histórico com os filtros atuais.
-                </td>
-            </tr>
-        `;
+        tbody.innerHTML = `<tr><td colspan="10" class="px-6 py-10 text-center">
+            <div class="flex flex-col items-center gap-2">
+                <span class="material-symbols-outlined text-gray-300 dark:text-gray-600" style="font-size:36px">history</span>
+                <p class="text-sm text-gray-400">Nenhum registro no histórico com os filtros atuais.</p>
+            </div>
+        </td></tr>`;
         return;
     }
-    
+
+    tbody.innerHTML = '';
     filtered.forEach(req => {
         const tr = document.createElement('tr');
-        tr.className = "hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors";
-        
-        const dateStr = formatDate(req.created_at.split('T')[0]);
-        let dest = '-';
-        if (req.projects) dest = `Proj: ${req.projects.name}`;
-        else if (req.clients) dest = req.clients.name;
-        
-        const operatorName = req.requested_by ? req.requested_by.split('@')[0].toUpperCase() : 'DESCONHECIDO';
-        
-        // Status Badge
-        let badgeHtml = '';
-        let extraInfo = '';
-        if (req.status === 'DEFERIDO') {
-            badgeHtml = `<span class="inline-flex items-center gap-1.5 rounded-full bg-green-100 dark:bg-green-900/50 px-2.5 py-1 text-xs font-semibold text-green-700 dark:text-green-300">Deferido</span>`;
-            
-            const totalVal = (req.unit_price || 0) * req.quantity;
-            extraInfo = `Preço: R$ ${parseFloat(req.unit_price).toFixed(2)} (Aprovado por: ${req.approved_by || 'Admin'})`;
-        } else {
-            badgeHtml = `<span class="inline-flex items-center gap-1.5 rounded-full bg-red-100 dark:bg-red-900/50 px-2.5 py-1 text-xs font-semibold text-red-700 dark:text-red-300">Indeferido</span>`;
-            
-            extraInfo = `Motivo rejeição: "${req.rejection_reason || 'Não informado'}" (Rejeitado por: ${req.approved_by || 'Admin'})`;
-        }
-        
+        tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors';
+
+        const dateStr = formatDate((req.created_at || '').split('T')[0]);
+        const opName = (req.requested_by || '-').split('@')[0].toUpperCase();
         const priceUnit = req.unit_price ? `R$ ${parseFloat(req.unit_price).toFixed(2)}` : '-';
         const priceTotal = req.unit_price ? `R$ ${(parseFloat(req.unit_price) * req.quantity).toFixed(2)}` : '-';
-        
+        const extraInfo = req.status === 'DEFERIDO'
+            ? `Aprov: ${(req.approved_by || '').split('@')[0]}`
+            : `Motivo: ${req.rejection_reason || 'N/A'}`;
+
         tr.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">${dateStr}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white" title="${req.requested_by}">${operatorName}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white">${req.item_name}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 font-bold">${req.quantity} ${req.unit}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">${priceUnit}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white font-bold">${priceTotal}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">${dest}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm">${badgeHtml}</td>
-            <td class="px-6 py-4 text-xs text-gray-500 dark:text-gray-400 italic max-w-xs truncate" title="${extraInfo}">${extraInfo}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"></td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">${dateStr}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-700 dark:text-gray-300" title="${req.requested_by || ''}">${opName}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs font-bold text-gray-900 dark:text-white">${req.item_name}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs font-semibold text-gray-700 dark:text-gray-300">${req.quantity} <span class="font-normal text-gray-400">${req.unit}</span></td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${priceUnit}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs font-bold text-gray-900 dark:text-white">${priceTotal}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${destLabel(req)}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs">${statusBadge(req.status, req.rejection_reason)}</td>
+            <td class="px-5 py-3.5 text-xs text-gray-400 italic max-w-[180px] truncate" title="${extraInfo}">${extraInfo}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-right"></td>
         `;
-        
+
         const actionTd = tr.lastElementChild;
         if (req.status === 'DEFERIDO') {
-            const returnBtn = document.createElement('button');
-            returnBtn.className = "text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 flex items-center justify-end gap-1 w-full hover:underline";
-            returnBtn.innerHTML = '<span class="material-symbols-outlined text-lg">undo</span> <span class="text-xs font-semibold">Devolver</span>';
-            returnBtn.title = 'Devolver Material';
-            returnBtn.onclick = () => openReturnModal(req);
-            actionTd.appendChild(returnBtn);
+            const retBtn = document.createElement('button');
+            retBtn.className = 'flex items-center gap-1 px-2 py-1 rounded-md text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors font-medium ml-auto';
+            retBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:14px">undo</span>Devolver';
+            retBtn.onclick = () => openReturnModal(req);
+            actionTd.appendChild(retBtn);
         } else if (req.status === 'CANCELADO') {
             actionTd.innerHTML = '<span class="text-xs text-gray-400 italic">Devolvido</span>';
         }
-        
+
         tbody.appendChild(tr);
     });
 }
 
-// --- Exports Logic ---
+// ─── Exports ──────────────────────────────────────────────────────────────────
+
 window.exportHistoryExcel = () => {
     try {
         const history = getFilteredHistory();
-        if (history.length === 0) {
-            alert('Não há dados de histórico para exportar.');
-            return;
-        }
-        
+        if (history.length === 0) { showToast('Nenhum dado para exportar.', 'warning'); return; }
+
         const dataToExport = history.map(req => ({
-            'Data': formatDate(req.created_at.split('T')[0]),
+            'Data': formatDate((req.created_at || '').split('T')[0]),
             'Operador': req.requested_by || '',
             'Material': req.item_name,
             'Quantidade': req.quantity,
             'Unidade': req.unit,
             'Valor Unitário': req.unit_price ? parseFloat(req.unit_price).toFixed(2) : '',
             'Valor Total': req.unit_price ? (parseFloat(req.unit_price) * req.quantity).toFixed(2) : '',
-            'Destino': req.projects ? `Projeto: ${req.projects.name}` : (req.clients ? `Cliente: ${req.clients.name}` : '-'),
-            'Motivo/Aplicação': req.reason,
+            'Destino': req.projects ? `Projeto: ${req.projects.name}` : (req.clients ? req.clients.name : '-'),
+            'Motivo': req.reason,
             'Status': req.status,
-            'Info Adicional / Motivo Rejeição': req.status === 'DEFERIDO' 
-                ? `Aprovado por: ${req.approved_by || ''}` 
-                : `Motivo: ${req.rejection_reason || ''}`
+            'Info': req.status === 'DEFERIDO' ? `Aprovado por: ${req.approved_by || ''}` : `Motivo Rejeição: ${req.rejection_reason || ''}`
         }));
-        
+
         const ws = XLSX.utils.json_to_sheet(dataToExport);
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Histórico de Requisições");
-        
-        XLSX.writeFile(wb, "Historico_Requisicoes_Estoque.xlsx");
-        
+        XLSX.utils.book_append_sheet(wb, ws, 'Histórico');
+        XLSX.writeFile(wb, 'Historico_Requisicoes_Estoque.xlsx');
+        showToast('Excel exportado com sucesso!', 'success');
     } catch (e) {
         console.error('Excel Export Error:', e);
-        alert('Erro ao exportar XLS: ' + e.message);
+        showToast('Erro ao exportar Excel: ' + e.message, 'error');
     }
 };
 
 window.exportHistoryPDF = () => {
     try {
         const history = getFilteredHistory();
-        if (history.length === 0) {
-            alert('Não há dados de histórico para exportar.');
-            return;
-        }
-        
+        if (history.length === 0) { showToast('Nenhum dado para exportar.', 'warning'); return; }
+
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('landscape');
-        
-        doc.setFontSize(18);
-        doc.text('Histórico Consolidado de Requisições de Estoque', 14, 22);
-        
-        doc.setFontSize(11);
-        doc.setTextColor(100);
-        doc.text(`Exportado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 30);
-        
-        const tableColumn = ["Data", "Operador", "Material", "Qtd", "Val. Unit", "Val. Total", "Destino", "Status", "Info"];
-        const tableRows = [];
-        
-        history.forEach(req => {
-            const dateStr = formatDate(req.created_at.split('T')[0]);
-            const opName = req.requested_by ? req.requested_by.split('@')[0].toUpperCase() : '-';
+
+        doc.setFontSize(16);
+        doc.text('Histórico de Requisições de Estoque — Resitrat', 14, 20);
+        doc.setFontSize(9);
+        doc.setTextColor(120);
+        doc.text(`Exportado em: ${new Date().toLocaleDateString('pt-BR')}  |  Total: ${history.length} registros`, 14, 27);
+
+        const cols = ['Data', 'Operador', 'Material', 'Qtd', 'Val. Unit', 'Val. Total', 'Destino', 'Status', 'Info'];
+        const rows = history.map(req => {
+            const opName = (req.requested_by || '-').split('@')[0].toUpperCase();
             const priceUnit = req.unit_price ? `R$ ${parseFloat(req.unit_price).toFixed(2)}` : '-';
             const priceTotal = req.unit_price ? `R$ ${(parseFloat(req.unit_price) * req.quantity).toFixed(2)}` : '-';
-            
             let dest = '-';
             if (req.projects) dest = `Proj: ${req.projects.name}`;
             else if (req.clients) dest = req.clients.name;
-            
-            const info = req.status === 'DEFERIDO' 
-                ? `Aprov: ${req.approved_by ? req.approved_by.split('@')[0] : ''}`
-                : `Rej: ${req.rejection_reason || ''}`;
-                
-            tableRows.push([
-                dateStr,
-                opName,
-                req.item_name,
-                `${req.quantity} ${req.unit}`,
-                priceUnit,
-                priceTotal,
-                dest,
-                req.status,
-                info
-            ]);
+            const info = req.status === 'DEFERIDO'
+                ? `Aprov: ${(req.approved_by || '').split('@')[0]}`
+                : `Rej: ${(req.rejection_reason || '').substring(0, 30)}`;
+
+            return [formatDate((req.created_at || '').split('T')[0]), opName, req.item_name, `${req.quantity} ${req.unit}`, priceUnit, priceTotal, dest, req.status, info];
         });
-        
+
         doc.autoTable({
-            startY: 36,
-            head: [tableColumn],
-            body: tableRows,
+            startY: 32,
+            head: [cols],
+            body: rows,
             theme: 'striped',
-            headStyles: { fillColor: [19, 91, 236] }, // Primary color
-            styles: { fontSize: 8 },
-            margin: { top: 30 }
+            headStyles: { fillColor: [30, 58, 138] },
+            styles: { fontSize: 7.5 },
+            alternateRowStyles: { fillColor: [248, 250, 252] }
         });
-        
+
         doc.save('Historico_Requisicoes_Estoque.pdf');
-        
+        showToast('PDF exportado com sucesso!', 'success');
     } catch (e) {
         console.error('PDF Export Error:', e);
-        alert('Erro ao exportar PDF: ' + e.message);
+        showToast('Erro ao exportar PDF: ' + e.message, 'error');
     }
 };

@@ -3,12 +3,12 @@
 
 <head>
     <meta charset="utf-8" />
-    <link href="./favicon.svg" rel="icon" type="image/svg+xml" />
+    <link href="./logoresitrat.png" rel="icon" type="image/png" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <title>Configurações - ProjectFlow</title>
     <meta content="light" name="color-scheme" />
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
         rel="stylesheet" />
     <script>
@@ -23,7 +23,7 @@
                             dark: { primary: "#ffffff", secondary: "#9ca3af", tertiary: "#6b7280" }
                         },
                         background: {
-                            light: "#f6f6f8", dark: "#101622"
+                            light: "#f0f2f8", dark: "#101622"
                         }
                     },
                     fontFamily: {
@@ -38,39 +38,80 @@
 <body
     class="bg-background-light dark:bg-background-dark text-text-light-primary dark:text-text-dark-primary font-sans antialiased">
     <div class="flex h-screen w-full">
-        <!-- Sidebar placeholder -->
-        <aside
-            class="w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark flex-shrink-0 flex flex-col h-full">
-      <div class="p-6 pb-0">
-        <div class="flex items-center gap-3">
-          <img src="logoresitrat.png" alt="Logo" class="h-12 w-auto object-contain">
-        </div>
-      </div>
-      <div class="flex-1 overflow-y-auto px-6 py-4">
-        <nav class="space-y-1">
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="gerenciamentodeprojetos.html">
-                        <span class="material-symbols-outlined">dashboard</span>
-                        <p class="text-sm font-medium leading-normal">Dashboard</p>
+        <!-- Sidebar -->
+        <aside class="w-52 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark flex-shrink-0 flex flex-col h-full">
+            <div class="p-4 pb-0">
+                <img src="logoresitrat.png" alt="Logo" class="h-10 w-auto object-contain">
+            </div>
+            <div class="flex-1 overflow-y-auto px-3 py-3">
+                <nav class="space-y-0.5">
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="gerenciamentodeprojetos.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">dashboard</span>
+                        <p class="text-xs font-medium">Dashboard</p>
+                    </a>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="listaprojetos.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">folder</span>
+                        <p class="text-xs font-medium">Projetos</p>
+                    </a>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="itens_projeto.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">inventory_2</span>
+                        <p class="text-xs font-medium">Itens do Projeto</p>
+                    </a>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="controle_producao.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">factory</span>
+                        <p class="text-xs font-medium">Controle de Produção</p>
+                    </a>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="saida_estoque.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">output</span>
+                        <p class="text-xs font-medium">Saída de Estoque</p>
+                    </a>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="requisicao_estoque.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">pending_actions</span>
+                        <p class="text-xs font-medium">Requisições de Estoque</p>
+                    </a>
+                    <a id="nav-cad-user" class="hidden items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="cadastro_usuario.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">person_add_alt</span>
+                        <p class="text-xs font-medium">Cadastrar Usuários</p>
+                    </a>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="simulacao_estoque.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">online_prediction</span>
+                        <p class="text-xs font-medium">Previsão de Compras</p>
+                    </a>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="clientes.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">person_add</span>
+                        <p class="text-xs font-medium">Clientes</p>
+                    </a>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="dashboard_custos.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">attach_money</span>
+                        <p class="text-xs font-medium">Custos por Cliente</p>
+                    </a>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="tarefas.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">check_circle</span>
+                        <p class="text-xs font-medium">Tarefas</p>
+                    </a>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="membros.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">groups</span>
+                        <p class="text-xs font-medium">Equipe</p>
+                    </a>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="relatorios.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">bar_chart</span>
+                        <p class="text-xs font-medium">Relatórios</p>
                     </a>
                 </nav>
             </div>
-            <div class="p-6 border-t border-gray-200 dark:border-gray-800">
-                <div class="space-y-1">
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="ajuda.html">
-                        <span class="material-symbols-outlined">help</span>
-                        <p class="text-sm font-medium leading-normal">Ajuda e Suporte</p>
+            <div class="p-3 border-t border-gray-200 dark:border-gray-800">
+                <div class="space-y-0.5">
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="ajuda.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">help</span>
+                        <p class="text-xs font-medium">Ajuda e Suporte</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg bg-primary/10 px-3 py-2 text-text-primary dark:text-text-dark-primary"
-                        href="configuracoes.html">
-                        <span class="material-symbols-outlined fill-1">settings</span>
-                        <p class="text-sm font-medium leading-normal">Configurações</p>
+                    <a class="flex items-center gap-2 rounded-lg bg-primary/10 px-2 py-1.5 text-primary" href="configuracoes.html">
+                        <span class="material-symbols-outlined fill-1" style="font-size:18px">settings</span>
+                        <p class="text-xs font-medium">Configurações</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="logout">
-                        <span class="material-symbols-outlined">logout</span>
-                        <p class="text-sm font-medium leading-normal">Sair</p>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="#" onclick="signOut(); return false;">
+                        <span class="material-symbols-outlined" style="font-size:18px">logout</span>
+                        <p class="text-xs font-medium">Sair</p>
                     </a>
                 </div>
             </div>

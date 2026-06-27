@@ -1,16 +1,15 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html class="light" lang="pt-BR">
 
 <head>
     <meta charset="utf-8" />
     <link href="./logoresitrat.png" rel="icon" type="image/png" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>Simulação Monte Carlo - Resitrat</title>
+    <title>Previsão de Consumo — Monte Carlo | Resitrat</title>
     <meta content="light" name="color-scheme" />
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
-        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
     <script>
         tailwind.config = {
             darkMode: "class",
@@ -22,22 +21,14 @@
                             light: { primary: "#0d121b", secondary: "#526071", tertiary: "#8292a2" },
                             dark: { primary: "#ffffff", secondary: "#9ca3af", tertiary: "#6b7280" }
                         },
-                        background: {
-                            light: "#f6f6f8", dark: "#101622"
-                        }
+                        background: { light: "#f0f2f8", dark: "#101622" }
                     },
-                    fontFamily: {
-                        sans: ["Inter", "sans-serif"]
-                    }
+                    fontFamily: { sans: ["Inter", "sans-serif"] }
                 }
             }
         };
     </script>
-
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <!-- Supabase and Auth Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/config.js"></script>
     <script src="js/supabaseClient.js"></script>
@@ -48,251 +39,331 @@
 
 <body class="bg-background-light dark:bg-background-dark text-text-light-primary dark:text-text-dark-primary font-sans antialiased overflow-hidden">
     <div class="flex h-screen w-full">
+
         <!-- Sidebar -->
-        <aside class="w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark flex-shrink-0 flex flex-col h-full">
-      <div class="p-6 pb-0">
-        <div class="flex items-center gap-3">
-          <img src="logoresitrat.png" alt="Logo" class="h-12 w-auto object-contain">
-        </div>
-      </div>
-      <div class="flex-1 overflow-y-auto px-6 py-4">
-        <nav class="space-y-1">
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="gerenciamentodeprojetos.html">
-                        <span class="material-symbols-outlined">dashboard</span>
-                        <p class="text-sm font-medium leading-normal">Dashboard</p>
+        <aside class="w-52 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark flex-shrink-0 flex flex-col h-full">
+            <div class="p-4 pb-2">
+                <div class="flex items-center gap-2">
+                    <img src="logoresitrat.png" alt="Logo" class="h-10 w-auto object-contain">
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto px-3 py-2">
+                <nav class="space-y-0.5">
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="gerenciamentodeprojetos.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">dashboard</span>
+                        <p class="text-xs font-medium">Dashboard</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="listaprojetos.html">
-                        <span class="material-symbols-outlined">folder</span>
-                        <p class="text-sm font-medium leading-normal">Projetos</p>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="listaprojetos.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">folder</span>
+                        <p class="text-xs font-medium">Projetos</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="itens_projeto.html">
-                        <span class="material-symbols-outlined">inventory_2</span>
-                        <p class="text-sm font-medium leading-normal">Itens do Projeto</p>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="itens_projeto.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">inventory_2</span>
+                        <p class="text-xs font-medium">Itens do Projeto</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="controle_producao.html">
-                        <span class="material-symbols-outlined">factory</span>
-                        <p class="text-sm font-medium leading-normal">Controle de Produção</p>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="controle_producao.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">factory</span>
+                        <p class="text-xs font-medium">Controle de Produção</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="saida_estoque.html">
-                        <span class="material-symbols-outlined">output</span>
-                        <p class="text-sm font-medium leading-normal">Saída de Estoque</p>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="saida_estoque.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">output</span>
+                        <p class="text-xs font-medium">Saída de Estoque</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="requisicao_estoque.html">
-                        <span class="material-symbols-outlined">pending_actions</span>
-                        <p class="text-sm font-medium leading-normal">Requisições de Estoque</p>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="requisicao_estoque.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">pending_actions</span>
+                        <p class="text-xs font-medium">Requisições de Estoque</p>
                     </a>
-                    <a id="nav-cad-user" class="hidden items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="cadastro_usuario.html">
-                        <span class="material-symbols-outlined">person_add_alt</span>
-                        <p class="text-sm font-medium leading-normal">Cadastrar Usuários</p>
+                    <a id="nav-cad-user" class="hidden items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="cadastro_usuario.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">person_add_alt</span>
+                        <p class="text-xs font-medium">Cadastrar Usuários</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="simulacao_estoque.html">
-                        <span class="material-symbols-outlined">online_prediction</span>
-                        <p class="text-sm font-medium leading-normal">Previsão de Compras / Estoque</p>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="simulacao_estoque.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">online_prediction</span>
+                        <p class="text-xs font-medium">Previsão de Compras</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="clientes.html">
-                        <span class="material-symbols-outlined">person_add</span>
-                        <p class="text-sm font-medium leading-normal">Clientes</p>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="clientes.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">person_add</span>
+                        <p class="text-xs font-medium">Clientes</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="dashboard_custos.html">
-                        <span class="material-symbols-outlined">attach_money</span>
-                        <p class="text-sm font-medium leading-normal">Custos por Cliente</p>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="dashboard_custos.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">attach_money</span>
+                        <p class="text-xs font-medium">Custos por Cliente</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="tarefas.html">
-                        <span class="material-symbols-outlined">check_circle</span>
-                        <p class="text-sm font-medium leading-normal">Tarefas</p>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="tarefas.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">check_circle</span>
+                        <p class="text-xs font-medium">Tarefas</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="membros.html">
-                        <span class="material-symbols-outlined">groups</span>
-                        <p class="text-sm font-medium leading-normal">Equipe</p>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="membros.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">groups</span>
+                        <p class="text-xs font-medium">Equipe</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg bg-primary/10 px-3 py-2 text-primary"
-                        href="relatorios.html">
-                        <span class="material-symbols-outlined fill-1">bar_chart</span>
-                        <p class="text-sm font-medium leading-normal">Relatórios</p>
+                    <a class="flex items-center gap-2 rounded-lg bg-primary/10 px-2 py-1.5 text-primary" href="relatorios.html">
+                        <span class="material-symbols-outlined fill-1" style="font-size:18px">bar_chart</span>
+                        <p class="text-xs font-medium">Relatórios</p>
                     </a>
                 </nav>
             </div>
-
-            <div class="p-6 border-t border-gray-200 dark:border-gray-800">
-                <div class="space-y-1">
-                    <a class="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
-                        href="ajuda.html">
-                        <span class="material-symbols-outlined text-gray-800 dark:text-gray-200">help</span>
-                        <p class="text-sm font-medium leading-normal">Ajuda e Suporte</p>
+            <div class="p-3 border-t border-gray-200 dark:border-gray-800">
+                <div class="space-y-0.5">
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 hover:text-primary transition-colors" href="ajuda.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">help</span>
+                        <p class="text-xs font-medium">Ajuda e Suporte</p>
                     </a>
-                    <a class="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
-                        href="configuracoes.html">
-                        <span class="material-symbols-outlined text-gray-800 dark:text-gray-200">settings</span>
-                        <p class="text-sm font-medium leading-normal">Configurações</p>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 hover:text-primary transition-colors" href="configuracoes.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">settings</span>
+                        <p class="text-xs font-medium">Configurações</p>
                     </a>
-                    <a class="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
-                        href="#" onclick="signOut(); return false;">
-                        <span class="material-symbols-outlined text-gray-800 dark:text-gray-200">logout</span>
-                        <p class="text-sm font-medium leading-normal">Sair</p>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 hover:text-primary transition-colors" href="#" onclick="signOut(); return false;">
+                        <span class="material-symbols-outlined" style="font-size:18px">logout</span>
+                        <p class="text-xs font-medium">Sair</p>
                     </a>
                 </div>
             </div>
         </aside>
 
         <!-- Main Content -->
-        <main class="flex-1 min-w-0 overflow-auto">
-            <div class="p-8">
-                <div class="flex items-center justify-between mb-8">
-                    <div>
-                        <h1 class="text-2xl font-bold text-[#0d121b] dark:text-white">Simulação de Monte Carlo</h1>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Análise probabilística de riscos em estimativas do projeto (Aderência com métricas de 3 Pontos)</p>
+        <main class="flex-1 min-w-0 overflow-auto bg-background-light dark:bg-background-dark">
+
+            <!-- Toast Container -->
+            <div id="toast-container" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+
+            <div class="p-6">
+
+                <!-- Header -->
+                <div class="flex items-start justify-between mb-6 gap-4">
+                    <div class="flex items-start gap-3">
+                        <div style="background:linear-gradient(135deg,#0c4a6e 0%,#0ea5e9 100%)" class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                            <span class="material-symbols-outlined text-white" style="font-size:22px">casino</span>
+                        </div>
+                        <div>
+                            <h1 class="text-xl font-bold text-text-light-primary dark:text-text-dark-primary leading-tight">Previsão de Consumo — Monte Carlo</h1>
+                            <p class="text-xs text-text-light-secondary dark:text-text-dark-secondary mt-0.5">Simulação probabilística para dimensionamento de estoque mínimo de produtos químicos e materiais hidráulicos</p>
+                        </div>
                     </div>
-                    <div class="flex gap-2">
-                        <a href="relatorios.html" class="flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors bg-white dark:bg-gray-800">
-                            <span class="material-symbols-outlined text-xl">arrow_back</span>
-                            <span class="text-sm font-medium">Voltar aos Relatórios</span>
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        <a href="relatorios.html" class="flex items-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors bg-white dark:bg-gray-800">
+                            <span class="material-symbols-outlined" style="font-size:16px">arrow_back</span>
+                            Voltar
                         </a>
-                        <button id="run-simulation-btn"
-                            class="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 transition-colors shadow-sm">
-                            <span class="material-symbols-outlined text-xl">play_arrow</span>
-                            <span class="text-sm font-medium">Simular (10.000x)</span>
+                        <button id="run-simulation-btn" class="flex items-center gap-1.5 rounded-lg px-4 py-2 text-white font-medium transition-colors shadow-sm disabled:opacity-60" style="background:linear-gradient(135deg,#14532d 0%,#16a34a 100%)">
+                            <span class="material-symbols-outlined" style="font-size:20px">play_arrow</span>
+                            <span class="text-sm">Simular (10.000×)</span>
                         </button>
                     </div>
                 </div>
 
-                <!-- Inputs Section -->
-                <div class="bg-white dark:bg-background-dark p-6 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm mb-8">
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                        <h2 class="text-lg font-bold text-gray-900 dark:text-white">Entradas do Projeto (Etapas/Custos)</h2>
-                        
-                        <!-- Import UI -->
-                        <div class="flex items-center gap-2 bg-gray-50 dark:bg-gray-800/50 p-2 rounded-lg border border-gray-200 dark:border-gray-700 w-full md:w-auto">
-                            <select id="sim-project-select" class="rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm p-2 flex-1 md:w-64">
-                                <option value="">Importar de Projeto Concluído...</option>
-                            </select>
-                            <button id="load-project-btn" class="bg-primary text-white px-3 py-2 rounded-md hover:bg-primary/90 transition-colors shadow-sm text-sm font-medium flex items-center gap-1">
-                                <span class="material-symbols-outlined text-sm">download</span> Importar
-                            </button>
+                <!-- Configuration + Input Panel -->
+                <div class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm mb-6">
+
+                    <!-- Panel Controls -->
+                    <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+                        <div class="flex flex-wrap items-center gap-3">
+                            <span class="text-sm font-semibold text-text-light-primary dark:text-text-dark-primary mr-1">Parâmetros</span>
+
+                            <div class="flex items-center gap-2">
+                                <label class="text-xs text-text-light-secondary dark:text-text-dark-secondary whitespace-nowrap">Horizonte:</label>
+                                <select id="horizon-select" class="rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white text-sm px-2 py-1.5 focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+                                    <option value="1">1 mês</option>
+                                    <option value="3" selected>3 meses</option>
+                                    <option value="6">6 meses</option>
+                                    <option value="12">12 meses</option>
+                                </select>
+                            </div>
+
+                            <div class="flex items-center gap-2">
+                                <label class="text-xs text-text-light-secondary dark:text-text-dark-secondary whitespace-nowrap">Confiança:</label>
+                                <select id="confidence-select" class="rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white text-sm px-2 py-1.5 focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+                                    <option value="80">P80 — 80%</option>
+                                    <option value="90" selected>P90 — 90%</option>
+                                    <option value="95">P95 — 95%</option>
+                                </select>
+                            </div>
+
+                            <div class="flex items-center gap-2 ml-auto">
+                                <button id="import-stock-btn" class="flex items-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors bg-white dark:bg-gray-800">
+                                    <span class="material-symbols-outlined" style="font-size:15px">download</span>
+                                    Importar do Estoque
+                                </button>
+                                <button id="clear-rows-btn" class="flex items-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors bg-white dark:bg-gray-800">
+                                    <span class="material-symbols-outlined" style="font-size:15px">clear_all</span>
+                                    Limpar
+                                </button>
+                                <button id="add-row-btn" class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors border border-primary/30">
+                                    <span class="material-symbols-outlined" style="font-size:15px">add</span>
+                                    Adicionar Produto
+                                </button>
+                            </div>
                         </div>
                     </div>
-                    
-                    <div class="flex justify-end mb-4">
-                        <button id="add-task-btn" class="text-sm text-primary hover:text-primary/80 font-medium flex items-center gap-1">
-                            <span class="material-symbols-outlined text-base">add</span> Nova Linha Manual
-                        </button>
-                    </div>
+
+                    <!-- Input Table -->
                     <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-800" id="montecarlo-table">
-                            <thead class="bg-gray-50 dark:bg-gray-800/50">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Nome da Tarefa/Etapa</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Otimista (O)</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Mais Provável (M)</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Pessimista (P)</th>
-                                    <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Ações</th>
+                        <table class="min-w-full" id="montecarlo-table">
+                            <thead>
+                                <tr class="bg-gray-50 dark:bg-gray-800/50">
+                                    <th class="px-3 py-2.5 text-left text-xs font-semibold text-text-light-secondary dark:text-text-dark-secondary uppercase tracking-wide min-w-[200px]">Produto / Material</th>
+                                    <th class="px-2 py-2.5 text-center text-xs font-semibold text-text-light-secondary dark:text-text-dark-secondary uppercase tracking-wide w-20">Unid.</th>
+                                    <th class="px-2 py-2.5 text-center text-xs font-semibold text-blue-500 uppercase tracking-wide w-28">Consumo Mín/Mês</th>
+                                    <th class="px-2 py-2.5 text-center text-xs font-semibold text-primary uppercase tracking-wide w-28">Consumo Prov./Mês</th>
+                                    <th class="px-2 py-2.5 text-center text-xs font-semibold text-orange-500 uppercase tracking-wide w-28">Consumo Máx/Mês</th>
+                                    <th class="px-2 py-2.5 text-center text-xs font-semibold text-text-light-secondary dark:text-text-dark-secondary uppercase tracking-wide w-24">LT Mín (dias)</th>
+                                    <th class="px-2 py-2.5 text-center text-xs font-semibold text-text-light-secondary dark:text-text-dark-secondary uppercase tracking-wide w-24">LT Máx (dias)</th>
+                                    <th class="px-2 py-2.5 text-center text-xs font-semibold text-text-light-secondary dark:text-text-dark-secondary uppercase tracking-wide w-28">Estoque Atual</th>
+                                    <th class="w-10"></th>
                                 </tr>
                             </thead>
-                            <tbody id="montecarlo-tbody" class="bg-white dark:bg-background-dark divide-y divide-gray-200 dark:divide-gray-800">
-                                <!-- Dynamic rows -->
+                            <tbody id="montecarlo-tbody" class="divide-y divide-gray-100 dark:divide-gray-800/60">
+                                <!-- rows injected by JS -->
                             </tbody>
                         </table>
                     </div>
-                    <p class="text-xs text-gray-500 mt-2">Dica: Os valores podem representar estimativas de tempo (dias/horas) ou estimativas custos financeiros (R$). A simulação calculará o somatório de toda a distrubuição triangular de cada etapa inserida e gerará gráficos informativos.</p>
+
+                    <!-- Table Footer Hint -->
+                    <div class="px-5 py-3 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/20 rounded-b-xl">
+                        <p class="text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+                            <strong>Distribuição Triangular (PMBoK® 3 pontos):</strong> Mín = menor consumo esperado · Provável = consumo típico · Máx = pior cenário de consumo.
+                            <strong>Lead Time</strong> = prazo de entrega do fornecedor (distribuição uniforme). A simulação gera 10.000 cenários por produto.
+                        </p>
+                    </div>
                 </div>
 
-                <!-- Results Section (Hidden initially) -->
-                <div id="results-section" class="hidden">
-                    <h2 class="text-lg font-bold text-[#0d121b] dark:text-white mb-4">Resultados da Simulação</h2>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                        <!-- P50 -->
-                        <div class="bg-white dark:bg-background-dark p-6 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm border-l-4 border-l-gray-400">
-                            <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Estimativa Base (Soma Provável)</p>
-                            <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1" id="res-base">0</p>
-                        </div>
-                        <!-- P50 Simulation -->
-                        <div class="bg-white dark:bg-background-dark p-6 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm border-l-4 border-l-blue-500">
-                            <div class="flex justify-between items-start">
+                <!-- Results Section (initially hidden) -->
+                <div id="results-section" class="hidden space-y-5">
+
+                    <!-- KPI Cards -->
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5">
+                            <div class="flex items-center justify-between">
                                 <div>
-                                    <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">P50 (50% Confiança)</p>
-                                    <p class="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1" id="res-p50">0</p>
+                                    <p class="text-xs font-medium text-text-light-secondary dark:text-text-dark-secondary uppercase tracking-wide">Produtos Analisados</p>
+                                    <p class="text-3xl font-bold text-text-light-primary dark:text-text-dark-primary mt-1" id="kpi-total">0</p>
                                 </div>
-                                <span class="material-symbols-outlined text-blue-500">analytics</span>
+                                <div style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%)" class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0">
+                                    <span class="material-symbols-outlined text-white" style="font-size:20px">inventory_2</span>
+                                </div>
                             </div>
                         </div>
-                        <!-- P80 Simulation -->
-                        <div class="bg-white dark:bg-background-dark p-6 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm border-l-4 border-l-orange-500">
-                            <div class="flex justify-between items-start">
+
+                        <div class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5">
+                            <div class="flex items-center justify-between">
                                 <div>
-                                    <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">P80 (80% Confiança)</p>
-                                    <p class="text-2xl font-bold text-orange-600 dark:text-orange-400 mt-1" id="res-p80">0</p>
+                                    <p class="text-xs font-medium text-text-light-secondary dark:text-text-dark-secondary uppercase tracking-wide">Estado Crítico</p>
+                                    <p class="text-3xl font-bold text-red-600 dark:text-red-400 mt-1" id="kpi-critical">0</p>
+                                    <p class="text-xs text-text-light-tertiary dark:text-text-dark-tertiary mt-0.5">Abaixo do estoque mínimo</p>
                                 </div>
-                                <span class="material-symbols-outlined text-orange-500">show_chart</span>
+                                <div style="background:linear-gradient(135deg,#7f1d1d 0%,#dc2626 100%)" class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0">
+                                    <span class="material-symbols-outlined text-white" style="font-size:20px">warning</span>
+                                </div>
                             </div>
                         </div>
-                        <!-- P95 Simulation -->
-                        <div class="bg-white dark:bg-background-dark p-6 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm border-l-4 border-l-red-500">
-                            <div class="flex justify-between items-start">
+
+                        <div class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5">
+                            <div class="flex items-center justify-between">
                                 <div>
-                                    <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">P95 (95% Confiança)</p>
-                                    <p class="text-2xl font-bold text-red-600 dark:text-red-400 mt-1" id="res-p95">0</p>
+                                    <p class="text-xs font-medium text-text-light-secondary dark:text-text-dark-secondary uppercase tracking-wide">Em Atenção</p>
+                                    <p class="text-3xl font-bold text-amber-600 dark:text-amber-400 mt-1" id="kpi-attention">0</p>
+                                    <p class="text-xs text-text-light-tertiary dark:text-text-dark-tertiary mt-0.5">Próximo ao ponto de ressuprimento</p>
                                 </div>
-                                <span class="material-symbols-outlined text-red-500">security</span>
+                                <div style="background:linear-gradient(135deg,#92400e 0%,#d97706 100%)" class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0">
+                                    <span class="material-symbols-outlined text-white" style="font-size:20px">schedule</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs font-medium text-text-light-secondary dark:text-text-dark-secondary uppercase tracking-wide">Cobertura Média</p>
+                                    <p class="text-2xl font-bold text-text-light-primary dark:text-text-dark-primary mt-1"><span id="kpi-coverage">0</span> <span class="text-base font-normal text-text-light-secondary">dias</span></p>
+                                </div>
+                                <div style="background:linear-gradient(135deg,#14532d 0%,#16a34a 100%)" class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0">
+                                    <span class="material-symbols-outlined text-white" style="font-size:20px">calendar_today</span>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Chart and Details -->
-                    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                        <div class="lg:col-span-2 bg-white dark:bg-background-dark p-6 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
-                            <h3 class="text-base font-bold text-gray-900 dark:text-white mb-4">Histograma de Frequências (10.000 iterações)</h3>
-                            <div style="height: 350px; position: relative; width: 100%;">
+                    <!-- Methodology Info -->
+                    <div class="bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800/40 p-4">
+                        <div class="flex items-start gap-3">
+                            <span class="material-symbols-outlined text-blue-600 dark:text-blue-400 flex-shrink-0" style="font-size:20px">info</span>
+                            <div class="text-xs text-blue-800 dark:text-blue-200 space-y-1 leading-relaxed">
+                                <p><strong>Metodologia:</strong> Distribuição Triangular (PMBoK® Estimativa de 3 Pontos) para consumo + Lead Time Uniforme para prazo de entrega. 10.000 iterações Monte Carlo por produto.</p>
+                                <p>
+                                    <strong>Estoque de Segurança (SS)</strong> = Demanda no LT a P<span class="conf-label">90</span> − Demanda Média no LT (P50) &nbsp;·&nbsp;
+                                    <strong>Ponto de Ressuprimento (ROP)</strong> = Demanda Média no LT + SS &nbsp;·&nbsp;
+                                    <strong>Compra Sugerida</strong> = Consumo P<span class="conf-label">90</span> no período + SS − Estoque Atual
+                                </p>
+                                <p class="text-blue-600 dark:text-blue-300">Clique em qualquer linha da tabela para visualizar a distribuição de probabilidade do produto.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Results Table -->
+                    <div class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
+                        <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                            <div>
+                                <h2 class="text-sm font-bold text-text-light-primary dark:text-text-dark-primary">Recomendações por Produto</h2>
+                                <p class="text-xs text-text-light-secondary dark:text-text-dark-secondary mt-0.5">Ordenado por prioridade: crítico → atenção → ok</p>
+                            </div>
+                            <span class="text-xs text-text-light-tertiary dark:text-text-dark-tertiary bg-gray-100 dark:bg-gray-800 rounded-full px-3 py-1" id="results-subtitle"></span>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full">
+                                <thead class="bg-gray-50 dark:bg-gray-800/50">
+                                    <tr>
+                                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-text-light-secondary dark:text-text-dark-secondary uppercase tracking-wide">Produto</th>
+                                        <th class="px-3 py-2.5 text-center text-xs font-semibold text-text-light-secondary dark:text-text-dark-secondary uppercase tracking-wide">Unid.</th>
+                                        <th class="px-3 py-2.5 text-right text-xs font-semibold text-text-light-secondary dark:text-text-dark-secondary uppercase tracking-wide">Est. Atual</th>
+                                        <th class="px-3 py-2.5 text-right text-xs font-semibold text-blue-500 uppercase tracking-wide">P50 Período</th>
+                                        <th class="px-3 py-2.5 text-right text-xs font-semibold text-orange-500 uppercase tracking-wide">P<span class="conf-label">90</span> Período</th>
+                                        <th class="px-3 py-2.5 text-right text-xs font-semibold text-text-light-secondary dark:text-text-dark-secondary uppercase tracking-wide">Est. Segurança</th>
+                                        <th class="px-3 py-2.5 text-right text-xs font-semibold text-text-light-secondary dark:text-text-dark-secondary uppercase tracking-wide">ROP</th>
+                                        <th class="px-3 py-2.5 text-right text-xs font-semibold text-red-500 uppercase tracking-wide">Compra Sugerida</th>
+                                        <th class="px-3 py-2.5 text-right text-xs font-semibold text-text-light-secondary dark:text-text-dark-secondary uppercase tracking-wide">Cobertura</th>
+                                        <th class="px-3 py-2.5 text-center text-xs font-semibold text-text-light-secondary dark:text-text-dark-secondary uppercase tracking-wide">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="results-tbody" class="divide-y divide-gray-100 dark:divide-gray-800/60">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Charts Row -->
+                    <div class="grid grid-cols-1 lg:grid-cols-5 gap-5 pb-6">
+
+                        <!-- Histogram -->
+                        <div class="lg:col-span-3 bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5">
+                            <h3 class="text-sm font-bold text-text-light-primary dark:text-text-dark-primary mb-1" id="histogram-title">Distribuição de Consumo</h3>
+                            <p class="text-xs text-text-light-tertiary dark:text-text-dark-tertiary mb-4">10.000 iterações — selecione um produto na tabela para atualizar</p>
+                            <div style="height:260px; position:relative;">
                                 <canvas id="montecarloChart"></canvas>
                             </div>
-                        </div>
-                        
-                        <div class="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col justify-center">
-                            <h3 class="text-base font-bold text-gray-900 dark:text-white mb-6">Análise de Contingência para P90 (90%)</h3>
-                            
-                            <div class="space-y-4">
-                                <div class="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-2">
-                                    <span class="text-sm text-gray-500 dark:text-gray-400">Estimativa Base (Soma Provável):</span>
-                                    <span class="text-sm font-semibold text-gray-900 dark:text-white" id="cont-base">0</span>
-                                </div>
-                                <div class="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-2">
-                                    <span class="text-sm text-gray-500 dark:text-gray-400">P90 (90% Confiança):</span>
-                                    <span class="text-sm font-semibold text-gray-900 dark:text-white" id="cont-p90">0</span>
-                                </div>
-                                <div class="flex justify-between items-center pt-2">
-                                    <span class="text-base font-bold text-gray-900 dark:text-white flex-1 pr-2">Reserva de Contingência Sugerida:</span>
-                                    <span class="text-lg font-bold text-green-600 dark:text-green-400" id="cont-reserve">0</span>
-                                </div>
+                            <div class="flex items-center justify-center gap-6 mt-3">
+                                <span class="flex items-center gap-1.5 text-xs text-text-light-secondary dark:text-text-dark-secondary">
+                                    <span class="inline-block w-5 border-t-2 border-dashed border-blue-500"></span>
+                                    P50 — valor esperado
+                                </span>
+                                <span class="flex items-center gap-1.5 text-xs text-text-light-secondary dark:text-text-dark-secondary">
+                                    <span class="inline-block w-5 border-t-2 border-dashed border-green-500"></span>
+                                    P<span class="conf-label">90</span> — compra segura
+                                </span>
                             </div>
                         </div>
 
-                        <!-- Interpretation Column -->
-                        <div class="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-xl border border-blue-200 dark:border-blue-800/50 shadow-sm flex flex-col justify-center">
-                            <div class="flex items-center gap-2 mb-4">
-                                <span class="material-symbols-outlined text-blue-600 dark:text-blue-400">lightbulb</span>
-                                <h3 class="text-base font-bold text-blue-900 dark:text-blue-100">Como Interpretar o Gráfico</h3>
-                            </div>
-                            <div class="space-y-3 text-sm text-blue-800 dark:text-blue-200 leading-relaxed">
-                                <p><strong>Barras Altas:</strong> Mostram os valores de Custo ou Prazo que mais ocorreram nestas 10.000 iterações.</p>
-                                <p><strong>P50 (Linha Azul):</strong> Existe 50% de chance térmica do seu projeto terminar confortavelmente abaixo desse valor.</p>
-                                <p><strong>P90 (Linha Verde):</strong> Representa o "Cenário Seguro". Só há 10% de chance do projeto ultrapassar e estourar essa meta.</p>
-                                <p><strong>Reserva:</strong> A margem monetária ou de tempo que você deveria adicionar na base (provável) para garantir os 90% (P90) de sucesso ao fim do projeto.</p>
+                        <!-- Coverage Chart -->
+                        <div class="lg:col-span-2 bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5">
+                            <h3 class="text-sm font-bold text-text-light-primary dark:text-text-dark-primary mb-1">Cobertura de Estoque (dias)</h3>
+                            <p class="text-xs text-text-light-tertiary dark:text-text-dark-tertiary mb-4">Baseado no consumo médio (P50) previsto</p>
+                            <div style="height:260px; position:relative;">
+                                <canvas id="coverageChart"></canvas>
                             </div>
                         </div>
+
                     </div>
-
                 </div>
+
             </div>
         </main>
     </div>

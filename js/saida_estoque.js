@@ -1,70 +1,102 @@
 document.addEventListener('DOMContentLoaded', async () => {
     await loadInitialData();
-    /* Search handlers removed as we are using manual entry now */
-    // setupSearchHandlers(); // Removed
     setupFormSubmission();
     setupReturnModal();
 });
 
 let currentReturnExit = null;
 
+// ─── Toast ────────────────────────────────────────────────────────────────────
+
+function showToast(message, type = 'success', duration = 4000) {
+    const container = document.getElementById('toast-container');
+    if (!container) { alert(message); return; }
+    const icons = { success: 'check_circle', error: 'error', warning: 'warning', info: 'info' };
+    const colors = { success: 'bg-emerald-600', error: 'bg-red-600', warning: 'bg-amber-500', info: 'bg-blue-600' };
+    const toast = document.createElement('div');
+    toast.className = `toast pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-xl text-white text-xs font-medium max-w-sm ${colors[type]}`;
+    toast.innerHTML = `<span class="material-symbols-outlined flex-shrink-0" style="font-size:18px">${icons[type]}</span><span>${message}</span>`;
+    container.appendChild(toast);
+    const remove = () => {
+        toast.classList.add('hiding');
+        toast.addEventListener('animationend', () => toast.remove(), { once: true });
+    };
+    const timer = setTimeout(remove, duration);
+    toast.addEventListener('click', () => { clearTimeout(timer); remove(); });
+}
+
+// ─── Stats ────────────────────────────────────────────────────────────────────
+
+function updateStats(exits) {
+    const today = new Date().toISOString().split('T')[0];
+    const currentMonth = today.slice(0, 7);
+
+    const exitsToday = exits.filter(e => e.created_at && e.created_at.startsWith(today)).length;
+    const valueMonth = exits
+        .filter(e => e.created_at && e.created_at.startsWith(currentMonth))
+        .reduce((sum, e) => {
+            const unitPrice = e.unit_price || (e.stock_items ? e.stock_items.value : 0);
+            return sum + (unitPrice * e.quantity);
+        }, 0);
+
+    const fmt = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v);
+
+    const el1 = document.getElementById('stat-exits-today');
+    const el2 = document.getElementById('stat-value-month');
+    const el3 = document.getElementById('stat-exits-count');
+    if (el1) el1.textContent = exitsToday;
+    if (el2) el2.textContent = fmt(valueMonth);
+    if (el3) el3.textContent = exits.length;
+}
+
+// ─── Initial Data ─────────────────────────────────────────────────────────────
+
 async function loadInitialData() {
     try {
-        // Load Projects for dropdown
-        const projects = await fetchProjects();
+        const [projects, clients] = await Promise.all([fetchProjects(), fetchClients()]);
+
         const projectSelect = document.getElementById('project-select');
         projects
-            .filter(p => p.status !== 'Completed' && p.status !== 'Done') // Only active projects
+            .filter(p => p.status !== 'Completed' && p.status !== 'Done')
             .forEach(p => {
-                const option = document.createElement('option');
-                option.value = p.id;
-                option.text = p.name;
-                projectSelect.appendChild(option);
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.text = p.name;
+                projectSelect.appendChild(opt);
             });
 
-        // Load Clients for dropdown
-        const clients = await fetchClients();
         const clientSelect = document.getElementById('client-select');
+        const filterSelect = document.getElementById('history-client-filter');
         clients.forEach(c => {
-            const option = document.createElement('option');
-            option.value = c.id;
-            // Show Name and Company/CNPJ if available for better context
             let label = c.name;
             if (c.company) label += ` (${c.company})`;
-            else if (c.cnpj) label += ` (CNPJ: ${c.cnpj})`;
+            else if (c.cnpj) label += ` (${c.cnpj})`;
 
-            option.textContent = label;
-            clientSelect.appendChild(option);
+            const opt1 = document.createElement('option');
+            opt1.value = c.id;
+            opt1.textContent = label;
+            clientSelect.appendChild(opt1);
+
+            if (filterSelect) {
+                const opt2 = document.createElement('option');
+                opt2.value = c.id;
+                opt2.textContent = label;
+                filterSelect.appendChild(opt2);
+            }
         });
 
-        // Populate Filter Dropdown
-        const filterSelect = document.getElementById('history-client-filter');
-        if (filterSelect) {
-            clients.forEach(c => {
-                const option = document.createElement('option');
-                option.value = c.id;
-                let label = c.name;
-                if (c.company) label += ` (${c.company})`;
-                option.textContent = label;
-                filterSelect.appendChild(option);
-            });
-
-            filterSelect.addEventListener('change', () => loadExitHistory());
-        }
-
-        // Date Filter Listener
+        if (filterSelect) filterSelect.addEventListener('change', () => loadExitHistory());
         const dateFilter = document.getElementById('history-date-filter');
-        if (dateFilter) {
-            dateFilter.addEventListener('change', () => loadExitHistory());
-        }
+        if (dateFilter) dateFilter.addEventListener('change', () => loadExitHistory());
 
-        // Load History
         await loadExitHistory();
     } catch (e) {
         console.error('Error loading initial data:', e);
-        alert('Erro ao carregar dados iniciais.');
+        showToast('Erro ao carregar dados iniciais.', 'error');
     }
 }
+
+// ─── Item Rows ────────────────────────────────────────────────────────────────
 
 let editingExitId = null;
 
@@ -72,72 +104,54 @@ function resetItemRows() {
     const container = document.getElementById('items-container');
     if (!container) return;
     const rows = container.querySelectorAll('.item-row');
-    // Keep first row, remove others
-    for (let i = 1; i < rows.length; i++) {
-        rows[i].remove();
-    }
-    // Reset first row
+    for (let i = 1; i < rows.length; i++) rows[i].remove();
     const firstRow = rows[0];
-    const inputs = firstRow.querySelectorAll('input, select');
-    inputs.forEach(input => {
-        if(input.tagName === 'SELECT') {
-            if(input.name === 'item_unit') input.value = 'UN';
-        } else {
-            input.value = '';
-        }
+    firstRow.querySelectorAll('input, select').forEach(input => {
+        if (input.tagName === 'SELECT' && input.name === 'item_unit') input.value = 'UN';
+        else input.value = '';
     });
-    // Hide remove btn on first row
     const removeBtn = firstRow.querySelector('.remove-item-btn');
     if (removeBtn) removeBtn.classList.add('hidden');
 }
 
+// ─── Form Submission ──────────────────────────────────────────────────────────
+
 function setupFormSubmission() {
     const form = document.getElementById('exit-form');
-    console.log('Setup Form Submission');
 
-    // Add Cancel Button logic
+    // Inject cancel button after submit
     if (!document.getElementById('cancel-edit-btn')) {
-        const btnContainer = document.querySelector('#exit-form .pt-4');
+        const submitWrapper = document.querySelector('#exit-form .flex.flex-col.gap-2');
         const cancelBtn = document.createElement('button');
         cancelBtn.type = 'button';
         cancelBtn.id = 'cancel-edit-btn';
-        cancelBtn.className = 'hidden w-full mt-2 flex justify-center py-3 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors';
-        cancelBtn.textContent = 'Cancelar Edição';
+        cancelBtn.className = 'hidden w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors';
+        cancelBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">close</span> Cancelar Edição';
         cancelBtn.onclick = cancelEdit;
-        btnContainer.appendChild(cancelBtn);
+        if (submitWrapper) submitWrapper.appendChild(cancelBtn);
     }
 
+    // Add item button
     const addItemBtn = document.getElementById('add-item-btn');
     if (addItemBtn) {
         addItemBtn.addEventListener('click', () => {
             const container = document.getElementById('items-container');
             const firstRow = container.querySelector('.item-row');
             const newRow = firstRow.cloneNode(true);
-            
-            // Clear inputs
-            const inputs = newRow.querySelectorAll('input, select');
-            inputs.forEach(input => {
-                if(input.tagName === 'SELECT') {
-                    if(input.name === 'item_unit') input.value = 'UN';
-                } else {
-                    input.value = '';
-                }
+            newRow.querySelectorAll('input, select').forEach(input => {
+                if (input.tagName === 'SELECT' && input.name === 'item_unit') input.value = 'UN';
+                else input.value = '';
             });
-            
-            // Show remove button
             const removeBtn = newRow.querySelector('.remove-item-btn');
             removeBtn.classList.remove('hidden');
-            removeBtn.onclick = function() {
-                this.closest('.item-row').remove();
-            };
-            
+            removeBtn.onclick = function () { this.closest('.item-row').remove(); };
             container.appendChild(newRow);
+            newRow.querySelector('[name="item_name"]')?.focus();
         });
     }
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-
         const submitBtn = document.getElementById('submit-btn');
         const projectId = document.getElementById('project-select').value;
         const clientId = document.getElementById('client-select').value;
@@ -145,7 +159,8 @@ function setupFormSubmission() {
         const obs = document.getElementById('exit-obs').value;
 
         if (!clientId) {
-            alert('Por favor, selecione um cliente.');
+            showToast('Selecione um cliente antes de confirmar a saída.', 'warning');
+            document.getElementById('client-select')?.focus();
             return;
         }
 
@@ -159,116 +174,81 @@ function setupFormSubmission() {
             const itemValue = parseFloat(row.querySelector('[name="item_value"]').value);
             const qty = parseFloat(row.querySelector('[name="item_qty"]').value);
 
-            if (!itemName) {
-                alert('Por favor, informe o nome de todos os materiais.');
-                validationError = true;
-                return;
-            }
-            if (isNaN(itemValue) || itemValue < 0) {
-                alert(`Por favor, insira um valor unitário válido para ${itemName}.`);
-                validationError = true;
-                return;
-            }
-            if (isNaN(qty) || qty <= 0) {
-                alert(`Por favor, insira uma quantidade válida para ${itemName}.`);
-                validationError = true;
-                return;
-            }
-
-            exitsData.push({
-                itemName: itemName.toUpperCase(),
-                itemUnit,
-                itemValue,
-                qty
-            });
+            if (!itemName) { showToast('Informe o nome de todos os materiais.', 'warning'); validationError = true; return; }
+            if (isNaN(itemValue) || itemValue < 0) { showToast(`Valor unitário inválido para "${itemName}".`, 'warning'); validationError = true; return; }
+            if (isNaN(qty) || qty <= 0) { showToast(`Quantidade inválida para "${itemName}".`, 'warning'); validationError = true; return; }
+            exitsData.push({ itemName: itemName.toUpperCase(), itemUnit, itemValue, qty });
         });
 
         if (validationError || exitsData.length === 0) return;
 
         try {
             submitBtn.disabled = true;
-            submitBtn.textContent = 'Processando...';
+            submitBtn.innerHTML = '<svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Processando...';
 
             if (editingExitId) {
-                // UPDATE existing exit (only updates the first/only item being edited)
                 const item = exitsData[0];
                 const itemId = await ensureStockItem(item.itemName, item.itemValue, item.qty, item.itemUnit);
-                
                 await updateStockExit(editingExitId, {
-                    item_id: itemId,
-                    quantity: item.qty,
-                    reason: reason,
-                    project_id: projectId || null,
-                    observation: obs || null,
-                    client_id: clientId || null,
-                    unit_price: item.itemValue
+                    item_id: itemId, quantity: item.qty, reason,
+                    project_id: projectId || null, observation: obs || null,
+                    client_id: clientId || null, unit_price: item.itemValue
                 });
-                alert('Saída atualizada com sucesso!');
+                showToast('Saída atualizada com sucesso!', 'success');
                 cancelEdit();
             } else {
-                // CREATE new exits
-                // Check for duplicates before creating
                 const todayStr = new Date().toDateString();
-                
+                let skipped = 0;
                 for (const item of exitsData) {
                     const itemId = await ensureStockItem(item.itemName, item.itemValue, item.qty, item.itemUnit);
-                    
                     const { data: duplicates, error: dupError } = await _supabase
-                        .from('stock_exits')
-                        .select('id, created_at')
-                        .eq('client_id', clientId)
-                        .eq('reason', reason)
-                        .eq('item_id', itemId)
-                        .eq('unit_price', item.itemValue);
-                    
+                        .from('stock_exits').select('id, created_at')
+                        .eq('client_id', clientId).eq('reason', reason)
+                        .eq('item_id', itemId).eq('unit_price', item.itemValue);
                     if (dupError) throw dupError;
 
-                    const isDuplicate = duplicates && duplicates.some(d => {
-                        return new Date(d.created_at).toDateString() === todayStr;
-                    });
-
+                    const isDuplicate = duplicates?.some(d => new Date(d.created_at).toDateString() === todayStr);
                     if (isDuplicate) {
-                        alert(`Atenção: A saída de ${item.itemName} não foi registrada pois já existe um registro hoje com os mesmos dados.`);
-                        continue; // Skip duplicate, continue with others
+                        showToast(`"${item.itemName}" já foi registrado hoje com os mesmos dados. Ignorado.`, 'warning', 6000);
+                        skipped++;
+                        continue;
                     }
-
-                    // CREATE new exit
                     await processStockExit(itemId, item.qty, reason, projectId, obs, clientId);
                 }
-                
-                alert('Operação concluída!');
+                const registered = exitsData.length - skipped;
+                if (registered > 0) showToast(`${registered} saída(s) registrada(s) com sucesso!`, 'success');
                 form.reset();
                 resetItemRows();
             }
 
-            console.log('Operation successful');
             await loadExitHistory();
-
         } catch (error) {
             console.error(error);
-            alert('Erro ao salvar: ' + (error.message || error.error_description || 'Erro desconhecido'));
+            showToast('Erro ao salvar: ' + (error.message || 'Erro desconhecido'), 'error');
         } finally {
             submitBtn.disabled = false;
-            if (!editingExitId) submitBtn.textContent = 'Confirmar Saída';
-            else submitBtn.textContent = 'Salvar Alterações';
+            if (!editingExitId) {
+                submitBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px">check_circle</span> Confirmar Saída';
+            } else {
+                submitBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px">save</span> Salvar Alterações';
+            }
         }
     });
 }
 
 function cancelEdit() {
     editingExitId = null;
-    const form = document.getElementById('exit-form');
-    form.reset();
+    document.getElementById('exit-form').reset();
     resetItemRows();
 
     const submitBtn = document.getElementById('submit-btn');
-    submitBtn.textContent = 'Confirmar Saída';
+    submitBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px">check_circle</span> Confirmar Saída';
     submitBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
     submitBtn.classList.add('bg-primary', 'hover:bg-primary/90');
 
     const cancelBtn = document.getElementById('cancel-edit-btn');
     if (cancelBtn) cancelBtn.classList.add('hidden');
-    
+
     const addItemBtn = document.getElementById('add-item-btn');
     if (addItemBtn) addItemBtn.classList.remove('hidden');
 
@@ -278,83 +258,136 @@ function cancelEdit() {
 window.editExit = (exit) => {
     document.getElementById('exit-form').scrollIntoView({ behavior: 'smooth' });
     editingExitId = exit.id;
-    
     resetItemRows();
+
     const container = document.getElementById('items-container');
     const firstRow = container.querySelector('.item-row');
-
-    // Populate Fields
     firstRow.querySelector('[name="item_name"]').value = exit.stock_items ? exit.stock_items.name : '';
     firstRow.querySelector('[name="item_unit"]').value = exit.stock_items ? exit.stock_items.unit : 'UN';
-
-    const val = exit.unit_price || (exit.stock_items ? exit.stock_items.value : 0);
-    firstRow.querySelector('[name="item_value"]').value = val;
+    firstRow.querySelector('[name="item_value"]').value = exit.unit_price || (exit.stock_items ? exit.stock_items.value : 0);
     firstRow.querySelector('[name="item_qty"]').value = exit.quantity;
-    
+
     document.getElementById('project-select').value = exit.project_id || '';
     document.getElementById('client-select').value = exit.client_id || '';
     document.getElementById('exit-reason').value = exit.reason;
     document.getElementById('exit-obs').value = exit.observation || '';
 
-    // Update Buttons
     const submitBtn = document.getElementById('submit-btn');
-    submitBtn.textContent = 'Salvar Alterações';
+    submitBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px">save</span> Salvar Alterações';
     submitBtn.classList.remove('bg-primary', 'hover:bg-primary/90');
     submitBtn.classList.add('bg-green-600', 'hover:bg-green-700');
 
     const cancelBtn = document.getElementById('cancel-edit-btn');
     if (cancelBtn) cancelBtn.classList.remove('hidden');
-    
-    // Hide Add Item button during edit (since edit is single row)
+
     const addItemBtn = document.getElementById('add-item-btn');
     if (addItemBtn) addItemBtn.classList.add('hidden');
-}
+};
+
+// ─── Filters ──────────────────────────────────────────────────────────────────
 
 async function getFilteredExits() {
     let exits = await fetchStockExits();
-
-    // Apply Client Filter
-    const filterSelect = document.getElementById('history-client-filter');
-    const filterClientId = filterSelect ? filterSelect.value : '';
-
-    if (filterClientId) {
-        exits = exits.filter(exit => exit.client_id == filterClientId);
-    }
-
-    // Apply Date Filter (Month)
-    const dateFilter = document.getElementById('history-date-filter');
-    const filterMonth = dateFilter ? dateFilter.value : '';
-
-    if (filterMonth) {
-        // filterMonth is YYYY-MM
-        exits = exits.filter(exit => exit.created_at.startsWith(filterMonth));
-    }
-
-    // Filter out deleted items
-    exits = exits.filter(exit => exit.stock_items);
-
-    // Sort by date desc
+    const filterClientId = document.getElementById('history-client-filter')?.value || '';
+    const filterMonth = document.getElementById('history-date-filter')?.value || '';
+    if (filterClientId) exits = exits.filter(e => e.client_id == filterClientId);
+    if (filterMonth) exits = exits.filter(e => e.created_at?.startsWith(filterMonth));
+    exits = exits.filter(e => e.stock_items);
     exits.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
     return exits;
 }
 
-window.exportExitHistory = async () => {
+// ─── History Table ────────────────────────────────────────────────────────────
+
+function getReasonBadge(reason) {
+    const map = {
+        'Industrialização': 'bg-blue-100 text-blue-700',
+        'Manutenção':       'bg-amber-100 text-amber-700',
+        'Perda/Quebra':     'bg-red-100 text-red-700',
+        'Venda':            'bg-emerald-100 text-emerald-700',
+        'Serviço':          'bg-purple-100 text-purple-700',
+        'Outro':            'bg-gray-100 text-gray-600',
+    };
+    const cls = map[reason] || 'bg-gray-100 text-gray-600';
+    return `<span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${cls}">${reason}</span>`;
+}
+
+async function loadExitHistory() {
+    const tbody = document.getElementById('history-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = `<tr><td colspan="8" class="px-6 py-10 text-center"><div class="flex flex-col items-center gap-2"><span class="material-symbols-outlined text-gray-300 dark:text-gray-600" style="font-size:32px">hourglass_empty</span><p class="text-sm text-gray-400">Carregando...</p></div></td></tr>`;
+
     try {
-        const btn = document.querySelector('button[onclick="exportExitHistory()"]');
-        if (btn) {
-            btn.innerHTML = '<span class="material-symbols-outlined animate-spin">refresh</span> Exportando...';
-            btn.disabled = true;
-        }
-
         const exits = await getFilteredExits();
+        updateStats(exits);
+        tbody.innerHTML = '';
 
-        if (!exits || exits.length === 0) {
-            alert('Não há histórico de saídas para exportar com os filtros atuais.');
+        if (exits.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" class="px-6 py-10 text-center"><div class="flex flex-col items-center gap-2"><span class="material-symbols-outlined text-gray-300 dark:text-gray-600" style="font-size:32px">search_off</span><p class="text-sm text-gray-400">Nenhuma saída encontrada para os filtros aplicados.</p></div></td></tr>`;
             return;
         }
 
-        // Format data for Excel
+        exits.forEach(exit => {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors';
+
+            const formattedDate = formatDate(exit.created_at.split('T')[0]);
+            const itemName = exit.stock_items ? exit.stock_items.name : '<span class="text-red-400 text-xs">Item excluído</span>';
+            let destination = '-';
+            if (exit.project_id) destination = 'Projeto';
+            if (exit.clients) destination = exit.clients.name;
+            const unitPrice = exit.unit_price || (exit.stock_items ? exit.stock_items.value : 0);
+            const totalPrice = unitPrice * exit.quantity;
+            const fmt = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+
+            tr.innerHTML = `
+                <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">${formattedDate}</td>
+                <td class="px-5 py-3.5 whitespace-nowrap text-xs font-semibold text-gray-900 dark:text-white">${itemName}</td>
+                <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${fmt(unitPrice)}</td>
+                <td class="px-5 py-3.5 whitespace-nowrap text-xs font-bold text-gray-800 dark:text-gray-200">${exit.quantity} <span class="font-normal text-gray-400">${exit.stock_items?.unit || ''}</span></td>
+                <td class="px-5 py-3.5 whitespace-nowrap text-xs font-bold text-gray-900 dark:text-white">${fmt(totalPrice)}</td>
+                <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${destination}</td>
+                <td class="px-5 py-3.5 whitespace-nowrap">${getReasonBadge(exit.reason)}</td>
+                <td class="px-5 py-3.5 whitespace-nowrap text-right"></td>
+            `;
+
+            const actionTd = tr.lastElementChild;
+            const btnGroup = document.createElement('div');
+            btnGroup.className = 'flex items-center justify-end gap-1';
+
+            const editBtn = document.createElement('button');
+            editBtn.className = 'p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors';
+            editBtn.title = 'Editar';
+            editBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">edit</span>';
+            editBtn.onclick = () => editExit(exit);
+            btnGroup.appendChild(editBtn);
+
+            if (exit.stock_items) {
+                const returnBtn = document.createElement('button');
+                returnBtn.className = 'p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors';
+                returnBtn.title = 'Devolver';
+                returnBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">undo</span>';
+                returnBtn.onclick = () => openReturnModal(exit);
+                btnGroup.appendChild(returnBtn);
+            }
+
+            actionTd.appendChild(btnGroup);
+            tbody.appendChild(tr);
+        });
+    } catch (e) {
+        console.error('Error loading history:', e);
+        tbody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 text-center text-sm text-red-500">Erro ao carregar histórico.</td></tr>`;
+    }
+}
+
+// ─── Export ───────────────────────────────────────────────────────────────────
+
+window.exportExitHistory = async () => {
+    const btn = document.querySelector('button[onclick="exportExitHistory()"]');
+    try {
+        if (btn) { btn.innerHTML = '<span class="material-symbols-outlined animate-spin" style="font-size:16px">refresh</span> Exportando...'; btn.disabled = true; }
+        const exits = await getFilteredExits();
+        if (!exits || exits.length === 0) { showToast('Nenhuma saída para exportar com os filtros aplicados.', 'warning'); return; }
         const dataToExport = exits.map(item => ({
             'Data': formatDate(item.created_at.split('T')[0]),
             'Item': item.stock_items ? item.stock_items.name : 'Item excluído',
@@ -362,105 +395,72 @@ window.exportExitHistory = async () => {
             'Quantidade': item.quantity,
             'Unidade': item.stock_items ? item.stock_items.unit : '-',
             'Motivo': item.reason,
-            'Projeto': item.project_id ? 'Sim' : 'Não', // Ideally fetch project name if needed
-            'Cliente': item.clients ? item.clients.name : '-',
+            'Destino': item.clients ? item.clients.name : '-',
             'Observação': item.observation || ''
         }));
-
-        // Create Worksheet
         const ws = XLSX.utils.json_to_sheet(dataToExport);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Saídas de Estoque");
-
-        // Download
-        XLSX.writeFile(wb, "Histórico_Saida_Estoque.xlsx");
-
+        XLSX.writeFile(wb, "Historico_Saida_Estoque.xlsx");
+        showToast('Planilha exportada com sucesso!', 'success');
     } catch (error) {
         console.error('Export error:', error);
-        alert('Erro ao exportar: ' + error.message);
+        showToast('Erro ao exportar: ' + error.message, 'error');
     } finally {
-        const btn = document.querySelector('button[onclick="exportExitHistory()"]');
-        if (btn) {
-            btn.innerHTML = '<span class="material-symbols-outlined text-xl">download</span><span class="text-sm font-medium">Exportar XLS</span>';
-            btn.disabled = false;
-        }
+        if (btn) { btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">download</span> Exportar XLS'; btn.disabled = false; }
     }
-}
+};
 
 window.exportExitHistoryPDF = async () => {
+    const btn = document.querySelector('button[onclick="exportExitHistoryPDF()"]');
     try {
-        const btn = document.querySelector('button[onclick="exportExitHistoryPDF()"]');
-        if (btn) {
-            btn.innerHTML = '<span class="material-symbols-outlined animate-spin">refresh</span> Exportando...';
-            btn.disabled = true;
-        }
-
+        if (btn) { btn.innerHTML = '<span class="material-symbols-outlined animate-spin" style="font-size:16px">refresh</span> Exportando...'; btn.disabled = true; }
         const exits = await getFilteredExits();
-
-        if (!exits || exits.length === 0) {
-            alert('Não há histórico de saídas para exportar com os filtros atuais.');
-            return;
-        }
+        if (!exits || exits.length === 0) { showToast('Nenhuma saída para exportar com os filtros aplicados.', 'warning'); return; }
 
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('landscape');
-
-        doc.setFontSize(18);
-        doc.text('Histórico de Saídas de Estoque', 14, 22);
-
-        doc.setFontSize(11);
+        doc.setFontSize(16);
+        doc.text('Histórico de Saídas de Estoque', 14, 20);
+        doc.setFontSize(9);
         doc.setTextColor(100);
-        
         const filterSelect = document.getElementById('history-client-filter');
-        const clientName = filterSelect && filterSelect.options[filterSelect.selectedIndex] && filterSelect.value !== ''
-            ? filterSelect.options[filterSelect.selectedIndex].text : 'Todos';
+        const clientName = filterSelect?.value ? filterSelect.options[filterSelect.selectedIndex].text : 'Todos';
         const dateFilter = document.getElementById('history-date-filter');
-        const monthYear = dateFilter && dateFilter.value ? dateFilter.value : 'Todos';
-        
-        doc.text(`Filtros - Cliente: ${clientName} | Mês: ${monthYear}`, 14, 30);
+        const monthYear = dateFilter?.value || 'Todos';
+        doc.text(`Cliente: ${clientName} | Período: ${monthYear}`, 14, 27);
 
-        const tableColumn = ["Data", "Item", "Valor Unit.", "Qtd", "Unidade", "Motivo", "Cliente", "Observação"];
-        const tableRows = [];
-
-        exits.forEach(item => {
-            const rowData = [
-                formatDate(item.created_at.split('T')[0]),
-                item.stock_items ? item.stock_items.name : 'Item excluído',
-                `R$ ${(item.unit_price || (item.stock_items ? item.stock_items.value : 0)).toFixed(2)}`,
-                item.quantity.toString(),
-                item.stock_items ? item.stock_items.unit : '-',
-                item.reason,
-                item.clients ? item.clients.name : '-',
-                item.observation || ''
-            ];
-            tableRows.push(rowData);
-        });
+        const tableRows = exits.map(item => [
+            formatDate(item.created_at.split('T')[0]),
+            item.stock_items ? item.stock_items.name : 'Item excluído',
+            `R$ ${(item.unit_price || (item.stock_items ? item.stock_items.value : 0)).toFixed(2)}`,
+            item.quantity.toString(),
+            item.stock_items ? item.stock_items.unit : '-',
+            item.reason,
+            item.clients ? item.clients.name : '-',
+            item.observation || ''
+        ]);
 
         doc.autoTable({
-            startY: 36,
-            head: [tableColumn],
+            startY: 32,
+            head: [["Data", "Item", "Valor Unit.", "Qtd", "Unidade", "Motivo", "Cliente", "Observação"]],
             body: tableRows,
             theme: 'striped',
-            headStyles: { fillColor: [19, 91, 236] }, // Primary color
-            styles: { fontSize: 9 },
-            margin: { top: 30 }
+            headStyles: { fillColor: [30, 58, 138] },
+            styles: { fontSize: 8 }
         });
-
         doc.save('Historico_Saida_Estoque.pdf');
-
+        showToast('PDF exportado com sucesso!', 'success');
     } catch (error) {
         console.error('Export error:', error);
-        alert('Erro ao exportar PDF: ' + error.message);
+        showToast('Erro ao exportar PDF: ' + error.message, 'error');
     } finally {
-        const btn = document.querySelector('button[onclick="exportExitHistoryPDF()"]');
-        if (btn) {
-            btn.innerHTML = '<span class="material-symbols-outlined text-xl">picture_as_pdf</span><span class="text-sm font-medium">Exportar PDF</span>';
-            btn.disabled = false;
-        }
+        if (btn) { btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">picture_as_pdf</span> Exportar PDF'; btn.disabled = false; }
     }
-}
+};
 
-// Return Logic
+// ─── Return Modal ─────────────────────────────────────────────────────────────
+
 function setupReturnModal() {
     const confirmBtn = document.getElementById('confirm-return-btn');
     if (confirmBtn) confirmBtn.addEventListener('click', confirmReturn);
@@ -469,167 +469,68 @@ function setupReturnModal() {
 window.openReturnModal = (exit) => {
     currentReturnExit = exit;
     const modal = document.getElementById('return-modal');
-    const desc = document.getElementById('return-modal-desc');
+    document.getElementById('return-modal-desc').textContent =
+        `Devolvendo: ${exit.stock_items ? exit.stock_items.name : 'Item excluído'} — Qtd. saída: ${exit.quantity}`;
     const input = document.getElementById('return-qty');
-    const maxQtySpan = document.getElementById('return-max-qty');
-
-    // Reset input
     input.value = '';
-
-    // Set content
-    desc.textContent = `Devolvendo: ${exit.stock_items ? exit.stock_items.name : 'Item excluído'} (Qtd Saída: ${exit.quantity})`;
-    maxQtySpan.textContent = exit.quantity;
-
-    // Configure input
     input.max = exit.quantity;
     input.min = 0.01;
     input.step = 'any';
-
+    document.getElementById('return-max-qty').textContent = exit.quantity;
     modal.classList.remove('hidden');
+    modal.classList.add('flex');
     input.focus();
-}
+};
 
 window.closeReturnModal = () => {
-    document.getElementById('return-modal').classList.add('hidden');
+    const modal = document.getElementById('return-modal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
     currentReturnExit = null;
-}
+};
 
 async function confirmReturn() {
     if (!currentReturnExit) return;
-
     const input = document.getElementById('return-qty');
     const qtyToReturn = parseFloat(input.value);
 
     if (!qtyToReturn || qtyToReturn <= 0) {
-        alert('Por favor, insira uma quantidade válida.');
+        showToast('Informe uma quantidade válida para devolver.', 'warning');
+        input.focus();
         return;
     }
-
     if (qtyToReturn > currentReturnExit.quantity) {
-        alert(`A quantidade a devolver não pode ser maior que a saída original (${currentReturnExit.quantity}).`);
+        showToast(`A quantidade não pode exceder a saída original (${currentReturnExit.quantity}).`, 'warning');
         return;
     }
 
     const btn = document.getElementById('confirm-return-btn');
     try {
         btn.disabled = true;
-        btn.innerText = 'Processando...';
+        btn.textContent = 'Processando...';
 
-        // 1. Update Stock Quantity
         const itemId = currentReturnExit.stock_item_id || currentReturnExit.item_id;
+        if (!itemId) throw new Error('ID do item não encontrado no registro de saída.');
 
-        if (!itemId) {
-            throw new Error('ID do item não encontrado no registro de saída.');
-        }
-
-        // Fetch current stock first to be safe
         const { data: stockItems, error: fetchError } = await _supabase
-            .from('stock_items')
-            .select('quantity')
-            .eq('id', itemId);
-
+            .from('stock_items').select('quantity').eq('id', itemId);
         if (fetchError) throw fetchError;
 
-        const currentStock = stockItems[0].quantity;
-        const newStock = currentStock + qtyToReturn;
-
+        const newStock = stockItems[0].quantity + qtyToReturn;
         await updateStockItem(itemId, { quantity: newStock });
 
-        // 2. Update or Delete Exit Record
-        const remainingQty = currentReturnExit.quantity - qtyToReturn;
-        const safeRemaining = Math.round(remainingQty * 1000) / 1000;
+        const remaining = Math.round((currentReturnExit.quantity - qtyToReturn) * 1000) / 1000;
+        if (remaining <= 0) await deleteStockExit(currentReturnExit.id);
+        else await updateStockExit(currentReturnExit.id, { quantity: remaining });
 
-        if (safeRemaining <= 0) {
-            await deleteStockExit(currentReturnExit.id);
-        } else {
-            await updateStockExit(currentReturnExit.id, { quantity: safeRemaining });
-        }
-
-        alert('Devolução realizada com sucesso!');
+        showToast('Devolução realizada com sucesso!', 'success');
         closeReturnModal();
-
         await loadExitHistory();
-        allStockItems = await fetchStockItems();
-
     } catch (error) {
-        console.error('Error executing return:', error);
-        alert('Erro ao realizar devolução: ' + error.message);
+        console.error('Return error:', error);
+        showToast('Erro ao realizar devolução: ' + error.message, 'error');
     } finally {
         btn.disabled = false;
-        btn.innerText = 'Confirmar Devolução';
-    }
-}
-
-async function loadExitHistory() {
-    const tbody = document.getElementById('history-table-body');
-    if (!tbody) return;
-
-    tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">Carregando...</td></tr>';
-
-    try {
-        const exits = await getFilteredExits();
-
-        tbody.innerHTML = '';
-
-        if (exits.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">Nenhuma saída recente.</td></tr>';
-            return;
-        }
-
-        exits.forEach(exit => {
-            const tr = document.createElement('tr');
-            tr.className = "hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors";
-
-            const formattedDate = formatDate(exit.created_at.split('T')[0]);
-            const itemName = exit.stock_items ? exit.stock_items.name : '<span class="text-red-500">Item excluído</span>';
-
-            let destination = '-';
-            // Try to find project name if loaded, otherwise just show ID or Client
-            if (exit.project_id) destination = 'Projeto';
-            if (exit.clients) destination = exit.clients.name;
-
-            const unitPrice = exit.unit_price || (exit.stock_items ? exit.stock_items.value : 0);
-            const totalPrice = unitPrice * exit.quantity;
-
-            tr.innerHTML = `
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">${formattedDate}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">${itemName}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">R$ ${unitPrice.toFixed(2)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 font-bold">${exit.quantity} ${exit.stock_items ? exit.stock_items.unit : ''}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white font-bold">R$ ${totalPrice.toFixed(2)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">${destination}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">${exit.reason}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"></td>
-            `;
-
-            const actionTd = tr.lastElementChild;
-            const container = document.createElement('div');
-            container.className = "flex items-center justify-end gap-2";
-
-            // Edit Button
-            const editBtn = document.createElement('button');
-            editBtn.className = "text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300 flex items-center gap-1";
-            editBtn.innerHTML = '<span class="material-symbols-outlined text-lg">edit</span>';
-            editBtn.title = 'Editar';
-            // We need to attach the full object. Since we are in a loop, 'exit' is available.
-            editBtn.onclick = () => editExit(exit);
-            container.appendChild(editBtn);
-
-            if (exit.stock_items) {
-                const returnBtn = document.createElement('button');
-                returnBtn.className = "text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1";
-                returnBtn.innerHTML = '<span class="material-symbols-outlined text-lg">undo</span>';
-                returnBtn.title = 'Devolver';
-                returnBtn.onclick = () => openReturnModal(exit);
-                container.appendChild(returnBtn);
-            }
-
-            actionTd.appendChild(container);
-
-            tbody.appendChild(tr);
-        });
-    } catch (e) {
-        console.error('Error loading history:', e);
-        tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-red-500">Erro ao carregar histórico.</td></tr>';
+        btn.textContent = 'Confirmar Devolução';
     }
 }
