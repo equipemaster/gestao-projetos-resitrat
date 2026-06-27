@@ -1,16 +1,14 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html class="light" lang="pt-BR">
-
 <head>
     <meta charset="utf-8" />
     <link href="./logoresitrat.png" rel="icon" type="image/png" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>Custos por Cliente - Resitrat</title>
+    <title>Dashboard de Custos - Resitrat</title>
     <meta content="light" name="color-scheme" />
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
-        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
     <script>
         tailwind.config = {
             darkMode: "class",
@@ -22,127 +20,109 @@
                             light: { primary: "#0d121b", secondary: "#526071", tertiary: "#8292a2" },
                             dark: { primary: "#ffffff", secondary: "#9ca3af", tertiary: "#6b7280" }
                         },
-                        background: {
-                            light: "#f6f6f8", dark: "#101622"
-                        }
+                        background: { light: "#f0f2f8", dark: "#101622" }
                     },
-                    fontFamily: {
-                        sans: ["Inter", "sans-serif"]
-                    }
+                    fontFamily: { sans: ["Inter", "sans-serif"] }
                 }
             }
         };
     </script>
-    <!-- Charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/config.js"></script>
     <script src="js/supabaseClient.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/api.js" defer></script>
     <script src="js/dashboard_custos.js" defer></script>
+    <style>
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+        .progress-bar { transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
+        .kpi-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .kpi-card:hover { transform: translateY(-2px); }
+    </style>
 </head>
-
-<body
-    class="bg-background-light dark:bg-background-dark text-text-light-primary dark:text-text-dark-primary font-sans antialiased overflow-hidden">
+<body class="bg-background-light dark:bg-background-dark text-text-light-primary dark:text-text-dark-primary font-sans antialiased overflow-hidden">
     <div class="flex h-screen w-full">
+
         <!-- Sidebar -->
-        <aside
-            class="w-64 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark flex-shrink-0 flex flex-col h-full">
-            <div class="p-6 pb-0">
+        <aside class="w-52 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark flex-shrink-0 flex flex-col h-full">
+            <div class="p-4 pb-0">
                 <div class="flex items-center gap-3">
                     <img src="logoresitrat.png" alt="Logo" class="h-12 w-auto object-contain">
                 </div>
             </div>
-
-            <div class="flex-1 overflow-y-auto px-6 py-4">
+            <div class="flex-1 overflow-y-auto px-3 py-3">
                 <nav class="space-y-1">
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="gerenciamentodeprojetos.html">
-                        <span class="material-symbols-outlined">dashboard</span>
-                        <p class="text-sm font-medium leading-normal">Dashboard</p>
+                    <a class="flex items-center gap-3 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors" href="gerenciamentodeprojetos.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">dashboard</span>
+                        <p class="text-xs font-medium leading-normal">Dashboard</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="listaprojetos.html">
-                        <span class="material-symbols-outlined">folder</span>
-                        <p class="text-sm font-medium leading-normal">Projetos</p>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors" href="listaprojetos.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">folder</span>
+                        <p class="text-xs font-medium leading-normal">Projetos</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="itens_projeto.html">
-                        <span class="material-symbols-outlined">inventory_2</span>
-                        <p class="text-sm font-medium leading-normal">Itens do Projeto</p>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors" href="itens_projeto.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">inventory_2</span>
+                        <p class="text-xs font-medium leading-normal">Itens do Projeto</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="controle_producao.html">
-                        <span class="material-symbols-outlined">factory</span>
-                        <p class="text-sm font-medium leading-normal">Controle de Produção</p>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors" href="controle_producao.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">factory</span>
+                        <p class="text-xs font-medium leading-normal">Controle de Produção</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="saida_estoque.html">
-                        <span class="material-symbols-outlined">output</span>
-                        <p class="text-sm font-medium leading-normal">Saída de Estoque</p>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors" href="saida_estoque.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">output</span>
+                        <p class="text-xs font-medium leading-normal">Saída de Estoque</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="requisicao_estoque.html">
-                        <span class="material-symbols-outlined">pending_actions</span>
-                        <p class="text-sm font-medium leading-normal">Requisições de Estoque</p>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors" href="requisicao_estoque.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">pending_actions</span>
+                        <p class="text-xs font-medium leading-normal">Requisições de Estoque</p>
                     </a>
-                    <a id="nav-cad-user" class="hidden items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="cadastro_usuario.html">
-                        <span class="material-symbols-outlined">person_add_alt</span>
-                        <p class="text-sm font-medium leading-normal">Cadastrar Usuários</p>
+                    <a id="nav-cad-user" class="hidden items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors" href="cadastro_usuario.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">person_add_alt</span>
+                        <p class="text-xs font-medium leading-normal">Cadastrar Usuários</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="simulacao_estoque.html">
-                        <span class="material-symbols-outlined">online_prediction</span>
-                        <p class="text-sm font-medium leading-normal">Previsão de Compras / Estoque</p>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors" href="simulacao_estoque.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">online_prediction</span>
+                        <p class="text-xs font-medium leading-normal">Previsão de Compras / Estoque</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="clientes.html">
-                        <span class="material-symbols-outlined">person_add</span>
-                        <p class="text-sm font-medium leading-normal">Clientes</p>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors" href="clientes.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">person_add</span>
+                        <p class="text-xs font-medium leading-normal">Clientes</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg bg-primary/10 px-3 py-2 text-primary"
-                        href="dashboard_custos.html">
-                        <span class="material-symbols-outlined fill-1">attach_money</span>
-                        <p class="text-sm font-medium leading-normal">Custos por Cliente</p>
+                    <a class="flex items-center gap-2 rounded-lg bg-primary/10 px-2 py-1.5 text-primary" href="dashboard_custos.html">
+                        <span class="material-symbols-outlined fill-1" style="font-size:18px">attach_money</span>
+                        <p class="text-xs font-medium leading-normal">Custos por Cliente</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="tarefas.html">
-                        <span class="material-symbols-outlined">check_circle</span>
-                        <p class="text-sm font-medium leading-normal">Tarefas</p>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors" href="tarefas.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">check_circle</span>
+                        <p class="text-xs font-medium leading-normal">Tarefas</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="membros.html">
-                        <span class="material-symbols-outlined">groups</span>
-                        <p class="text-sm font-medium leading-normal">Equipe</p>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors" href="membros.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">groups</span>
+                        <p class="text-xs font-medium leading-normal">Equipe</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="relatorios.html">
-                        <span class="material-symbols-outlined">bar_chart</span>
-                        <p class="text-sm font-medium leading-normal">Relatórios</p>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors" href="relatorios.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">bar_chart</span>
+                        <p class="text-xs font-medium leading-normal">Relatórios</p>
                     </a>
                 </nav>
             </div>
-
-            <div class="p-6 border-t border-gray-200 dark:border-gray-800">
+            <div class="p-3 border-t border-gray-200 dark:border-gray-800">
                 <div class="space-y-1">
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="ajuda.html">
-                        <span class="material-symbols-outlined">help</span>
-                        <p class="text-sm font-medium leading-normal">Ajuda e Suporte</p>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors" href="ajuda.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">help</span>
+                        <p class="text-xs font-medium leading-normal">Ajuda e Suporte</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="configuracoes.html">
-                        <span class="material-symbols-outlined">settings</span>
-                        <p class="text-sm font-medium leading-normal">Configurações</p>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors" href="configuracoes.html">
+                        <span class="material-symbols-outlined" style="font-size:18px">settings</span>
+                        <p class="text-xs font-medium leading-normal">Configurações</p>
                     </a>
-                    <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors"
-                        href="#" onclick="signOut(); return false;">
-                        <span class="material-symbols-outlined">logout</span>
-                        <p class="text-sm font-medium leading-normal">Sair</p>
+                    <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary transition-colors" href="#" onclick="signOut(); return false;">
+                        <span class="material-symbols-outlined" style="font-size:18px">logout</span>
+                        <p class="text-xs font-medium leading-normal">Sair</p>
                     </a>
                 </div>
             </div>
@@ -150,108 +130,213 @@
 
         <!-- Main Content -->
         <main class="flex-1 min-w-0 overflow-auto">
-            <div class="p-8">
-                <div class="mb-8">
-                    <h1 class="text-2xl font-bold text-[#0d121b] dark:text-white">Custos por Cliente</h1>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Análise de custos baseada em saídas de
-                        estoque</p>
+
+            <!-- Sticky Header -->
+            <div class="sticky top-0 z-10 bg-white dark:bg-background-dark border-b border-gray-200 dark:border-gray-800 px-8 py-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="flex items-center gap-1.5 text-xs text-gray-400 mb-0.5">
+                            <span>Análise Financeira</span>
+                            <span class="material-symbols-outlined" style="font-size:13px">chevron_right</span>
+                            <span class="text-primary font-semibold">Dashboard de Custos</span>
+                        </div>
+                        <h1 class="text-xl font-bold text-[#0d121b] dark:text-white">Dashboard de Custos por Cliente</h1>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="btn-export-csv" class="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm">
+                            <span class="material-symbols-outlined" style="font-size:17px">download</span>
+                            Exportar CSV
+                        </button>
+                        <button id="btn-refresh" class="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm">
+                            <span class="material-symbols-outlined" style="font-size:17px">refresh</span>
+                            Atualizar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-6 space-y-5">
+
+                <!-- KPI Cards -->
+                <div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
+                    <div class="kpi-card rounded-xl p-5 text-white shadow-lg" style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%)">
+                        <div class="flex items-start justify-between mb-3">
+                            <div class="bg-white/20 rounded-lg p-2"><span class="material-symbols-outlined" style="font-size:20px">paid</span></div>
+                            <span class="text-blue-200 text-xs font-medium bg-white/10 px-2 py-0.5 rounded-full">Total</span>
+                        </div>
+                        <p class="text-blue-100 text-xs font-semibold uppercase tracking-wider">Custo Total</p>
+                        <p id="kpi-total" class="text-2xl font-bold mt-1 tabular-nums">R$ 0,00</p>
+                        <p class="text-blue-200 text-xs mt-1.5">Saídas vinculadas a clientes</p>
+                    </div>
+                    <div class="kpi-card rounded-xl p-5 text-white shadow-lg" style="background:linear-gradient(135deg,#14532d 0%,#16a34a 100%)">
+                        <div class="flex items-start justify-between mb-3">
+                            <div class="bg-white/20 rounded-lg p-2"><span class="material-symbols-outlined" style="font-size:20px">groups</span></div>
+                            <span class="text-green-200 text-xs font-medium bg-white/10 px-2 py-0.5 rounded-full">Período</span>
+                        </div>
+                        <p class="text-green-100 text-xs font-semibold uppercase tracking-wider">Clientes Ativos</p>
+                        <p id="kpi-clients" class="text-2xl font-bold mt-1">0</p>
+                        <p class="text-green-200 text-xs mt-1.5">Com saídas no período</p>
+                    </div>
+                    <div class="kpi-card rounded-xl p-5 text-white shadow-lg" style="background:linear-gradient(135deg,#0c4a6e 0%,#0ea5e9 100%)">
+                        <div class="flex items-start justify-between mb-3">
+                            <div class="bg-white/20 rounded-lg p-2"><span class="material-symbols-outlined" style="font-size:20px">trending_up</span></div>
+                            <span class="text-yellow-200 text-xs font-medium bg-white/10 px-2 py-0.5 rounded-full">Média</span>
+                        </div>
+                        <p class="text-yellow-100 text-xs font-semibold uppercase tracking-wider">Ticket Médio</p>
+                        <p id="kpi-avg" class="text-2xl font-bold mt-1 tabular-nums">R$ 0,00</p>
+                        <p class="text-yellow-200 text-xs mt-1.5">Custo médio por cliente</p>
+                    </div>
+                    <div class="kpi-card rounded-xl p-5 text-white shadow-lg" style="background:linear-gradient(135deg,#7f1d1d 0%,#dc2626 100%)">
+                        <div class="flex items-start justify-between mb-3">
+                            <div class="bg-white/20 rounded-lg p-2"><span class="material-symbols-outlined" style="font-size:20px">warning</span></div>
+                            <span class="text-red-200 text-xs font-medium bg-white/10 px-2 py-0.5 rounded-full">Alerta</span>
+                        </div>
+                        <p class="text-red-100 text-xs font-semibold uppercase tracking-wider">Acima da Meta</p>
+                        <p id="kpi-overbudget" class="text-2xl font-bold mt-1">0</p>
+                        <p class="text-red-200 text-xs mt-1.5">Clientes que excederam</p>
+                    </div>
                 </div>
 
-                <!-- Chart Section -->
-                <!-- Chart Section -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                    <div
-                        class="p-6 bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
-                        <h2 class="text-lg font-bold text-[#0d121b] dark:text-white mb-4">Distribuição de Custos</h2>
-                        <canvas id="costChart"></canvas>
-                    </div>
-                    <div
-                        class="p-6 bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col justify-center items-center">
-                        <h2 class="text-lg font-bold text-[#0d121b] dark:text-white mb-4">Total de Custos</h2>
-                        <p id="total-cost-display" class="text-4xl font-bold text-primary">R$ 0,00</p>
-                        <p class="text-sm text-gray-500 mt-2">Soma de todas as saídas com cliente vinculado</p>
+                <!-- Filter Bar -->
+                <div class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-4">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <div class="flex items-center gap-2 text-sm font-semibold text-gray-600 dark:text-gray-400 pr-3 border-r border-gray-200 dark:border-gray-700">
+                            <span class="material-symbols-outlined text-primary" style="font-size:18px">filter_list</span>
+                            Filtros
+                        </div>
+                        <div class="flex-1 min-w-[160px] max-w-xs">
+                            <select id="client-search" class="w-full py-2 pl-3 pr-8 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary">
+                                <option value="">Todos os Clientes</option>
+                            </select>
+                        </div>
+                        <div class="min-w-[130px]">
+                            <select id="filter-month" class="w-full py-2 pl-3 pr-8 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary">
+                                <option value="">Todos os Meses</option>
+                                <option value="0">Janeiro</option>
+                                <option value="1">Fevereiro</option>
+                                <option value="2">Março</option>
+                                <option value="3">Abril</option>
+                                <option value="4">Maio</option>
+                                <option value="5">Junho</option>
+                                <option value="6">Julho</option>
+                                <option value="7">Agosto</option>
+                                <option value="8">Setembro</option>
+                                <option value="9">Outubro</option>
+                                <option value="10">Novembro</option>
+                                <option value="11">Dezembro</option>
+                            </select>
+                        </div>
+                        <div class="min-w-[110px]">
+                            <select id="filter-year" class="w-full py-2 pl-3 pr-8 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary">
+                                <option value="">Todos os Anos</option>
+                                <option value="2024">2024</option>
+                                <option value="2025">2025</option>
+                                <option value="2026">2026</option>
+                            </select>
+                        </div>
+                        <div class="min-w-[165px]">
+                            <select id="filter-status" class="w-full py-2 pl-3 pr-8 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary">
+                                <option value="">Todos os Status</option>
+                                <option value="ok">Dentro da Meta</option>
+                                <option value="over">Acima da Meta</option>
+                                <option value="no-meta">Sem Meta Definida</option>
+                            </select>
+                        </div>
+                        <button id="clear-filters" class="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm font-medium transition-colors">
+                            <span class="material-symbols-outlined" style="font-size:15px">filter_alt_off</span>
+                            Limpar
+                        </button>
                     </div>
                 </div>
 
-                <!-- Table Section -->
-                <div
-                    class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
-                    <div class="p-6 border-b border-gray-200 dark:border-gray-800">
-                        <div class="max-w-md">
-                            <label for="client-search" class="sr-only">Filtrar por Cliente</label>
-                            <div class="flex gap-4 w-full">
-                                <div class="relative flex-1">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <span class="material-symbols-outlined text-gray-400">search</span>
-                                    </div>
-                                    <select id="client-search"
-                                        class="block w-full py-2 pl-10 pr-10 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
-                                        <option value="">Todos os Clientes</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <select id="filter-month"
-                                        class="block w-full py-2 pl-3 pr-10 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
-                                        <option value="">Todos os Meses</option>
-                                        <option value="0">Janeiro</option>
-                                        <option value="1">Fevereiro</option>
-                                        <option value="2">Março</option>
-                                        <option value="3">Abril</option>
-                                        <option value="4">Maio</option>
-                                        <option value="5">Junho</option>
-                                        <option value="6">Julho</option>
-                                        <option value="7">Agosto</option>
-                                        <option value="8">Setembro</option>
-                                        <option value="9">Outubro</option>
-                                        <option value="10">Novembro</option>
-                                        <option value="11">Dezembro</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <select id="filter-year"
-                                        class="block w-full py-2 pl-3 pr-10 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
-                                        <option value="">Todos os Anos</option>
-                                        <option value="2024">2024</option>
-                                        <option value="2025">2025</option>
-                                        <option value="2026">2026</option>
-                                    </select>
-                                </div>
-                                <button id="clear-filters"
-                                    class="flex items-center justify-center p-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-                                    title="Limpar Filtros">
-                                    <span class="material-symbols-outlined">filter_alt_off</span>
-                                </button>
+                <!-- Charts Row: Bar + Donut -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+                    <!-- Bar / Line Chart -->
+                    <div class="lg:col-span-2 bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h2 class="text-sm font-semibold text-[#0d121b] dark:text-white">Custo vs. Meta por Cliente</h2>
+                                <p class="text-xs text-gray-400 mt-0.5">Realizado (barras) vs. orçamento (linha vermelha)</p>
                             </div>
+                            <div class="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-xs font-medium">
+                                <button id="chart-type-bar" class="px-3 py-1.5 bg-primary text-white transition-colors">Barras</button>
+                                <button id="chart-type-line" class="px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Linha</button>
+                            </div>
+                        </div>
+                        <div style="position:relative;height:270px">
+                            <canvas id="costChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Donut Chart -->
+                    <div class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5 flex flex-col">
+                        <div class="mb-3">
+                            <h2 class="text-sm font-semibold text-[#0d121b] dark:text-white">Participação no Custo</h2>
+                            <p class="text-xs text-gray-400 mt-0.5">Distribuição percentual por cliente</p>
+                        </div>
+                        <div style="position:relative;height:200px">
+                            <canvas id="donutChart"></canvas>
+                        </div>
+                        <div id="donut-legend" class="mt-3 space-y-1.5 overflow-y-auto" style="max-height:120px"></div>
+                    </div>
+                </div>
+
+                <!-- Trend Chart -->
+                <div class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 class="text-sm font-semibold text-[#0d121b] dark:text-white">Evolução Mensal de Custos</h2>
+                            <p class="text-xs text-gray-400 mt-0.5">Tendência de gastos ao longo do tempo</p>
+                        </div>
+                    </div>
+                    <div style="position:relative;height:190px">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Detail Table -->
+                <div class="bg-white dark:bg-background-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+                        <div>
+                            <h2 class="text-sm font-semibold text-[#0d121b] dark:text-white">Detalhamento por Cliente</h2>
+                            <p id="table-count" class="text-xs text-gray-400 mt-0.5">Carregando...</p>
                         </div>
                     </div>
                     <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead class="bg-gray-50 dark:bg-gray-800/50">
                                 <tr>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                        Cliente</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 hidden">
-                                        Total de Saídas (Qtd)</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                        Meta (R$)</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                        Custo Total (R$)</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 cursor-pointer hover:text-primary group" data-sort="name">
+                                        <div class="flex items-center gap-1">Cliente <span id="sort-icon-name" class="material-symbols-outlined text-gray-300 group-hover:text-primary" style="font-size:13px">unfold_more</span></div>
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 cursor-pointer hover:text-primary group" data-sort="meta">
+                                        <div class="flex items-center gap-1">Meta (R$) <span id="sort-icon-meta" class="material-symbols-outlined text-gray-300 group-hover:text-primary" style="font-size:13px">unfold_more</span></div>
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 cursor-pointer hover:text-primary group" data-sort="cost">
+                                        <div class="flex items-center gap-1">Custo Total <span id="sort-icon-cost" class="material-symbols-outlined text-primary" style="font-size:13px">arrow_downward</span></div>
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 w-52">Utilização da Meta</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Status</th>
+                                    <th class="px-4 py-3 w-10"></th>
                                 </tr>
                             </thead>
-                            <tbody id="cost-table-body"
-                                class="bg-white dark:bg-background-dark divide-y divide-gray-200 dark:divide-gray-800">
-                                <!-- Populated by JS -->
+                            <tbody id="cost-table-body" class="bg-white dark:bg-background-dark divide-y divide-gray-200 dark:divide-gray-800">
+                                <tr>
+                                    <td colspan="6" class="px-6 py-10 text-center">
+                                        <div class="flex flex-col items-center gap-2 text-gray-400">
+                                            <span class="material-symbols-outlined text-4xl">hourglass_empty</span>
+                                            <span class="text-sm">Carregando dados...</span>
+                                        </div>
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
+
             </div>
         </main>
     </div>
 </body>
-
 </html>
