@@ -155,7 +155,7 @@ Requires `<div id="toast-container" class="fixed top-4 right-4 z-[100] flex flex
 | `controle_producao.html` | `production.js` | Kanban board |
 | `saida_estoque.html` | `saida_estoque.js`, `api.js` | Stock exit; exports xlsx/pdf |
 | `requisicao_estoque.html` | `requisicao_estoque.js`, `api.js` | Operator/admin roles; duplicate detection |
-| `simulacao_estoque.html` | `simulacao_estoque.js` | Purchase forecast |
+| `simulacao_estoque.html` | `simulacao_estoque.js` | Purchase forecast — **não aparece no menu lateral**; acesso direto via URL |
 | `clientes.html` | `clientes.js`, `api.js` | Client CRUD |
 | `dashboard_custos.html` | `dashboard_custos.js` | Cost analysis per client; Chart.js |
 | `tarefas.html` | `tasks.js`, `api.js` | Task board by project |
