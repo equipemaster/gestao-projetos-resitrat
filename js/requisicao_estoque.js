@@ -692,8 +692,20 @@ function setupModalHandlers() {
             confirmBtn.disabled = true;
             confirmBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">hourglass_empty</span> Processando...';
 
-            const itemId = await ensureStockItem(req.item_name, unitVal, req.quantity, req.unit);
-            await processStockExit(itemId, req.quantity, req.reason, req.project_id, req.observation, req.client_id);
+            if (req.project_id) {
+                await createProjectItem({
+                    project_id: req.project_id,
+                    name: req.item_name,
+                    category: req.reason || 'Outros',
+                    quantity: req.quantity,
+                    unit: req.unit,
+                    value: unitVal,
+                    nota_fiscal: null
+                });
+            } else {
+                const itemId = await ensureStockItem(req.item_name, unitVal, req.quantity, req.unit);
+                await processStockExit(itemId, req.quantity, req.reason, null, req.observation, req.client_id);
+            }
             await updateStockRequest(reqId, {
                 status: 'DEFERIDO',
                 unit_price: unitVal,
@@ -701,7 +713,7 @@ function setupModalHandlers() {
                 approved_at: new Date().toISOString()
             });
 
-            showToast('Saída confirmada e requisição aprovada!', 'success');
+            showToast(req.project_id ? 'Item adicionado ao projeto e requisição aprovada!' : 'Saída confirmada e requisição aprovada!', 'success');
             closeApproveModal();
             await refreshRequests();
 
@@ -714,7 +726,10 @@ function setupModalHandlers() {
             }
         } finally {
             confirmBtn.disabled = false;
-            confirmBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">check</span> Confirmar Saída';
+            const r = allRequests.find(x => x.id === reqId);
+            confirmBtn.innerHTML = r && r.project_id
+                ? '<span class="material-symbols-outlined" style="font-size:16px">inventory_2</span> Adicionar ao Projeto'
+                : '<span class="material-symbols-outlined" style="font-size:16px">check</span> Confirmar Saída';
         }
     });
 
@@ -771,6 +786,16 @@ window.openApproveModal = (reqId) => {
     else if (req.clients) dest = `Cliente: ${req.clients.name}`;
     document.getElementById('app-summary-dest').textContent = dest;
     document.getElementById('app-summary-obs').textContent = req.observation ? `Obs: "${req.observation}"` : '';
+
+    const hintEl = document.querySelector('#approve-form .text-\\[10px\\]');
+    const confirmBtn = document.getElementById('btn-confirm-approve');
+    if (req.project_id) {
+        if (hintEl) hintEl.textContent = 'Este valor será lançado nos Itens do Projeto — não na Saída de Estoque.';
+        if (confirmBtn) confirmBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">inventory_2</span> Adicionar ao Projeto';
+    } else {
+        if (hintEl) hintEl.textContent = 'Este valor será registrado no histórico de custos e associado ao item no estoque.';
+        if (confirmBtn) confirmBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">check</span> Confirmar Saída';
+    }
 
     document.getElementById('approve-modal').classList.remove('hidden');
     setTimeout(() => document.getElementById('app-unit-value').focus(), 100);
@@ -840,22 +865,34 @@ async function confirmReturnRequest() {
             await updateStockRequest(currentReturnRequest.id, { quantity: remainingQty });
         }
 
-        // Try to update stock_exits
-        const { data: items } = await _supabase.from('stock_items').select('id').eq('name', currentReturnRequest.item_name.toUpperCase().trim());
-        if (items && items.length > 0) {
-            let query = _supabase.from('stock_exits').select('*').eq('item_id', items[0].id).eq('reason', currentReturnRequest.reason);
-            if (currentReturnRequest.project_id) query = query.eq('project_id', currentReturnRequest.project_id);
-            else if (currentReturnRequest.client_id) query = query.eq('client_id', currentReturnRequest.client_id);
-
-            const { data: exits } = await query.order('created_at', { ascending: false }).limit(1);
-            if (exits && exits.length > 0) {
-                const newExitQty = Math.round((exits[0].quantity - qtyToReturn) * 1000) / 1000;
-                if (newExitQty <= 0) await deleteStockExit(exits[0].id);
-                else await updateStockExit(exits[0].id, { quantity: newExitQty });
+        if (currentReturnRequest.project_id) {
+            const { data: projectItems } = await _supabase
+                .from('project_items')
+                .select('*')
+                .eq('project_id', currentReturnRequest.project_id)
+                .eq('name', currentReturnRequest.item_name.toUpperCase().trim())
+                .order('created_at', { ascending: false })
+                .limit(1);
+            if (projectItems && projectItems.length > 0) {
+                const newQty = Math.round((projectItems[0].quantity - qtyToReturn) * 1000) / 1000;
+                if (newQty <= 0) await deleteProjectItem(projectItems[0].id);
+                else await updateProjectItem(projectItems[0].id, { quantity: newQty });
+            }
+        } else {
+            const { data: items } = await _supabase.from('stock_items').select('id').eq('name', currentReturnRequest.item_name.toUpperCase().trim());
+            if (items && items.length > 0) {
+                let query = _supabase.from('stock_exits').select('*').eq('item_id', items[0].id).eq('reason', currentReturnRequest.reason);
+                if (currentReturnRequest.client_id) query = query.eq('client_id', currentReturnRequest.client_id);
+                const { data: exits } = await query.order('created_at', { ascending: false }).limit(1);
+                if (exits && exits.length > 0) {
+                    const newExitQty = Math.round((exits[0].quantity - qtyToReturn) * 1000) / 1000;
+                    if (newExitQty <= 0) await deleteStockExit(exits[0].id);
+                    else await updateStockExit(exits[0].id, { quantity: newExitQty });
+                }
             }
         }
 
-        showToast('Devolução registrada e saída de estoque abatida!', 'success');
+        showToast(currentReturnRequest.project_id ? 'Devolução registrada e item do projeto atualizado!' : 'Devolução registrada e saída de estoque abatida!', 'success');
         closeReturnModal();
         await refreshRequests();
 
@@ -1093,21 +1130,181 @@ function loadAdminHistory() {
         `;
 
         const actionTd = tr.lastElementChild;
+        const div = document.createElement('div');
+        div.className = 'flex items-center justify-end gap-1';
+
+        const editBtn = document.createElement('button');
+        editBtn.className = 'flex items-center gap-1 px-2 py-1 rounded-md text-xs text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors font-medium';
+        editBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:14px">edit</span>Editar';
+        editBtn.onclick = () => openHistoryEditModal(req);
+        div.appendChild(editBtn);
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'flex items-center gap-1 px-2 py-1 rounded-md text-xs text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors font-medium';
+        delBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:14px">delete</span>Apagar';
+        delBtn.onclick = () => deleteHistoryRecord(req);
+        div.appendChild(delBtn);
+
         if (req.status === 'DEFERIDO') {
             const retBtn = document.createElement('button');
-            retBtn.className = 'flex items-center gap-1 px-2 py-1 rounded-md text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors font-medium ml-auto';
+            retBtn.className = 'flex items-center gap-1 px-2 py-1 rounded-md text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors font-medium';
             retBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:14px">undo</span>Devolver';
             retBtn.onclick = () => openReturnModal(req);
-            actionTd.appendChild(retBtn);
-        } else if (req.status === 'CANCELADO') {
-            actionTd.innerHTML = '<span class="text-xs text-gray-400 italic">Devolvido</span>';
+            div.appendChild(retBtn);
         }
+
+        actionTd.appendChild(div);
 
         tbody.appendChild(tr);
     });
 }
 
 // ─── Exports ──────────────────────────────────────────────────────────────────
+
+// ─── History Edit / Delete ────────────────────────────────────────────────────
+
+window.openHistoryEditModal = (req) => {
+    document.getElementById('hist-edit-id').value = req.id;
+    document.getElementById('hist-edit-status').value = req.status;
+    document.getElementById('hist-edit-project-id').value = req.project_id || '';
+    document.getElementById('hist-edit-client-id').value = req.client_id || '';
+    document.getElementById('hist-edit-orig-name').value = req.item_name || '';
+    document.getElementById('hist-edit-reason').value = req.reason || '';
+    document.getElementById('hist-edit-name').value = req.item_name || '';
+    document.getElementById('hist-edit-qty').value = req.quantity;
+    document.getElementById('hist-edit-unit').value = req.unit;
+    document.getElementById('hist-edit-obs').value = req.observation || '';
+
+    const priceRow = document.getElementById('hist-edit-price-row');
+    if (req.status === 'DEFERIDO') {
+        document.getElementById('hist-edit-price').value = req.unit_price || 0;
+        priceRow.classList.remove('hidden');
+    } else {
+        priceRow.classList.add('hidden');
+    }
+
+    document.getElementById('history-edit-modal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('hist-edit-name').focus(), 100);
+};
+
+window.closeHistoryEditModal = () => {
+    document.getElementById('history-edit-modal').classList.add('hidden');
+};
+
+window.saveHistoryEdit = async () => {
+    const id = document.getElementById('hist-edit-id').value;
+    const status = document.getElementById('hist-edit-status').value;
+    const projectId = document.getElementById('hist-edit-project-id').value || null;
+    const clientId = document.getElementById('hist-edit-client-id').value || null;
+    const origName = document.getElementById('hist-edit-orig-name').value;
+    const reason = document.getElementById('hist-edit-reason').value;
+    const newName = document.getElementById('hist-edit-name').value.trim().toUpperCase();
+    const newQty = parseFloat(document.getElementById('hist-edit-qty').value);
+    const newUnit = document.getElementById('hist-edit-unit').value;
+    const newPrice = status === 'DEFERIDO' ? (parseFloat(document.getElementById('hist-edit-price').value) || 0) : null;
+    const newObs = document.getElementById('hist-edit-obs').value.trim() || null;
+
+    if (!newName || isNaN(newQty) || newQty <= 0) {
+        showToast('Preencha nome e quantidade corretamente.', 'warning');
+        return;
+    }
+
+    const saveBtn = document.getElementById('hist-edit-save-btn');
+    try {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">hourglass_empty</span> Salvando...';
+
+        const updates = { item_name: newName, quantity: newQty, unit: newUnit, observation: newObs };
+        if (newPrice !== null) updates.unit_price = newPrice;
+        await updateStockRequest(id, updates);
+
+        if (status === 'DEFERIDO') {
+            if (projectId) {
+                const { data: projectItems } = await _supabase
+                    .from('project_items').select('*')
+                    .eq('project_id', projectId)
+                    .eq('name', origName.toUpperCase().trim())
+                    .order('created_at', { ascending: false }).limit(1);
+                if (projectItems && projectItems.length > 0) {
+                    const itemUpdates = { quantity: newQty, unit: newUnit, name: newName };
+                    if (newPrice !== null) itemUpdates.value = newPrice;
+                    await updateProjectItem(projectItems[0].id, itemUpdates);
+                }
+            } else {
+                const { data: stockItems } = await _supabase.from('stock_items').select('id').eq('name', origName.toUpperCase().trim());
+                if (stockItems && stockItems.length > 0) {
+                    let query = _supabase.from('stock_exits').select('*').eq('item_id', stockItems[0].id).eq('reason', reason);
+                    if (clientId) query = query.eq('client_id', clientId);
+                    const { data: exits } = await query.order('created_at', { ascending: false }).limit(1);
+                    if (exits && exits.length > 0) {
+                        const exitUpdates = { quantity: newQty };
+                        if (newPrice !== null) exitUpdates.unit_price = newPrice;
+                        await updateStockExit(exits[0].id, exitUpdates);
+                    }
+                }
+            }
+        }
+
+        showToast('Registro atualizado com sucesso!', 'success');
+        closeHistoryEditModal();
+        await refreshRequests();
+
+    } catch (error) {
+        console.error('Error saving history edit:', error);
+        if (error.code === '42501' || (error.message && error.message.includes('row-level security'))) {
+            showToast('Erro de permissão (RLS). Faça login com uma conta de Administrador real.', 'error', 6000);
+        } else {
+            showToast('Erro ao salvar: ' + (error.message || 'Desconhecido'), 'error');
+        }
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">save</span> Salvar Alterações';
+    }
+};
+
+window.deleteHistoryRecord = async (req) => {
+    const destMsg = req.status === 'DEFERIDO'
+        ? (req.project_id ? ' O item também será removido dos Itens do Projeto.' : ' A saída de estoque correspondente também será removida.')
+        : '';
+    if (!confirm(`Excluir este registro permanentemente?${destMsg}`)) return;
+
+    try {
+        if (req.status === 'DEFERIDO') {
+            if (req.project_id) {
+                const { data: projectItems } = await _supabase
+                    .from('project_items').select('id')
+                    .eq('project_id', req.project_id)
+                    .eq('name', (req.item_name || '').toUpperCase().trim())
+                    .order('created_at', { ascending: false }).limit(1);
+                if (projectItems && projectItems.length > 0) {
+                    await deleteProjectItem(projectItems[0].id);
+                }
+            } else {
+                const { data: stockItems } = await _supabase.from('stock_items').select('id').eq('name', (req.item_name || '').toUpperCase().trim());
+                if (stockItems && stockItems.length > 0) {
+                    let query = _supabase.from('stock_exits').select('*').eq('item_id', stockItems[0].id).eq('reason', req.reason);
+                    if (req.client_id) query = query.eq('client_id', req.client_id);
+                    const { data: exits } = await query.order('created_at', { ascending: false }).limit(1);
+                    if (exits && exits.length > 0) {
+                        await deleteStockExit(exits[0].id);
+                    }
+                }
+            }
+        }
+
+        await deleteStockRequest(req.id);
+        showToast('Registro excluído com sucesso.', 'info');
+        await refreshRequests();
+
+    } catch (error) {
+        console.error('Error deleting history record:', error);
+        if (error.code === '42501' || (error.message && error.message.includes('row-level security'))) {
+            showToast('Erro de permissão (RLS). Faça login com uma conta de Administrador real.', 'error', 6000);
+        } else {
+            showToast('Erro ao excluir: ' + (error.message || 'Desconhecido'), 'error');
+        }
+    }
+};
 
 window.exportHistoryExcel = () => {
     try {
