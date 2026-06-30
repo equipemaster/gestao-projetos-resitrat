@@ -58,6 +58,12 @@ After login: admins → `gerenciamentodeprojetos.html`, operators → `requisica
 
 The `#nav-cad-user` sidebar link is `class="hidden"` by default; `auth.js` uses `classList.remove('hidden')` / `classList.add('flex')` to reveal it for admins only.
 
+**Importante:** o usuário deve existir tanto em `auth.users` (Supabase Auth) quanto na tabela pública `users` com um `role` reconhecido. Se o registro em `public.users` estiver ausente, `auth.js` não encontra o perfil e o usuário é tratado como operador — mesmo que a senha seja de uma conta admin. Para conceder acesso completo a um usuário existente somente em `auth.users`, insira-o em `public.users` com `role = 'COORDENADOR'` (ou outro role admin):
+```sql
+INSERT INTO users (id, name, email, role, status)
+VALUES ('<auth_uuid>', 'NOME', 'email@resitrat.com.br', 'COORDENADOR', 'ATIVO');
+```
+
 ### Global Behaviors in api.js
 
 - **All text inputs are auto-uppercased** via a global `input` event listener and a CSS rule injected into `document.head`.
