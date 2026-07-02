@@ -36,15 +36,17 @@ async function signIn(email, password) {
             isAdmin = true;
         } else if (profile) {
             const roleStr = (profile.role || '').toUpperCase();
-            isAdmin = roleStr.includes('GERENTE') || 
-                      roleStr.includes('COORDENADOR') || 
-                      roleStr.includes('GESTOR') || 
-                      roleStr.includes('ADMIN') || 
+            isAdmin = roleStr.includes('GERENTE') ||
+                      roleStr.includes('COORDENADOR') ||
+                      roleStr.includes('GESTOR') ||
+                      roleStr.includes('ADMIN') ||
                       roleStr.includes('DIRETOR') ||
                       roleStr.includes('FINANCEIRO');
         }
 
-        if (isAdmin) {
+        if (email.toLowerCase() === 'gestaoavista@resitrat.com.br') {
+            window.location.href = 'gestao_avista.html';
+        } else if (isAdmin) {
             window.location.href = 'gerenciamentodeprojetos.html';
         } else {
             window.location.href = 'requisicao_estoque.html';
@@ -83,6 +85,16 @@ async function checkSession() {
                     navCad.classList.remove('flex');
                 }
             }
+            const navGestaoAvista = document.getElementById('nav-gestao-avista');
+            if (navGestaoAvista) {
+                if (devVal === 'adm') {
+                    navGestaoAvista.classList.remove('hidden');
+                    navGestaoAvista.classList.add('flex');
+                } else {
+                    navGestaoAvista.classList.add('hidden');
+                    navGestaoAvista.classList.remove('flex');
+                }
+            }
             return;
         }
 
@@ -103,22 +115,28 @@ async function checkSession() {
                 .maybeSingle();
 
             let isAdmin = false;
-            const email = (session.user.email || '').toUpperCase();
+            const emailLower = (session.user.email || '').toLowerCase();
+            const email = emailLower.toUpperCase();
             if (email.startsWith('ADM') || email.includes('ADMIN')) {
                 isAdmin = true;
             } else if (profile) {
                 const roleStr = (profile.role || '').toUpperCase();
-                isAdmin = roleStr.includes('GERENTE') || 
-                          roleStr.includes('COORDENADOR') || 
-                          roleStr.includes('GESTOR') || 
-                          roleStr.includes('ADMIN') || 
+                isAdmin = roleStr.includes('GERENTE') ||
+                          roleStr.includes('COORDENADOR') ||
+                          roleStr.includes('GESTOR') ||
+                          roleStr.includes('ADMIN') ||
                           roleStr.includes('DIRETOR') ||
                           roleStr.includes('FINANCEIRO');
             }
 
+            const isGestaoAvistaUser = emailLower === 'gestaoavista@resitrat.com.br';
+            const isFullAdmin = emailLower === 'adm@resitrat.com.br';
+
             if (isLoginPage) {
                 // Logged in and trying to access login page
-                if (isAdmin) {
+                if (isGestaoAvistaUser) {
+                    window.location.href = 'gestao_avista.html';
+                } else if (isAdmin) {
                     window.location.href = 'gerenciamentodeprojetos.html';
                 } else {
                     window.location.href = 'requisicao_estoque.html';
@@ -127,6 +145,21 @@ async function checkSession() {
             }
 
             const isRequisicaoPage = window.location.pathname.endsWith('requisicao_estoque.html');
+            const isGestaoAvistaPage = window.location.pathname.endsWith('gestao_avista.html');
+
+            if (isGestaoAvistaUser) {
+                // This account exists only to display the Gestão à Vista panel
+                if (!isGestaoAvistaPage) {
+                    window.location.href = 'gestao_avista.html';
+                }
+                return;
+            }
+
+            if (isGestaoAvistaPage && !isFullAdmin) {
+                // Gestão à Vista is exclusive to adm@resitrat.com.br and the dedicated display account
+                window.location.href = isAdmin ? 'gerenciamentodeprojetos.html' : 'requisicao_estoque.html';
+                return;
+            }
 
             if (!isAdmin) {
                 // Block direct operator access to any page except requisicao_estoque.html
@@ -140,8 +173,8 @@ async function checkSession() {
                 menuLinks.forEach(link => {
                     const href = link.getAttribute('href') || '';
                     const onclickStr = link.getAttribute('onclick') || '';
-                    const isAllowed = href.includes('requisicao_estoque.html') || 
-                                      href.includes('logout') || 
+                    const isAllowed = href.includes('requisicao_estoque.html') ||
+                                      href.includes('logout') ||
                                       onclickStr.includes('signOut');
                     if (!isAllowed) {
                         link.classList.add('hidden');
@@ -154,6 +187,13 @@ async function checkSession() {
                 if (navCad) {
                     navCad.classList.remove('hidden');
                     navCad.classList.add('flex');
+                }
+
+                // Gestão à Vista link is exclusive to adm@resitrat.com.br
+                const navGestaoAvista = document.getElementById('nav-gestao-avista');
+                if (navGestaoAvista && isFullAdmin) {
+                    navGestaoAvista.classList.remove('hidden');
+                    navGestaoAvista.classList.add('flex');
                 }
             }
         }

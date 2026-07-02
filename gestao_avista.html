@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="utf-8" />
+  <link href="./logoresitrat.png" rel="icon" type="image/png" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <title>Gestão à Vista - Resitrat</title>
+  <meta content="light" name="color-scheme" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            primary: "#135bec",
+            text: {
+              light: { primary: "#0d121b", secondary: "#526071", tertiary: "#8292a2" },
+              dark: { primary: "#ffffff", secondary: "#9ca3af", tertiary: "#6b7280" }
+            },
+            background: { light: "#f0f2f8", dark: "#101622" }
+          },
+          fontFamily: { sans: ["Inter", "sans-serif"] }
+        }
+      }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/supabaseClient.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/api.js" defer></script>
+  <style>
+    body {
+      background: radial-gradient(circle at 12% 8%, rgba(37,99,235,.07) 0%, transparent 45%),
+                  radial-gradient(circle at 88% 92%, rgba(14,165,233,.07) 0%, transparent 45%),
+                  #f0f2f8;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .ms-fill { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+
+    .grid-overlay {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(13,18,27,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(13,18,27,.035) 1px, transparent 1px);
+      background-size: 42px 42px;
+      -webkit-mask-image: radial-gradient(ellipse 90% 90% at 50% 40%, black 25%, transparent 100%);
+      mask-image: radial-gradient(ellipse 90% 90% at 50% 40%, black 25%, transparent 100%);
+      pointer-events: none;
+    }
+
+    .glass-card {
+      background: #ffffff;
+      border: 1px solid #e5e9f2;
+      border-radius: 16px;
+      box-shadow: 0 1px 2px rgba(13,18,27,.04), 0 8px 20px -12px rgba(13,18,27,.10);
+    }
+
+    .slide {
+      position: absolute; inset: 0;
+      opacity: 0;
+      transform: translateY(14px) scale(.99);
+      pointer-events: none;
+      transition: opacity .55s ease, transform .55s ease;
+    }
+    .slide.active {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+    }
+
+    .dot {
+      width: 8px; height: 8px; border-radius: 999px;
+      background: #d5dae4;
+      transition: background .3s ease, width .3s ease;
+    }
+    .dot.active { background: #135bec; width: 26px; }
+
+    .progress-track { height: 3px; background: #e5e9f2; border-radius: 999px; overflow: hidden; }
+    .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg,#135bec,#60a5fa); border-radius: 999px; }
+    .progress-fill.animate { width: 100%; transition: width linear; }
+
+    /* Scroll is automated by JS — hide the scrollbar for a clean kiosk look */
+    .kiosk-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+    .kiosk-scroll::-webkit-scrollbar { display: none; }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .35; }
+    }
+    .live-dot { animation: pulseDot 1.6s ease-in-out infinite; }
+  </style>
+</head>
+
+<body class="font-sans antialiased text-text-light-primary relative h-screen">
+  <div class="grid-overlay"></div>
+
+  <div class="relative z-10 h-screen flex flex-col px-8 py-6 lg:px-14 lg:py-8">
+
+    <!-- ── Header ─────────────────────────────────────────────── -->
+    <header class="flex items-center justify-between flex-shrink-0 mb-6">
+      <div class="flex items-center gap-3">
+        <div style="width:22px;height:36px;overflow:hidden;flex-shrink:0">
+          <img src="logoresitrat.png" alt="Resitrat" style="height:30px;width:auto;max-width:none;display:block">
+        </div>
+        <p class="text-sm font-extrabold tracking-[0.14em] text-text-light-primary leading-none">GESTÃO À VISTA</p>
+        <span class="ml-2 hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200">
+          <span class="size-1.5 rounded-full bg-emerald-500 live-dot"></span>
+          <span class="text-[10px] font-semibold text-emerald-700 tracking-wide">AO VIVO</span>
+        </span>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <div class="text-right">
+          <p id="live-clock" class="text-2xl lg:text-3xl font-extrabold tabular-nums leading-none text-text-light-primary">--:--:--</p>
+          <p id="live-date" class="text-[11px] text-text-light-secondary mt-1 capitalize"></p>
+        </div>
+        <a href="#" onclick="signOut(); return false;" title="Sair"
+           class="w-9 h-9 flex items-center justify-center rounded-lg text-text-light-tertiary hover:text-text-light-primary hover:bg-black/5 transition-colors">
+          <span class="material-symbols-outlined" style="font-size:20px">logout</span>
+        </a>
+      </div>
+    </header>
+
+    <!-- ── Slides ─────────────────────────────────────────────── -->
+    <main class="relative flex-1 min-h-0">
+
+      <!-- Slide 1: Em Andamento -->
+      <section id="slide-progress" class="slide active flex flex-col">
+        <div class="flex items-center gap-3 mb-5 flex-shrink-0">
+          <span class="material-symbols-outlined ms-fill text-primary" style="font-size:26px">bolt</span>
+          <h2 class="text-xl lg:text-2xl font-extrabold text-text-light-primary">Projetos em Andamento</h2>
+          <span id="progress-count" class="ml-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-primary border border-blue-200">0</span>
+        </div>
+        <div id="progress-grid" class="flex-1 min-h-0 overflow-y-auto kiosk-scroll grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 pr-1 auto-rows-min"></div>
+      </section>
+
+      <!-- Slide 2: Concluídos -->
+      <section id="slide-done" class="slide flex flex-col">
+        <div class="flex items-center gap-3 mb-5 flex-shrink-0">
+          <span class="material-symbols-outlined ms-fill text-emerald-600" style="font-size:26px">task_alt</span>
+          <h2 class="text-xl lg:text-2xl font-extrabold text-text-light-primary">Projetos Concluídos</h2>
+          <span id="done-count" class="ml-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">0</span>
+        </div>
+        <div id="done-grid" class="flex-1 min-h-0 overflow-y-auto kiosk-scroll grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 pr-1 auto-rows-min"></div>
+      </section>
+
+      <!-- Slide 3: Custo do Mês -->
+      <section id="slide-cost" class="slide flex flex-col">
+        <div class="flex items-center gap-3 mb-5 flex-shrink-0">
+          <span class="material-symbols-outlined ms-fill text-amber-600" style="font-size:26px">payments</span>
+          <h2 class="text-xl lg:text-2xl font-extrabold text-text-light-primary">Custo do Mês Atual por Cliente</h2>
+          <span id="cost-month-label" class="ml-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200"></span>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4 mb-5 flex-shrink-0">
+          <div class="glass-card px-5 py-4">
+            <p class="text-[11px] text-text-light-tertiary font-semibold uppercase tracking-wide">Total do Mês</p>
+            <p id="cost-kpi-total" class="text-2xl font-extrabold mt-1 text-text-light-primary">R$ 0</p>
+          </div>
+          <div class="glass-card px-5 py-4">
+            <p class="text-[11px] text-text-light-tertiary font-semibold uppercase tracking-wide">Clientes Atendidos</p>
+            <p id="cost-kpi-clients" class="text-2xl font-extrabold mt-1 text-text-light-primary">0</p>
+          </div>
+          <div class="glass-card px-5 py-4">
+            <p class="text-[11px] text-text-light-tertiary font-semibold uppercase tracking-wide">Acima da Meta</p>
+            <p id="cost-kpi-over" class="text-2xl font-extrabold mt-1 text-red-600">0</p>
+          </div>
+        </div>
+
+        <div id="cost-list" class="flex-1 min-h-0 overflow-y-auto kiosk-scroll space-y-3 pr-1"></div>
+      </section>
+
+    </main>
+
+    <!-- ── Footer: indicators ─────────────────────────────────── -->
+    <footer class="flex-shrink-0 mt-6">
+      <div class="flex items-center justify-center gap-2 mb-3">
+        <span class="dot active" data-dot="0"></span>
+        <span class="dot" data-dot="1"></span>
+        <span class="dot" data-dot="2"></span>
+      </div>
+      <div class="progress-track max-w-xs mx-auto">
+        <div id="slide-progress-bar" class="progress-fill"></div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="js/gestao_avista.js" defer></script>
+</body>
+
+</html>

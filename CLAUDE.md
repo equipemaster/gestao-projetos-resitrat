@@ -64,6 +64,15 @@ INSERT INTO users (id, name, email, role, status)
 VALUES ('<auth_uuid>', 'NOME', 'email@resitrat.com.br', 'COORDENADOR', 'ATIVO');
 ```
 
+### Gestão à Vista — Exclusive Third Role (gestao_avista.html)
+
+A third, mutually-exclusive account type layered on top of admin/operator, both handled in `auth.js` by exact-match (lowercased) email rather than role keywords:
+
+- **`gestaoavista@resitrat.com.br`** — dedicated kiosk/display account. `signIn()` and `checkSession()` route it straight to `gestao_avista.html` and lock it there (mirrors the operator→`requisicao_estoque.html` lock); it cannot reach any other page.
+- **`adm@resitrat.com.br`** (exact match, not just any `ADM*` admin) — the only regular account allowed to open `gestao_avista.html`, and the only one for whom the `#nav-gestao-avista` sidebar link (present, `hidden` by default, on every sidebar page including `cadastro_usuario.html`) is revealed.
+- Any other authenticated user hitting `gestao_avista.html` directly is redirected back to their normal home page (`checkSession()`'s `isGestaoAvistaPage && !isFullAdmin` branch).
+- Create the account the same way as any other user (Supabase Auth + a matching `public.users` row); no special `role` value is required since routing is by email, not role.
+
 ### Global Behaviors in api.js
 
 - **All text inputs are auto-uppercased** via a global `input` event listener and a CSS rule injected into `document.head`.
@@ -171,6 +180,7 @@ Requires `<div id="toast-container" class="fixed top-4 right-4 z-[100] flex flex
 | `cadastro_usuario.html` | `cadastro_usuario.js` | Admin-only user registration |
 | `configuracoes.html` | `settings.js` | Settings |
 | `montecarlo.html` | `montecarlo.js` | Monte Carlo stock forecast — chemical/hydraulic materials; reached from relatorios.html |
+| `gestao_avista.html` | `gestao_avista.js` | Kiosk/TV dashboard — no sidebar; auto-rotates every 15s through active projects, completed projects, and current-month cost per client; refetches data every 60s. Exclusive to `adm@resitrat.com.br` and `gestaoavista@resitrat.com.br` (see "Gestão à Vista — Exclusive Third Role" above) |
 | `login.html` | `auth.js` (defer) | No sidebar; split-panel layout |
 
 ## Login Page Design
