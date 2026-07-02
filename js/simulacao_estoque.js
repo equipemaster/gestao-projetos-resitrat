@@ -36,10 +36,10 @@ function addRow(name = '', mu = '', sigma = '', lt = '', dist = 'poisson', categ
             <input type="checkbox" class="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4 item-select" checked>
         </td>
         <td class="px-4 py-3">
-            <input type="text" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm p-2 item-category" placeholder="Categoria" value="${category}">
+            <input type="text" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm p-2 item-category" placeholder="Categoria" value="${escapeHtml(category)}">
         </td>
         <td class="px-4 py-3">
-            <input type="text" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm p-2 item-name" placeholder="Ex: Item ${rowCount}" value="${name}">
+            <input type="text" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm p-2 item-name" placeholder="Ex: Item ${rowCount}" value="${escapeHtml(name)}">
         </td>
         <td class="px-4 py-3">
             <input type="number" step="any" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm p-2 item-mu" placeholder="Ex: 0.25" value="${mu}">
@@ -358,7 +358,7 @@ function runSimulation() {
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                    ${item.name} <br>
+                    ${escapeHtml(item.name)} <br>
                     <span class="text-xs text-gray-400 font-normal">(${(item.dist === 'poisson' ? 'Poisson' : 'Normal')}, lt: ${item.lt}d)</span>
                 </td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-500 dark:text-gray-400" style="border-left: 1px solid #e5e7eb;">

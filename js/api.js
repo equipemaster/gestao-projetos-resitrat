@@ -40,9 +40,26 @@ function formatDate(dateString) {
     return dateString;
 }
 
-// Ensure formatDate is globally available if this script is treated as a module, 
+// Ensure formatDate is globally available if this script is treated as a module,
 // though here it's likely loaded as a standard script.
 window.formatDate = formatDate;
+
+// Escapes free-text values before they are interpolated into innerHTML.
+// Every table/name/observation field in this app is user-entered, so any of
+// them can carry a stored XSS payload (e.g. a project or client "name" of
+// `<img src=x onerror=...>`) that runs in the browser of whoever views the
+// record next — including admins. Wrap any such value with this before
+// putting it in a template string that gets assigned to innerHTML.
+function escapeHtml(value) {
+    if (value === null || value === undefined) return '';
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+window.escapeHtml = escapeHtml;
 
 // ... (rest of the API functions)
 

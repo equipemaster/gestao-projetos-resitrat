@@ -299,8 +299,8 @@ function renderTable(allClientCosts) {
         tr.innerHTML = `
             <td class="px-6 py-4 whitespace-nowrap">
                 <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full ${avatarClass} flex items-center justify-center text-xs font-bold flex-shrink-0">${initial}</div>
-                    <span class="text-sm font-medium text-gray-900 dark:text-white">${client}</span>
+                    <div class="w-8 h-8 rounded-full ${avatarClass} flex items-center justify-center text-xs font-bold flex-shrink-0">${escapeHtml(initial)}</div>
+                    <span class="text-sm font-medium text-gray-900 dark:text-white">${escapeHtml(client)}</span>
                 </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${hasMeta ? formatCurrency(meta) : '—'}</td>
@@ -383,10 +383,10 @@ function buildDetailHTML(clientName, data) {
         return `
             <tr class="${rowBg} border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50/80 dark:hover:bg-gray-800/30 transition-colors">
                 <td class="py-2.5 px-4 text-xs font-medium text-gray-800 dark:text-gray-200">
-                    <div class="flex items-center flex-wrap gap-1">${item.name}${badge}</div>
+                    <div class="flex items-center flex-wrap gap-1">${escapeHtml(item.name)}${badge}</div>
                 </td>
-                <td class="py-2.5 px-3 text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">${item.category}</td>
-                <td class="py-2.5 px-3 text-xs text-gray-600 dark:text-gray-400 text-right whitespace-nowrap">${item.quantity.toFixed(2)} ${item.unit}</td>
+                <td class="py-2.5 px-3 text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">${escapeHtml(item.category)}</td>
+                <td class="py-2.5 px-3 text-xs text-gray-600 dark:text-gray-400 text-right whitespace-nowrap">${item.quantity.toFixed(2)} ${escapeHtml(item.unit)}</td>
                 <td class="py-2.5 px-3 text-xs font-semibold text-gray-800 dark:text-gray-200 text-right whitespace-nowrap">${formatCurrency(item.cost)}</td>
                 <td class="py-2.5 px-4 w-40">
                     <div class="flex items-center gap-2">
@@ -436,7 +436,7 @@ function buildDetailHTML(clientName, data) {
             <div class="px-4 py-2.5 bg-slate-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
                 <span class="material-symbols-outlined text-primary" style="font-size:15px">inventory_2</span>
                 <span class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                    Itens consumidos — ${clientName}
+                    Itens consumidos — ${escapeHtml(clientName)}
                 </span>
                 ${headerWarning}
             </div>
@@ -599,7 +599,7 @@ function renderDonutChart(allClientCosts) {
         return `<div class="flex items-center justify-between gap-1.5">
             <div class="flex items-center gap-1.5 min-w-0">
                 <div class="w-2 h-2 rounded-full flex-shrink-0" style="background:${CHART_COLORS[i] || '#94a3b8'}"></div>
-                <span class="truncate text-gray-600 dark:text-gray-400" style="font-size:10px">${label}</span>
+                <span class="truncate text-gray-600 dark:text-gray-400" style="font-size:10px">${escapeHtml(label)}</span>
             </div>
             <span class="font-semibold text-gray-700 dark:text-gray-300 flex-shrink-0" style="font-size:10px">${pct}%</span>
         </div>`;

@@ -177,13 +177,13 @@ function renderProjectsTable(projects) {
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">#${(project.code || project.id).slice(0, 6)}</td>
             <td class="px-6 py-4 whitespace-nowrap">
                 <div class="flex flex-col">
-                    <span class="text-sm font-medium text-gray-900 dark:text-white">${project.name}</span>
-                    <span class="text-xs text-gray-500 dark:text-gray-400">${project.client_name || 'Sem cliente'}</span>
+                    <span class="text-sm font-medium text-gray-900 dark:text-white">${escapeHtml(project.name)}</span>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">${escapeHtml(project.client_name || 'Sem cliente')}</span>
                 </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
                 <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusBadgeClass}">
-                    ${displayStatus}
+                    ${escapeHtml(displayStatus)}
                 </span>
             </td>
             <td class="px-6 py-4 whitespace-nowrap">

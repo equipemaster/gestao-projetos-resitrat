@@ -324,7 +324,7 @@ function getReasonBadge(reason) {
         'Outro':            'bg-gray-100 text-gray-600',
     };
     const cls = map[reason] || 'bg-gray-100 text-gray-600';
-    return `<span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${cls}">${reason}</span>`;
+    return `<span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${cls}">${escapeHtml(reason)}</span>`;
 }
 
 async function loadExitHistory() {
@@ -347,10 +347,10 @@ async function loadExitHistory() {
             tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors';
 
             const formattedDate = formatDate(exit.created_at.split('T')[0]);
-            const itemName = exit.stock_items ? exit.stock_items.name : '<span class="text-red-400 text-xs">Item excluído</span>';
+            const itemName = exit.stock_items ? escapeHtml(exit.stock_items.name) : '<span class="text-red-400 text-xs">Item excluído</span>';
             let destination = '-';
             if (exit.project_id) destination = 'Projeto';
-            if (exit.clients) destination = exit.clients.name;
+            if (exit.clients) destination = escapeHtml(exit.clients.name);
             const unitPrice = exit.unit_price || (exit.stock_items ? exit.stock_items.value : 0);
             const totalPrice = unitPrice * exit.quantity;
             const fmt = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -359,7 +359,7 @@ async function loadExitHistory() {
                 <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">${formattedDate}</td>
                 <td class="px-5 py-3.5 whitespace-nowrap text-xs font-semibold text-gray-900 dark:text-white">${itemName}</td>
                 <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${fmt(unitPrice)}</td>
-                <td class="px-5 py-3.5 whitespace-nowrap text-xs font-bold text-gray-800 dark:text-gray-200">${exit.quantity} <span class="font-normal text-gray-400">${exit.stock_items?.unit || ''}</span></td>
+                <td class="px-5 py-3.5 whitespace-nowrap text-xs font-bold text-gray-800 dark:text-gray-200">${exit.quantity} <span class="font-normal text-gray-400">${escapeHtml(exit.stock_items?.unit || '')}</span></td>
                 <td class="px-5 py-3.5 whitespace-nowrap text-xs font-bold text-gray-900 dark:text-white">${fmt(totalPrice)}</td>
                 <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${destination}</td>
                 <td class="px-5 py-3.5 whitespace-nowrap">${getReasonBadge(exit.reason)}</td>

@@ -91,7 +91,7 @@ function showDuplicateWarning(duplicates) {
         const timeStr = req.created_at
             ? new Date(req.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
             : '';
-        return `<li class="flex items-start gap-1.5"><span class="material-symbols-outlined text-amber-500 flex-shrink-0 mt-px" style="font-size:13px">fiber_manual_record</span><span><strong>${d.itemName}</strong> — solicitado em ${dateStr} às ${timeStr}, aguardando aprovação</span></li>`;
+        return `<li class="flex items-start gap-1.5"><span class="material-symbols-outlined text-amber-500 flex-shrink-0 mt-px" style="font-size:13px">fiber_manual_record</span><span><strong>${escapeHtml(d.itemName)}</strong> — solicitado em ${dateStr} às ${timeStr}, aguardando aprovação</span></li>`;
     }).join('');
 
     warnDiv.innerHTML = `
@@ -143,7 +143,7 @@ async function initAuthAndProfile() {
             };
             if (banner) {
                 banner.classList.remove('hidden');
-                banner.innerHTML = `<span class="material-symbols-outlined flex-shrink-0" style="font-size:16px">construction</span><span><strong>Modo Dev</strong> — ${userProfile.name} (${userProfile.role}) — Perfil: <strong>${currentRole === 'admin' ? 'Administrador' : 'Operador'}</strong></span>`;
+                banner.innerHTML = `<span class="material-symbols-outlined flex-shrink-0" style="font-size:16px">construction</span><span><strong>Modo Dev</strong> — ${escapeHtml(userProfile.name)} (${escapeHtml(userProfile.role)}) — Perfil: <strong>${currentRole === 'admin' ? 'Administrador' : 'Operador'}</strong></span>`;
             }
             applyRoleUI(currentRole, isDev);
             switchRole(currentRole);
@@ -171,7 +171,7 @@ async function initAuthAndProfile() {
                 if (banner) {
                     if (isAdminRole) {
                         banner.classList.remove('hidden');
-                        banner.innerHTML = `<span class="material-symbols-outlined flex-shrink-0" style="font-size:16px">info</span><span>Logado como <strong>${profile.name}</strong> (${profile.role || 'Membro'}) — Perfil: <strong>Administrador</strong></span>`;
+                        banner.innerHTML = `<span class="material-symbols-outlined flex-shrink-0" style="font-size:16px">info</span><span>Logado como <strong>${escapeHtml(profile.name)}</strong> (${escapeHtml(profile.role || 'Membro')}) — Perfil: <strong>Administrador</strong></span>`;
                     } else {
                         banner.classList.add('hidden');
                     }
@@ -182,7 +182,7 @@ async function initAuthAndProfile() {
 
                 if (banner && emailIsAdmin) {
                     banner.classList.remove('hidden');
-                    banner.innerHTML = `<span class="material-symbols-outlined flex-shrink-0" style="font-size:16px">info</span><span>Sessão ativa (${currentUser.email}) — Perfil: <strong>Administrador</strong></span>`;
+                    banner.innerHTML = `<span class="material-symbols-outlined flex-shrink-0" style="font-size:16px">info</span><span>Sessão ativa (${escapeHtml(currentUser.email)}) — Perfil: <strong>Administrador</strong></span>`;
                 }
             }
         } else {
@@ -966,7 +966,7 @@ function statusBadge(status, rejectionReason = '') {
     } else if (status === 'DEFERIDO') {
         return `<span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300"><span class="size-1.5 rounded-full bg-emerald-500"></span>Aceito</span>`;
     } else if (status === 'INDEFERIDO') {
-        return `<span class="inline-flex items-center gap-1.5 rounded-full bg-red-100 dark:bg-red-900/40 px-2.5 py-1 text-xs font-semibold text-red-700 dark:text-red-300" title="${rejectionReason || ''}"><span class="size-1.5 rounded-full bg-red-500"></span>Rejeitado</span>`;
+        return `<span class="inline-flex items-center gap-1.5 rounded-full bg-red-100 dark:bg-red-900/40 px-2.5 py-1 text-xs font-semibold text-red-700 dark:text-red-300" title="${escapeHtml(rejectionReason || '')}"><span class="size-1.5 rounded-full bg-red-500"></span>Rejeitado</span>`;
     } else if (status === 'CANCELADO') {
         return `<span class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-xs font-semibold text-gray-600 dark:text-gray-400"><span class="size-1.5 rounded-full bg-gray-400"></span>Devolvido</span>`;
     }
@@ -974,8 +974,8 @@ function statusBadge(status, rejectionReason = '') {
 }
 
 function destLabel(req) {
-    if (req.projects) return `<span class="font-medium text-blue-600 dark:text-blue-400">Proj:</span> ${req.projects.name}`;
-    if (req.clients) return req.clients.name;
+    if (req.projects) return `<span class="font-medium text-blue-600 dark:text-blue-400">Proj:</span> ${escapeHtml(req.projects.name)}`;
+    if (req.clients) return escapeHtml(req.clients.name);
     return '-';
 }
 
@@ -1020,11 +1020,11 @@ function renderOperatorHistory() {
 
         tr.innerHTML = `
             <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">${dateStr}</td>
-            <td class="px-5 py-3.5 whitespace-nowrap text-xs font-semibold text-gray-800 dark:text-gray-200">${req.requested_by || '-'}</td>
-            <td class="px-5 py-3.5 whitespace-nowrap text-xs font-bold text-gray-900 dark:text-white">${req.item_name}</td>
-            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${req.quantity} <span class="text-gray-400">${req.unit}</span></td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs font-semibold text-gray-800 dark:text-gray-200">${escapeHtml(req.requested_by || '-')}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs font-bold text-gray-900 dark:text-white">${escapeHtml(req.item_name)}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${req.quantity} <span class="text-gray-400">${escapeHtml(req.unit)}</span></td>
             <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${destLabel(req)}</td>
-            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${req.reason}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${escapeHtml(req.reason)}</td>
             <td class="px-5 py-3.5 whitespace-nowrap text-xs">${statusBadge(req.status, req.rejection_reason)}</td>
             <td class="px-5 py-3.5 whitespace-nowrap text-right"></td>
         `;
@@ -1054,7 +1054,7 @@ function renderOperatorHistory() {
             retBtn.onclick = () => openReturnModal(req);
             actionsTd.appendChild(retBtn);
         } else if (req.status === 'INDEFERIDO') {
-            actionsTd.innerHTML = `<span class="text-xs text-gray-400 italic" title="${req.rejection_reason || ''}">Motivo: ${(req.rejection_reason || 'N/A').substring(0, 30)}${(req.rejection_reason || '').length > 30 ? '...' : ''}</span>`;
+            actionsTd.innerHTML = `<span class="text-xs text-gray-400 italic" title="${escapeHtml(req.rejection_reason || '')}">Motivo: ${escapeHtml((req.rejection_reason || 'N/A').substring(0, 30))}${(req.rejection_reason || '').length > 30 ? '...' : ''}</span>`;
         } else {
             actionsTd.innerHTML = '<span class="text-xs text-gray-400 italic">Encerrado</span>';
         }
@@ -1091,12 +1091,12 @@ function loadAdminPending() {
 
         tr.innerHTML = `
             <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">${dateStr}</td>
-            <td class="px-5 py-3.5 whitespace-nowrap text-xs font-semibold text-gray-800 dark:text-gray-200" title="${req.requested_by || ''}">${opName}</td>
-            <td class="px-5 py-3.5 whitespace-nowrap text-xs font-bold text-gray-900 dark:text-white">${req.item_name}</td>
-            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${req.quantity} <span class="text-gray-400">${req.unit}</span></td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs font-semibold text-gray-800 dark:text-gray-200" title="${escapeHtml(req.requested_by || '')}">${escapeHtml(opName)}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs font-bold text-gray-900 dark:text-white">${escapeHtml(req.item_name)}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${req.quantity} <span class="text-gray-400">${escapeHtml(req.unit)}</span></td>
             <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${destLabel(req)}</td>
-            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${req.reason}</td>
-            <td class="px-5 py-3.5 text-xs text-gray-500 dark:text-gray-400 max-w-[160px] truncate" title="${req.observation || ''}">${req.observation || '-'}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${escapeHtml(req.reason)}</td>
+            <td class="px-5 py-3.5 text-xs text-gray-500 dark:text-gray-400 max-w-[160px] truncate" title="${escapeHtml(req.observation || '')}">${escapeHtml(req.observation || '-')}</td>
             <td class="px-5 py-3.5 whitespace-nowrap text-right"></td>
         `;
 
@@ -1171,14 +1171,14 @@ function loadAdminHistory() {
 
         tr.innerHTML = `
             <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">${dateStr}</td>
-            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-700 dark:text-gray-300" title="${req.requested_by || ''}">${opName}</td>
-            <td class="px-5 py-3.5 whitespace-nowrap text-xs font-bold text-gray-900 dark:text-white">${req.item_name}</td>
-            <td class="px-5 py-3.5 whitespace-nowrap text-xs font-semibold text-gray-700 dark:text-gray-300">${req.quantity} <span class="font-normal text-gray-400">${req.unit}</span></td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-700 dark:text-gray-300" title="${escapeHtml(req.requested_by || '')}">${escapeHtml(opName)}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs font-bold text-gray-900 dark:text-white">${escapeHtml(req.item_name)}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs font-semibold text-gray-700 dark:text-gray-300">${req.quantity} <span class="font-normal text-gray-400">${escapeHtml(req.unit)}</span></td>
             <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${priceUnit}</td>
             <td class="px-5 py-3.5 whitespace-nowrap text-xs font-bold text-gray-900 dark:text-white">${priceTotal}</td>
             <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${destLabel(req)}</td>
             <td class="px-5 py-3.5 whitespace-nowrap text-xs">${statusBadge(req.status, req.rejection_reason)}</td>
-            <td class="px-5 py-3.5 text-xs text-gray-400 italic max-w-[180px] truncate" title="${extraInfo}">${extraInfo}</td>
+            <td class="px-5 py-3.5 text-xs text-gray-400 italic max-w-[180px] truncate" title="${escapeHtml(extraInfo)}">${escapeHtml(extraInfo)}</td>
             <td class="px-5 py-3.5 whitespace-nowrap text-right"></td>
         `;
 

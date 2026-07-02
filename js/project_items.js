@@ -87,11 +87,11 @@ function renderItemsTable(items) {
         const row = document.createElement('tr');
         row.className = "hover:bg-gray-50 dark:hover:bg-gray-800/50";
         row.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap text-[#0d121b] dark:text-white text-sm font-medium">${item.name}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm"><span class="px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-xs">${item.category || 'Outros'}</span></td>
-            <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${item.nota_fiscal || '-'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-[#0d121b] dark:text-white text-sm font-medium">${escapeHtml(item.name)}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm"><span class="px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-xs">${escapeHtml(item.category || 'Outros')}</span></td>
+            <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${escapeHtml(item.nota_fiscal || '-')}</td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${item.quantity}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${item.unit}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${escapeHtml(item.unit)}</td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${formatCurrency(val)}</td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white text-sm font-bold">${formatCurrency(total)}</td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

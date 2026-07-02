@@ -220,16 +220,16 @@ function createCardElement(order) {
 
     card.innerHTML = `
         <div class="flex justify-between items-start mb-2">
-            <span class="text-xs font-semibold px-2 py-0.5 rounded ${priorityColor}">${priorityMap[order.priority] || order.priority}</span>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded ${priorityColor}">${escapeHtml(priorityMap[order.priority] || order.priority)}</span>
             <div class="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
                 <button onclick="editOrder('${order.id}')" class="text-gray-400 hover:text-blue-500"><span class="material-symbols-outlined text-sm">edit</span></button>
                 <button onclick="deleteOrder('${order.id}')" class="text-gray-400 hover:text-red-500"><span class="material-symbols-outlined text-sm">delete</span></button>
             </div>
         </div>
-        <h4 class="text-sm font-semibold text-gray-900 dark:text-white mb-1">${order.title}</h4>
-        <p class="text-xs text-gray-500 dark:text-gray-400 mb-2 max-h-12 overflow-hidden">${order.description || ''}</p>
+        <h4 class="text-sm font-semibold text-gray-900 dark:text-white mb-1">${escapeHtml(order.title)}</h4>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-2 max-h-12 overflow-hidden">${escapeHtml(order.description || '')}</p>
         <div class="flex items-center justify-between mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
-            <span class="text-xs text-blue-600 dark:text-blue-400 font-medium truncate max-w-[120px]" title="${projectName}">${projectName}</span>
+            <span class="text-xs text-blue-600 dark:text-blue-400 font-medium truncate max-w-[120px]" title="${escapeHtml(projectName)}">${escapeHtml(projectName)}</span>
             ${order.due_date ? `<span class="text-xs text-gray-400 flex items-center gap-1"><span class="material-symbols-outlined text-[10px]">calendar_today</span> ${formatDateShort(order.due_date)}</span>` : ''}
         </div>
     `;
@@ -486,8 +486,8 @@ async function loadLogs(orderId) {
 
                 tr.innerHTML = `
                     <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${log.type === 'TIME' ? 'Mão de Obra' : 'Material'}</td>
-                    <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-white ${isWasteClass}">${log.description} ${wasteLabel}</td>
-                    <td class="px-3 py-2 whitespace-nowrap text-right text-sm text-gray-700 dark:text-gray-300">${log.quantity} ${log.unit || ''}</td>
+                    <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-white ${isWasteClass}">${escapeHtml(log.description)} ${wasteLabel}</td>
+                    <td class="px-3 py-2 whitespace-nowrap text-right text-sm text-gray-700 dark:text-gray-300">${log.quantity} ${escapeHtml(log.unit || '')}</td>
                     <td class="px-3 py-2 whitespace-nowrap text-right text-sm font-medium text-gray-900 dark:text-white">R$ ${parseFloat(log.total_cost).toFixed(2)}</td>
                     <td class="px-3 py-2 whitespace-nowrap text-right text-sm">
                         <button onclick="deleteLog('${log.id}')" class="text-red-500 hover:text-red-700"><span class="material-symbols-outlined text-sm">delete</span></button>

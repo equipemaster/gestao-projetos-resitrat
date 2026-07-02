@@ -45,7 +45,7 @@ function addProductRow(name = '', unit = 'un', minC = '', likelyC = '', maxC = '
     tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors group';
     tr.innerHTML = `
         <td class="px-3 py-2">
-            <input type="text" class="task-name ${inputCls}" placeholder="Ex: CLORO GRANULADO" value="${name}">
+            <input type="text" class="task-name ${inputCls}" placeholder="Ex: CLORO GRANULADO" value="${escapeHtml(name)}">
         </td>
         <td class="px-2 py-2">
             <select class="unit-val ${inputCls}">
@@ -335,8 +335,8 @@ function displayResults(results, horizonMonths, confidencePct) {
         if (rowBg) tr.classList.add(...rowBg.split(' '));
 
         tr.innerHTML = `
-            <td class="px-4 py-2.5 text-sm font-semibold text-text-light-primary dark:text-text-dark-primary">${r.name}</td>
-            <td class="px-3 py-2.5 text-xs text-center text-text-light-secondary dark:text-text-dark-secondary">${r.unit}</td>
+            <td class="px-4 py-2.5 text-sm font-semibold text-text-light-primary dark:text-text-dark-primary">${escapeHtml(r.name)}</td>
+            <td class="px-3 py-2.5 text-xs text-center text-text-light-secondary dark:text-text-dark-secondary">${escapeHtml(r.unit)}</td>
             <td class="px-3 py-2.5 text-sm text-right text-text-light-primary dark:text-text-dark-primary">${fmt0(r.currentStock)}</td>
             <td class="px-3 py-2.5 text-sm text-right font-medium text-blue-600 dark:text-blue-400">${fmt(r.p50, 1)}</td>
             <td class="px-3 py-2.5 text-sm text-right font-semibold text-orange-600 dark:text-orange-400">${fmt(r.pConf, 1)}</td>

@@ -53,12 +53,12 @@ function renderMembers(members) {
             </td>
             <td class="px-4 py-2 text-sm font-medium text-gray-900 dark:text-gray-50 whitespace-nowrap">
                 <div class="flex items-center gap-3">
-                    <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 h-10" style='background-image: url("${member.avatar_url || 'https://via.placeholder.com/40'}");'></div>
-                    ${member.name}
+                    <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 h-10" style='background-image: url("${escapeHtml(member.avatar_url || 'https://via.placeholder.com/40')}");'></div>
+                    ${escapeHtml(member.name)}
                 </div>
             </td>
-            <td class="px-4 py-2 text-gray-500 dark:text-gray-400 text-sm font-normal leading-normal whitespace-nowrap">${member.email || '-'}</td>
-            <td class="px-4 py-2 text-gray-500 dark:text-gray-400 text-sm font-normal leading-normal whitespace-nowrap">${member.role || 'Membro'}</td>
+            <td class="px-4 py-2 text-gray-500 dark:text-gray-400 text-sm font-normal leading-normal whitespace-nowrap">${escapeHtml(member.email || '-')}</td>
+            <td class="px-4 py-2 text-gray-500 dark:text-gray-400 text-sm font-normal leading-normal whitespace-nowrap">${escapeHtml(member.role || 'Membro')}</td>
             <td class="px-4 py-2 text-sm font-normal leading-normal">
                ${member.status === 'Active' ?
                 '<span class="inline-flex items-center gap-1.5 rounded-full bg-green-100 dark:bg-green-900/50 px-2 py-1 text-sm font-medium text-green-700 dark:text-green-300"><span class="size-2 rounded-full bg-green-500"></span>Ativo</span>' :

@@ -299,7 +299,7 @@ async function loadProjectDetails(projectId) {
             const tr = document.createElement('tr');
             tr.className = "hover:bg-gray-50 dark:hover:bg-gray-800/50";
             tr.innerHTML = `
-                <td class="px-6 py-4 whitespace-nowrap text-[#0d121b] dark:text-white text-sm font-medium">${cat}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-[#0d121b] dark:text-white text-sm font-medium">${escapeHtml(cat)}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white text-sm">${formatCurrency(catBudget)}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white text-sm">${formatCurrency(catActual)}</td>
                 <td class="px-6 py-4 whitespace-nowrap ${balanceClass} text-sm">${formatCurrency(balance)}</td>
@@ -474,8 +474,8 @@ function renderReportsTable(data) {
         const balanceClass = row.balance < 0 ? 'text-red-600 font-bold' : 'text-green-600 font-bold';
 
         tr.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap text-[#0d121b] dark:text-white text-sm font-medium">${row.projectName}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${row.lead}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-[#0d121b] dark:text-white text-sm font-medium">${escapeHtml(row.projectName)}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${escapeHtml(row.lead)}</td>
             <td class="px-6 py-4 whitespace-nowrap">
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}">
                     ${statusLabel}
@@ -486,7 +486,7 @@ function renderReportsTable(data) {
             <td class="px-6 py-4 whitespace-nowrap ${balanceClass} text-sm">${formatCurrency(row.balance)}</td>
             <td class="px-6 py-4 whitespace-nowrap text-orange-600 font-medium text-sm">${formatCurrency(row.forecastPayable)}</td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${row.timeSpent} dias</td>
-            <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm truncate max-w-xs" title="${row.longestStage}">${row.longestStage}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm truncate max-w-xs" title="${escapeHtml(row.longestStage)}">${escapeHtml(row.longestStage)}</td>
         `;
         tableBody.appendChild(tr);
     });
@@ -1077,14 +1077,14 @@ function renderStatistics(data) {
         if (problematicProjects.length > 0) {
             problemsHTML += `<div class="mb-2"><p class="font-bold text-red-600">${problematicProjects.length} Projetos acima do orçamento:</p><ul class="list-disc pl-5 text-sm text-gray-700 dark:text-gray-300">`;
             problematicProjects.forEach(p => {
-                problemsHTML += `<li>${p.name} (+${formatCurrency(p.extrValue)})</li>`;
+                problemsHTML += `<li>${escapeHtml(p.name)} (+${formatCurrency(p.extrValue)})</li>`;
             });
             problemsHTML += '</ul></div>';
         }
         if (delayedProjects.length > 0) {
             problemsHTML += `<div><p class="font-bold text-orange-600">${delayedProjects.length} Projetos com atraso/parados:</p><ul class="list-disc pl-5 text-sm text-gray-700 dark:text-gray-300">`;
             delayedProjects.forEach(p => {
-                problemsHTML += `<li>${p.name}</li>`;
+                problemsHTML += `<li>${escapeHtml(p.name)}</li>`;
             });
             problemsHTML += '</ul></div>';
         }

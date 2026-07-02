@@ -142,7 +142,17 @@
         <div id="progress-grid" class="flex-1 min-h-0 overflow-y-auto kiosk-scroll grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 pr-1 auto-rows-min"></div>
       </section>
 
-      <!-- Slide 2: Concluídos -->
+      <!-- Slide 2: Em Espera -->
+      <section id="slide-hold" class="slide flex flex-col">
+        <div class="flex items-center gap-3 mb-5 flex-shrink-0">
+          <span class="material-symbols-outlined ms-fill text-amber-600" style="font-size:26px">pause_circle</span>
+          <h2 class="text-xl lg:text-2xl font-extrabold text-text-light-primary">Projetos em Espera</h2>
+          <span id="hold-count" class="ml-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">0</span>
+        </div>
+        <div id="hold-grid" class="flex-1 min-h-0 overflow-y-auto kiosk-scroll grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 pr-1 auto-rows-min"></div>
+      </section>
+
+      <!-- Slide 3: Concluídos -->
       <section id="slide-done" class="slide flex flex-col">
         <div class="flex items-center gap-3 mb-5 flex-shrink-0">
           <span class="material-symbols-outlined ms-fill text-emerald-600" style="font-size:26px">task_alt</span>
@@ -152,7 +162,7 @@
         <div id="done-grid" class="flex-1 min-h-0 overflow-y-auto kiosk-scroll grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 pr-1 auto-rows-min"></div>
       </section>
 
-      <!-- Slide 3: Custo do Mês -->
+      <!-- Slide 4: Custo do Mês -->
       <section id="slide-cost" class="slide flex flex-col">
         <div class="flex items-center gap-3 mb-5 flex-shrink-0">
           <span class="material-symbols-outlined ms-fill text-amber-600" style="font-size:26px">payments</span>
@@ -186,6 +196,7 @@
         <span class="dot active" data-dot="0"></span>
         <span class="dot" data-dot="1"></span>
         <span class="dot" data-dot="2"></span>
+        <span class="dot" data-dot="3"></span>
       </div>
       <div class="progress-track max-w-xs mx-auto">
         <div id="slide-progress-bar" class="progress-fill"></div>

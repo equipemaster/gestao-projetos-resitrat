@@ -34,7 +34,7 @@ async function loadTasksBoard() {
             projectSection.className = "mb-8 bg-white dark:bg-gray-900/50 rounded-xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm";
             projectSection.innerHTML = `
                 <div class="flex items-center gap-3 mb-6">
-                    <h2 class="text-xl font-bold text-gray-800 dark:text-white">${project.name}</h2>
+                    <h2 class="text-xl font-bold text-gray-800 dark:text-white">${escapeHtml(project.name)}</h2>
                     <span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">${projectTasks.length} tarefas</span>
                 </div>
                 
@@ -101,20 +101,20 @@ async function loadTasksBoard() {
 function createTaskCard(task) {
     const priorityColor = task.priority === 'High' ? 'text-red-500' : (task.priority === 'Medium' ? 'text-orange-500' : 'text-blue-500');
     // assignee logic: using 'asignee' alias from api.js join
-    const assigneeAvatar = task.asignee ? `<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-6 ring-2 ring-white dark:ring-gray-800" style='background-image: url("${task.asignee.avatar_url}");' title="${task.asignee.name}"></div>` : '';
+    const assigneeAvatar = task.asignee ? `<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-6 ring-2 ring-white dark:ring-gray-800" style='background-image: url("${escapeHtml(task.asignee.avatar_url)}");' title="${escapeHtml(task.asignee.name)}"></div>` : '';
 
     const card = document.createElement('div');
     card.className = "p-3 bg-white dark:bg-background-dark rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 cursor-pointer hover:shadow-md transition-all group relative";
     card.innerHTML = `
         <div class="flex flex-col gap-2">
             <div class="flex justify-between items-start">
-                <p class="text-gray-800 dark:text-gray-100 text-sm font-semibold leading-tight line-clamp-2 pr-16">${task.title}</p>
+                <p class="text-gray-800 dark:text-gray-100 text-sm font-semibold leading-tight line-clamp-2 pr-16">${escapeHtml(task.title)}</p>
                 <div class="hidden group-hover:flex gap-1 bg-white dark:bg-background-dark p-1 rounded shadow-sm border border-gray-100 dark:border-gray-800 absolute top-2 right-2">
                     <button onclick="editTask('${task.id}')" class="text-blue-500 hover:text-blue-700 p-1 hover:bg-blue-50 rounded"><span class="material-symbols-outlined text-xs">edit</span></button>
                     <button onclick="openDeleteModal('${task.id}')" class="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded"><span class="material-symbols-outlined text-xs">delete</span></button>
                 </div>
             </div>
-            <p class="text-xs text-gray-400 font-mono">${task.ticket_id || ''}</p>
+            <p class="text-xs text-gray-400 font-mono">${escapeHtml(task.ticket_id || '')}</p>
             <div class="flex justify-between items-center mt-1">
                 <div class="flex items-center gap-2">
                     <span class="material-symbols-outlined ${priorityColor} text-sm" title="Prioridade">flag</span>

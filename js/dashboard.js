@@ -109,7 +109,7 @@ function getStatusBadge(status) {
     if (s === 'On Hold' || s === 'Em Espera') {
         return `<span class="inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300"><span class="size-1.5 rounded-full bg-amber-400"></span>Em Espera</span>`;
     }
-    return `<span class="text-xs text-gray-400">${s || '-'}</span>`;
+    return `<span class="text-xs text-gray-400">${escapeHtml(s || '-')}</span>`;
 }
 
 function getProgressColor(progress) {
@@ -176,12 +176,12 @@ function loadProjectsTable(projects) {
         row.innerHTML = `
             <td class="px-5 py-3.5 whitespace-nowrap">
                 <div>
-                    <p class="text-sm font-semibold text-gray-900 dark:text-white">${project.name}</p>
-                    ${project.code ? `<p class="text-[10px] text-gray-400 mt-0.5">#${project.code}</p>` : ''}
+                    <p class="text-sm font-semibold text-gray-900 dark:text-white">${escapeHtml(project.name)}</p>
+                    ${project.code ? `<p class="text-[10px] text-gray-400 mt-0.5">#${escapeHtml(project.code)}</p>` : ''}
                 </div>
             </td>
             <td class="px-5 py-3.5 whitespace-nowrap">${getStatusBadge(project.status)}</td>
-            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${leadName}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${escapeHtml(leadName)}</td>
             <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${budget > 0 ? formatCurrency(budget) : '<span class="text-gray-400">-</span>'}</td>
             <td class="px-5 py-3.5 whitespace-nowrap">${balanceHtml}</td>
             <td class="px-5 py-3.5 whitespace-nowrap">${dueDateHtml}</td>
@@ -271,8 +271,8 @@ function loadUpcomingDeadlines(tasks, projects) {
                 <span class="text-[9px] text-gray-400 leading-tight uppercase">${monthStr}</span>
             </div>
             <div class="flex-1 min-w-0">
-                <p class="text-xs font-semibold text-gray-800 dark:text-white truncate">${taskTitle}</p>
-                <p class="text-[10px] text-gray-500 dark:text-gray-400 truncate">${projectName}</p>
+                <p class="text-xs font-semibold text-gray-800 dark:text-white truncate">${escapeHtml(taskTitle)}</p>
+                <p class="text-[10px] text-gray-500 dark:text-gray-400 truncate">${escapeHtml(projectName)}</p>
                 <span class="text-[10px] font-bold ${urgencyClass}">${urgencyText}</span>
             </div>
         `;
@@ -364,7 +364,7 @@ function setupNotifications(projects) {
         ? recentProjects.map(p => `
             <div class="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-0">
                 <p class="text-xs font-semibold text-gray-900 dark:text-white">Novo Projeto Criado</p>
-                <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">"${p.name}" foi criado recentemente.</p>
+                <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">"${escapeHtml(p.name)}" foi criado recentemente.</p>
                 <p class="text-[10px] text-gray-400 mt-0.5">${new Date(p.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
             </div>
         `).join('')

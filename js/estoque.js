@@ -58,10 +58,10 @@ function renderStockTable(items) {
                 <input type="checkbox" class="stock-checkbox rounded border-gray-300 text-primary focus:ring-primary h-4 w-4" 
                     value="${item.id}" onclick="updateBulkActionState()">
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-[#0d121b] dark:text-white text-sm font-medium">${item.name}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm"><span class="px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-xs">${item.category || 'Outros'}</span></td>
+            <td class="px-6 py-4 whitespace-nowrap text-[#0d121b] dark:text-white text-sm font-medium">${escapeHtml(item.name)}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm"><span class="px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-xs">${escapeHtml(item.category || 'Outros')}</span></td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${item.quantity}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${item.unit}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${escapeHtml(item.unit)}</td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${formatCurrency(val)}</td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white text-sm font-bold">${formatCurrency(total)}</td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
