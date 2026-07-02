@@ -292,6 +292,7 @@ async function loadInitialDropdowns() {
     try {
         allProjects = await fetchProjects();
         const reqProjectSelect = document.getElementById('req-project-select');
+        const histProjectSelect = document.getElementById('hist-edit-project-select');
         allProjects
             .filter(p => p.status !== 'Completed' && p.status !== 'Done')
             .forEach(p => {
@@ -299,11 +300,17 @@ async function loadInitialDropdowns() {
                 opt.value = p.id;
                 opt.textContent = p.name;
                 reqProjectSelect?.appendChild(opt);
+
+                const opt2 = document.createElement('option');
+                opt2.value = p.id;
+                opt2.textContent = p.name;
+                histProjectSelect?.appendChild(opt2);
             });
 
         allClients = await fetchClients();
         const reqClientSelect = document.getElementById('req-client-select');
         const filterClient = document.getElementById('filter-client');
+        const histClientSelect = document.getElementById('hist-edit-client-select');
 
         allClients.forEach(c => {
             const label = c.company ? `${c.name} (${c.company})` : c.name;
@@ -314,6 +321,10 @@ async function loadInitialDropdowns() {
             const opt2 = document.createElement('option');
             opt2.value = c.id; opt2.textContent = label;
             filterClient?.appendChild(opt2);
+
+            const opt3 = document.createElement('option');
+            opt3.value = c.id; opt3.textContent = label;
+            histClientSelect?.appendChild(opt3);
         });
     } catch (e) {
         console.error('Error loading dropdowns:', e);
@@ -380,7 +391,7 @@ function renderOperatorStats() {
             </div>
             <div>
                 <p class="text-2xl font-extrabold text-red-600 dark:text-red-400">${rejectedThisMonth}</p>
-                <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">Indeferidas este Mês</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">Rejeitadas este Mês</p>
             </div>
         </div>
     `;
@@ -464,10 +475,31 @@ function buildItemRowHTML(isFirst = false) {
     `;
 }
 
+// Industrialização routes to Itens do Projeto (needs Projeto); everything else routes to
+// Saída de Estoque + Custo por Cliente (needs Cliente). Only one destination field is shown at a time.
+function updateReqDestinationFields() {
+    const reason = document.getElementById('req-reason')?.value;
+    const isIndustrializacao = reason === 'Industrialização';
+
+    document.getElementById('req-project-wrapper')?.classList.toggle('hidden', !isIndustrializacao);
+    document.getElementById('req-client-wrapper')?.classList.toggle('hidden', isIndustrializacao);
+
+    if (isIndustrializacao) {
+        const clientSelect = document.getElementById('req-client-select');
+        if (clientSelect) clientSelect.value = '';
+    } else {
+        const projectSelect = document.getElementById('req-project-select');
+        if (projectSelect) projectSelect.value = '';
+    }
+}
+
 function setupFormHandlers() {
     const form = document.getElementById('req-form');
     const addItemBtn = document.getElementById('add-item-btn');
     const container = document.getElementById('items-container');
+
+    document.getElementById('req-reason')?.addEventListener('change', updateReqDestinationFields);
+    updateReqDestinationFields();
 
     // Initialize first row
     const firstRow = container?.querySelector('.item-row');
@@ -531,6 +563,22 @@ function setupFormHandlers() {
             return;
         }
 
+        const reasonVal = document.getElementById('req-reason').value;
+        const isIndustrializacao = reasonVal === 'Industrialização';
+        const projectIdVal = document.getElementById('req-project-select').value || null;
+        const clientIdVal = document.getElementById('req-client-select').value || null;
+
+        if (isIndustrializacao && !projectIdVal) {
+            showToast('Selecione o projeto para requisições de Industrialização.', 'warning');
+            document.getElementById('req-project-select').focus();
+            return;
+        }
+        if (!isIndustrializacao && !clientIdVal) {
+            showToast('Selecione o cliente para esta requisição.', 'warning');
+            document.getElementById('req-client-select').focus();
+            return;
+        }
+
         const itemRows = document.querySelectorAll('.item-row');
         const requestsData = [];
 
@@ -554,8 +602,8 @@ function setupFormHandlers() {
                 item_name: itemName.toUpperCase(),
                 unit: itemUnit,
                 quantity: qty,
-                project_id: document.getElementById('req-project-select').value || null,
-                client_id: document.getElementById('req-client-select').value || null,
+                project_id: projectIdVal,
+                client_id: clientIdVal,
                 reason: document.getElementById('req-reason').value,
                 observation: document.getElementById('req-obs').value || null,
                 status: 'PENDENTE',
@@ -592,6 +640,7 @@ function setupFormHandlers() {
                 form.reset();
                 resetItemRows();
                 hideDuplicateWarning();
+                updateReqDestinationFields();
             }
 
             await refreshRequests();
@@ -625,6 +674,7 @@ window.cancelReqEdit = () => {
     document.getElementById('req-form').reset();
     resetItemRows();
     hideDuplicateWarning();
+    updateReqDestinationFields();
 
     const submitBtn = document.getElementById('req-submit-btn');
     if (submitBtn) submitBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:17px">send</span> Enviar Solicitação';
@@ -646,9 +696,10 @@ window.editRequest = (req) => {
         firstRow.querySelector('[name="item_qty"]').value = req.quantity;
     }
 
+    document.getElementById('req-reason').value = req.reason;
+    updateReqDestinationFields();
     document.getElementById('req-project-select').value = req.project_id || '';
     document.getElementById('req-client-select').value = req.client_id || '';
-    document.getElementById('req-reason').value = req.reason;
     document.getElementById('req-obs').value = req.observation || '';
     document.getElementById('req-operator-name').value = req.requested_by || '';
 
@@ -692,7 +743,8 @@ function setupModalHandlers() {
             confirmBtn.disabled = true;
             confirmBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">hourglass_empty</span> Processando...';
 
-            if (req.project_id) {
+            const isIndustrializacao = req.reason === 'Industrialização';
+            if (isIndustrializacao) {
                 await createProjectItem({
                     project_id: req.project_id,
                     name: req.item_name,
@@ -713,7 +765,7 @@ function setupModalHandlers() {
                 approved_at: new Date().toISOString()
             });
 
-            showToast(req.project_id ? 'Item adicionado ao projeto e requisição aprovada!' : 'Saída confirmada e requisição aprovada!', 'success');
+            showToast(isIndustrializacao ? 'Item adicionado ao projeto e requisição aprovada!' : 'Saída confirmada e requisição aprovada!', 'success');
             closeApproveModal();
             await refreshRequests();
 
@@ -727,7 +779,7 @@ function setupModalHandlers() {
         } finally {
             confirmBtn.disabled = false;
             const r = allRequests.find(x => x.id === reqId);
-            confirmBtn.innerHTML = r && r.project_id
+            confirmBtn.innerHTML = r && r.reason === 'Industrialização'
                 ? '<span class="material-symbols-outlined" style="font-size:16px">inventory_2</span> Adicionar ao Projeto'
                 : '<span class="material-symbols-outlined" style="font-size:16px">check</span> Confirmar Saída';
         }
@@ -740,7 +792,7 @@ function setupModalHandlers() {
         const reasonText = document.getElementById('rej-reason-text').value?.trim();
         const confirmBtn = document.getElementById('btn-confirm-reject');
 
-        if (!reasonText) { showToast('Informe o motivo do indeferimento.', 'warning'); return; }
+        if (!reasonText) { showToast('Informe o motivo da rejeição.', 'warning'); return; }
 
         try {
             confirmBtn.disabled = true;
@@ -753,7 +805,7 @@ function setupModalHandlers() {
                 approved_at: new Date().toISOString()
             });
 
-            showToast('Requisição indeferida com sucesso.', 'info');
+            showToast('Requisição rejeitada com sucesso.', 'info');
             closeRejectModal();
             await refreshRequests();
 
@@ -762,11 +814,11 @@ function setupModalHandlers() {
             if (error.code === '42501' || (error.message && error.message.includes('row-level security'))) {
                 showToast('Erro de permissão (RLS). Faça login com uma conta de Administrador real.', 'error', 6000);
             } else {
-                showToast('Erro ao indeferir: ' + error.message, 'error');
+                showToast('Erro ao rejeitar: ' + error.message, 'error');
             }
         } finally {
             confirmBtn.disabled = false;
-            confirmBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">block</span> Confirmar Indeferimento';
+            confirmBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">block</span> Confirmar Rejeição';
         }
     });
 }
@@ -789,7 +841,7 @@ window.openApproveModal = (reqId) => {
 
     const hintEl = document.querySelector('#approve-form .text-\\[10px\\]');
     const confirmBtn = document.getElementById('btn-confirm-approve');
-    if (req.project_id) {
+    if (req.reason === 'Industrialização') {
         if (hintEl) hintEl.textContent = 'Este valor será lançado nos Itens do Projeto — não na Saída de Estoque.';
         if (confirmBtn) confirmBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">inventory_2</span> Adicionar ao Projeto';
     } else {
@@ -865,7 +917,8 @@ async function confirmReturnRequest() {
             await updateStockRequest(currentReturnRequest.id, { quantity: remainingQty });
         }
 
-        if (currentReturnRequest.project_id) {
+        const returnIsIndustrializacao = currentReturnRequest.reason === 'Industrialização';
+        if (returnIsIndustrializacao) {
             const { data: projectItems } = await _supabase
                 .from('project_items')
                 .select('*')
@@ -892,7 +945,7 @@ async function confirmReturnRequest() {
             }
         }
 
-        showToast(currentReturnRequest.project_id ? 'Devolução registrada e item do projeto atualizado!' : 'Devolução registrada e saída de estoque abatida!', 'success');
+        showToast(returnIsIndustrializacao ? 'Devolução registrada e item do projeto atualizado!' : 'Devolução registrada e saída de estoque abatida!', 'success');
         closeReturnModal();
         await refreshRequests();
 
@@ -911,9 +964,9 @@ function statusBadge(status, rejectionReason = '') {
     if (status === 'PENDENTE') {
         return `<span class="inline-flex items-center gap-1.5 rounded-full bg-amber-100 dark:bg-amber-900/40 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300"><span class="size-1.5 rounded-full bg-amber-500 animate-pulse"></span>Pendente</span>`;
     } else if (status === 'DEFERIDO') {
-        return `<span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300"><span class="size-1.5 rounded-full bg-emerald-500"></span>Deferido</span>`;
+        return `<span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300"><span class="size-1.5 rounded-full bg-emerald-500"></span>Aceito</span>`;
     } else if (status === 'INDEFERIDO') {
-        return `<span class="inline-flex items-center gap-1.5 rounded-full bg-red-100 dark:bg-red-900/40 px-2.5 py-1 text-xs font-semibold text-red-700 dark:text-red-300" title="${rejectionReason || ''}"><span class="size-1.5 rounded-full bg-red-500"></span>Indeferido</span>`;
+        return `<span class="inline-flex items-center gap-1.5 rounded-full bg-red-100 dark:bg-red-900/40 px-2.5 py-1 text-xs font-semibold text-red-700 dark:text-red-300" title="${rejectionReason || ''}"><span class="size-1.5 rounded-full bg-red-500"></span>Rejeitado</span>`;
     } else if (status === 'CANCELADO') {
         return `<span class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-xs font-semibold text-gray-600 dark:text-gray-400"><span class="size-1.5 rounded-full bg-gray-400"></span>Devolvido</span>`;
     }
@@ -1064,8 +1117,8 @@ function loadAdminPending() {
             setTimeout(() => editRequest(req), 100);
         });
         addBtn('delete', 'Excluir', 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700', () => deleteRequest(req.id));
-        addBtn('check_circle', 'Deferir', 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30', () => openApproveModal(req.id));
-        addBtn('cancel', 'Indeferir', 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30', () => openRejectModal(req.id));
+        addBtn('check_circle', 'Aceitar', 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30', () => openApproveModal(req.id));
+        addBtn('cancel', 'Rejeitar', 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30', () => openRejectModal(req.id));
 
         actionTd.appendChild(div);
         tbody.appendChild(tr);
@@ -1163,17 +1216,34 @@ function loadAdminHistory() {
 
 // ─── History Edit / Delete ────────────────────────────────────────────────────
 
+function updateHistEditDestinationFields() {
+    const reason = document.getElementById('hist-edit-reason-select')?.value;
+    const isIndustrializacao = reason === 'Industrialização';
+
+    document.getElementById('hist-edit-project-wrapper')?.classList.toggle('hidden', !isIndustrializacao);
+    document.getElementById('hist-edit-client-wrapper')?.classList.toggle('hidden', isIndustrializacao);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('hist-edit-reason-select')?.addEventListener('change', updateHistEditDestinationFields);
+});
+
 window.openHistoryEditModal = (req) => {
     document.getElementById('hist-edit-id').value = req.id;
     document.getElementById('hist-edit-status').value = req.status;
-    document.getElementById('hist-edit-project-id').value = req.project_id || '';
-    document.getElementById('hist-edit-client-id').value = req.client_id || '';
+    document.getElementById('hist-edit-orig-project-id').value = req.project_id || '';
+    document.getElementById('hist-edit-orig-client-id').value = req.client_id || '';
     document.getElementById('hist-edit-orig-name').value = req.item_name || '';
-    document.getElementById('hist-edit-reason').value = req.reason || '';
+    document.getElementById('hist-edit-orig-reason').value = req.reason || '';
     document.getElementById('hist-edit-name').value = req.item_name || '';
     document.getElementById('hist-edit-qty').value = req.quantity;
     document.getElementById('hist-edit-unit').value = req.unit;
     document.getElementById('hist-edit-obs').value = req.observation || '';
+
+    document.getElementById('hist-edit-reason-select').value = req.reason || 'Industrialização';
+    updateHistEditDestinationFields();
+    document.getElementById('hist-edit-project-select').value = req.project_id || '';
+    document.getElementById('hist-edit-client-select').value = req.client_id || '';
 
     const priceRow = document.getElementById('hist-edit-price-row');
     if (req.status === 'DEFERIDO') {
@@ -1194,13 +1264,15 @@ window.closeHistoryEditModal = () => {
 window.saveHistoryEdit = async () => {
     const id = document.getElementById('hist-edit-id').value;
     const status = document.getElementById('hist-edit-status').value;
-    const projectId = document.getElementById('hist-edit-project-id').value || null;
-    const clientId = document.getElementById('hist-edit-client-id').value || null;
+    const origProjectId = document.getElementById('hist-edit-orig-project-id').value || null;
+    const origClientId = document.getElementById('hist-edit-orig-client-id').value || null;
     const origName = document.getElementById('hist-edit-orig-name').value;
-    const reason = document.getElementById('hist-edit-reason').value;
+    const origReason = document.getElementById('hist-edit-orig-reason').value;
+
     const newName = document.getElementById('hist-edit-name').value.trim().toUpperCase();
     const newQty = parseFloat(document.getElementById('hist-edit-qty').value);
     const newUnit = document.getElementById('hist-edit-unit').value;
+    const newReason = document.getElementById('hist-edit-reason-select').value;
     const newPrice = status === 'DEFERIDO' ? (parseFloat(document.getElementById('hist-edit-price').value) || 0) : null;
     const newObs = document.getElementById('hist-edit-obs').value.trim() || null;
 
@@ -1209,20 +1281,75 @@ window.saveHistoryEdit = async () => {
         return;
     }
 
+    const newIsIndustrializacao = newReason === 'Industrialização';
+    const newProjectId = newIsIndustrializacao ? (document.getElementById('hist-edit-project-select').value || null) : null;
+    const newClientId = newIsIndustrializacao ? null : (document.getElementById('hist-edit-client-select').value || null);
+
+    if (newIsIndustrializacao && !newProjectId) {
+        showToast('Selecione o projeto para Industrialização.', 'warning');
+        return;
+    }
+    if (!newIsIndustrializacao && !newClientId) {
+        showToast('Selecione o cliente para esta aplicação.', 'warning');
+        return;
+    }
+
     const saveBtn = document.getElementById('hist-edit-save-btn');
     try {
         saveBtn.disabled = true;
         saveBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">hourglass_empty</span> Salvando...';
 
-        const updates = { item_name: newName, quantity: newQty, unit: newUnit, observation: newObs };
+        const updates = {
+            item_name: newName, quantity: newQty, unit: newUnit, observation: newObs,
+            reason: newReason, project_id: newProjectId, client_id: newClientId
+        };
         if (newPrice !== null) updates.unit_price = newPrice;
         await updateStockRequest(id, updates);
 
         if (status === 'DEFERIDO') {
-            if (projectId) {
+            const origIsIndustrializacao = origReason === 'Industrialização';
+            const destinationChanged = origIsIndustrializacao !== newIsIndustrializacao ||
+                (origIsIndustrializacao && origProjectId !== newProjectId) ||
+                (!origIsIndustrializacao && origClientId !== newClientId);
+
+            if (destinationChanged) {
+                // Remove the record from the original destination
+                if (origIsIndustrializacao) {
+                    const { data: projectItems } = await _supabase
+                        .from('project_items').select('id')
+                        .eq('project_id', origProjectId)
+                        .eq('name', origName.toUpperCase().trim())
+                        .order('created_at', { ascending: false }).limit(1);
+                    if (projectItems && projectItems.length > 0) await deleteProjectItem(projectItems[0].id);
+                } else {
+                    const { data: stockItems } = await _supabase.from('stock_items').select('id').eq('name', origName.toUpperCase().trim());
+                    if (stockItems && stockItems.length > 0) {
+                        let query = _supabase.from('stock_exits').select('*').eq('item_id', stockItems[0].id).eq('reason', origReason);
+                        if (origClientId) query = query.eq('client_id', origClientId);
+                        const { data: exits } = await query.order('created_at', { ascending: false }).limit(1);
+                        if (exits && exits.length > 0) await deleteStockExit(exits[0].id);
+                    }
+                }
+
+                // Recreate it at the new destination
+                if (newIsIndustrializacao) {
+                    await createProjectItem({
+                        project_id: newProjectId,
+                        name: newName,
+                        category: newReason || 'Outros',
+                        quantity: newQty,
+                        unit: newUnit,
+                        value: newPrice || 0,
+                        nota_fiscal: null
+                    });
+                } else {
+                    const itemId = await ensureStockItem(newName, newPrice || 0, newQty, newUnit);
+                    await processStockExit(itemId, newQty, newReason, null, newObs, newClientId);
+                }
+            } else if (newIsIndustrializacao) {
                 const { data: projectItems } = await _supabase
                     .from('project_items').select('*')
-                    .eq('project_id', projectId)
+                    .eq('project_id', origProjectId)
                     .eq('name', origName.toUpperCase().trim())
                     .order('created_at', { ascending: false }).limit(1);
                 if (projectItems && projectItems.length > 0) {
@@ -1233,8 +1360,8 @@ window.saveHistoryEdit = async () => {
             } else {
                 const { data: stockItems } = await _supabase.from('stock_items').select('id').eq('name', origName.toUpperCase().trim());
                 if (stockItems && stockItems.length > 0) {
-                    let query = _supabase.from('stock_exits').select('*').eq('item_id', stockItems[0].id).eq('reason', reason);
-                    if (clientId) query = query.eq('client_id', clientId);
+                    let query = _supabase.from('stock_exits').select('*').eq('item_id', stockItems[0].id).eq('reason', origReason);
+                    if (origClientId) query = query.eq('client_id', origClientId);
                     const { data: exits } = await query.order('created_at', { ascending: false }).limit(1);
                     if (exits && exits.length > 0) {
                         const exitUpdates = { quantity: newQty };
@@ -1263,14 +1390,15 @@ window.saveHistoryEdit = async () => {
 };
 
 window.deleteHistoryRecord = async (req) => {
+    const deleteIsIndustrializacao = req.reason === 'Industrialização';
     const destMsg = req.status === 'DEFERIDO'
-        ? (req.project_id ? ' O item também será removido dos Itens do Projeto.' : ' A saída de estoque correspondente também será removida.')
+        ? (deleteIsIndustrializacao ? ' O item também será removido dos Itens do Projeto.' : ' A saída de estoque correspondente também será removida.')
         : '';
     if (!confirm(`Excluir este registro permanentemente?${destMsg}`)) return;
 
     try {
         if (req.status === 'DEFERIDO') {
-            if (req.project_id) {
+            if (deleteIsIndustrializacao) {
                 const { data: projectItems } = await _supabase
                     .from('project_items').select('id')
                     .eq('project_id', req.project_id)

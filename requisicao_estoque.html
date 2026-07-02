@@ -209,16 +209,16 @@
                     </div>
 
                     <form id="req-form" class="space-y-4">
-                        <!-- Row 1: Project + Client -->
+                        <!-- Row 1: Project (Industrialização only) + Client -->
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">Projeto <span class="font-normal text-gray-400"></span></label>
+                            <div id="req-project-wrapper" class="hidden">
+                                <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">Projeto <span class="text-red-500">*</span></label>
                                 <select id="req-project-select" class="input-field">
                                     <option value="">Selecione um projeto...</option>
                                 </select>
                             </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">Cliente <span class="font-normal text-gray-400"></span></label>
+                            <div id="req-client-wrapper">
+                                <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">Cliente <span class="text-red-500">*</span></label>
                                 <select id="req-client-select" class="input-field">
                                     <option value="">Selecione um cliente...</option>
                                 </select>
@@ -337,8 +337,8 @@
                             class="py-1.5 pl-3 pr-8 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-white rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary/30">
                             <option value="">Todos os Status</option>
                             <option value="PENDENTE">Pendentes</option>
-                            <option value="DEFERIDO">Aprovados</option>
-                            <option value="INDEFERIDO">Indeferidos</option>
+                            <option value="DEFERIDO">Aceitos</option>
+                            <option value="INDEFERIDO">Rejeitados</option>
                             <option value="CANCELADO">Cancelados/Devolvidos</option>
                         </select>
                     </div>
@@ -421,8 +421,8 @@
                             <select id="filter-status" onchange="loadAdminHistory()"
                                 class="py-1.5 pl-3 pr-8 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-white rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 min-w-[140px]">
                                 <option value="">Todos os Status</option>
-                                <option value="DEFERIDO">Deferido</option>
-                                <option value="INDEFERIDO">Indeferido</option>
+                                <option value="DEFERIDO">ACEITAR</option>
+                                <option value="INDEFERIDO">REJEITAR</option>
                             </select>
                             <select id="filter-client" onchange="loadAdminHistory()"
                                 class="py-1.5 pl-3 pr-8 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-white rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 min-w-[150px]">
@@ -484,7 +484,7 @@
                             <span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400" style="font-size:20px">check_circle</span>
                         </div>
                         <div>
-                            <h3 class="text-base font-bold text-gray-900 dark:text-white">Deferir Requisição</h3>
+                            <h3 class="text-base font-bold text-gray-900 dark:text-white">Aceitar Requisição</h3>
                             <p class="text-xs text-gray-400">Confirme os dados e informe o valor unitário</p>
                         </div>
                     </div>
@@ -536,13 +536,13 @@
                             <span class="material-symbols-outlined text-red-600 dark:text-red-400" style="font-size:20px">cancel</span>
                         </div>
                         <div>
-                            <h3 class="text-base font-bold text-gray-900 dark:text-white">Indeferir Requisição</h3>
+                            <h3 class="text-base font-bold text-gray-900 dark:text-white">Rejeitar Requisição</h3>
                             <p class="text-xs text-gray-400">Informe o motivo para o solicitante</p>
                         </div>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
-                            Motivo do Indeferimento <span class="text-red-500">*</span>
+                            Motivo da Rejeição <span class="text-red-500">*</span>
                         </label>
                         <textarea id="rej-reason-text" rows="3" required
                             placeholder="Descreva o motivo para o solicitante..."
@@ -554,7 +554,7 @@
                     <button type="submit" id="btn-confirm-reject"
                         class="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors shadow-sm">
                         <span class="material-symbols-outlined" style="font-size:16px">block</span>
-                        Confirmar Indeferimento
+                        Confirmar Rejeição
                     </button>
                     <button type="button" onclick="closeRejectModal()"
                         class="px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
@@ -624,10 +624,10 @@
                 </div>
                 <input type="hidden" id="hist-edit-id">
                 <input type="hidden" id="hist-edit-status">
-                <input type="hidden" id="hist-edit-project-id">
-                <input type="hidden" id="hist-edit-client-id">
+                <input type="hidden" id="hist-edit-orig-project-id">
+                <input type="hidden" id="hist-edit-orig-client-id">
                 <input type="hidden" id="hist-edit-orig-name">
-                <input type="hidden" id="hist-edit-reason">
+                <input type="hidden" id="hist-edit-orig-reason">
                 <div class="space-y-3">
                     <div>
                         <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Material / Serviço</label>
@@ -652,6 +652,30 @@
                                 <option value="PCT">PCT</option>
                             </select>
                         </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Aplicação / Motivo</label>
+                        <select id="hist-edit-reason-select" class="input-field">
+                            <option value="Industrialização">Industrialização</option>
+                            <option value="Manutenção">Manutenção</option>
+                            <option value="Perda/Quebra">Perda/Quebra</option>
+                            <option value="Venda">Venda</option>
+                            <option value="Serviço">Serviço</option>
+                            <option value="Outro">Outro</option>
+                        </select>
+                        <p class="text-[10px] text-gray-400 mt-1">Se DEFERIDO, alterar a aplicação realoca o registro entre Itens do Projeto e Saída de Estoque.</p>
+                    </div>
+                    <div id="hist-edit-project-wrapper" class="hidden">
+                        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Projeto</label>
+                        <select id="hist-edit-project-select" class="input-field">
+                            <option value="">Selecione um projeto...</option>
+                        </select>
+                    </div>
+                    <div id="hist-edit-client-wrapper">
+                        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Cliente</label>
+                        <select id="hist-edit-client-select" class="input-field">
+                            <option value="">Selecione um cliente...</option>
+                        </select>
                     </div>
                     <div id="hist-edit-price-row">
                         <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Valor Unitário (R$)</label>

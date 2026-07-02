@@ -42,8 +42,8 @@ No linting or test suite. Validation is done visually in the browser.
 | `users` | auth.js, members.js — doubles as the member directory |
 | `stock_items` | saida_estoque.js, simulacao_estoque.js |
 | `stock_movements` | saida_estoque.js |
-| `stock_requests` | requisicao_estoque.js — operator/admin approval flow |
-| `project_items` | project_items.js |
+| `stock_requests` | requisicao_estoque.js — operator/admin approval flow; deferral routes to `project_items` or `stock_exits` depending on `project_id` |
+| `project_items` | project_items.js, requisicao_estoque.js (deferral with project) |
 | `project_forecast_items` | dashboard.js, project_forecasts.js |
 | `clients` | clientes.js, dashboard_custos.js |
 | `cost_entries` | dashboard_custos.js |
@@ -160,7 +160,7 @@ Requires `<div id="toast-container" class="fixed top-4 right-4 z-[100] flex flex
 | `itens_projeto.html` | `project_items.js` | Items per project; imports xlsx + pdfjs |
 | `controle_producao.html` | `production.js` | Kanban board |
 | `saida_estoque.html` | `saida_estoque.js`, `api.js` | Stock exit; exports xlsx/pdf |
-| `requisicao_estoque.html` | `requisicao_estoque.js`, `api.js` | Operator/admin roles; duplicate detection |
+| `requisicao_estoque.html` | `requisicao_estoque.js`, `api.js` | Operator/admin roles; duplicate detection; deferral routes to project_items or stock_exits; history edit/delete |
 | `simulacao_estoque.html` | `simulacao_estoque.js` | Purchase forecast — **não aparece no menu lateral**; acesso direto via URL |
 | `clientes.html` | `clientes.js`, `api.js` | Client CRUD |
 | `dashboard_custos.html` | `dashboard_custos.js` | Cost analysis per client; Chart.js |
@@ -247,3 +247,24 @@ To explain WHY a client exceeded budget, the code runs a cumulative sum over cos
 ### Role Switching (requisicao_estoque.js)
 
 The page has a dual operator/admin view toggled via `switchRole(role)`. The `#nav-cad-user` element in the sidebar also becomes `flex` (visible) for admins via this function.
+
+### Stock Request Approval Routing (requisicao_estoque.js)
+
+The destination is driven by `req.reason` (the "Aplicação / Motivo" field), not by which ID happens to be set. In the request form, `#req-project-wrapper` is shown/required only when reason is "Industrialização"; otherwise `#req-client-wrapper` is shown/required (toggled by `updateReqDestinationFields()`, triggered on `#req-reason` change). Only one of `project_id` / `client_id` is populated per request.
+
+When an admin accepts a requisition (`approve-form` submit, button labeled **Aceitar**):
+
+- **`reason === 'Industrialização'`** → `createProjectItem()` inserts directly into `project_items` (name, quantity, unit, value = unit price, category = reason, nota_fiscal = null). `stock_exits` is **not** written.
+- **Any other reason** (e.g. "Serviço") → `ensureStockItem()` + `processStockExit()` flow, recording into `stock_exits` and attributing cost to `req.client_id`.
+
+The approve modal button label and hint text update dynamically in `openApproveModal()` to reflect the destination. Rejecting (button labeled **Rejeitar**) sets status `INDEFERIDO` — the underlying status values `DEFERIDO`/`INDEFERIDO` are unchanged; only display labels became "Aceito"/"Rejeitado".
+
+**Devolução (return):** `confirmReturnRequest()` mirrors the same split by `reason === 'Industrialização'` — finds the matching `project_items` row by name+project and decrements/deletes it; otherwise it falls back to `stock_exits`.
+
+### History Edit / Delete (requisicao_estoque.js)
+
+Admin "Histórico Consolidado" tab exposes per-row **Editar** and **Apagar** actions alongside the existing Devolver button.
+
+- **`openHistoryEditModal(req)`** — opens `#history-edit-modal` with editable fields: item name, quantity, unit, unit_price (DEFERIDO only), observation, and the **Aplicação/Motivo** (`#hist-edit-reason-select`), which toggles `#hist-edit-project-wrapper` / `#hist-edit-client-wrapper` via `updateHistEditDestinationFields()` exactly like the new-request form. Hidden inputs `hist-edit-status`, `hist-edit-orig-project-id`, `hist-edit-orig-client-id`, `hist-edit-orig-name`, `hist-edit-orig-reason` retain the pre-edit values for lookup/comparison.
+- **`saveHistoryEdit()`** — updates `stock_requests` (including the new `reason`/`project_id`/`client_id`). For DEFERIDO requests, if the edited Aplicação changes which destination type applies (or the selected project/client itself changes), it **reallocates**: deletes the old `project_items`/`stock_exits` row (matched via the `orig-*` hidden fields) and creates a new one at the new destination via `createProjectItem()` or `ensureStockItem()`+`processStockExit()`. If the destination is unchanged, it just updates the existing row in place (name/qty/unit/value).
+- **`deleteHistoryRecord(req)`** — cascade deletes: removes the linked `project_item` or `stock_exit` (if DEFERIDO, routed by `req.reason === 'Industrialização'`), then deletes the `stock_requests` row.
