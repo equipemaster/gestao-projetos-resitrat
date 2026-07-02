@@ -1,10 +1,25 @@
 document.addEventListener('DOMContentLoaded', async () => {
+    await checkDeletePermission();
     await loadInitialData();
     setupFormSubmission();
     setupReturnModal();
 });
 
 let currentReturnExit = null;
+let canDeleteHistory = false;
+
+// ─── Permission ───────────────────────────────────────────────────────────────
+
+async function checkDeletePermission() {
+    try {
+        const { data: { session } } = await _supabase.auth.getSession();
+        const email = (session?.user?.email || '').toLowerCase();
+        canDeleteHistory = email === 'adm@resitrat.com.br';
+    } catch (e) {
+        console.error('Error checking delete permission:', e);
+        canDeleteHistory = false;
+    }
+}
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 
@@ -371,12 +386,35 @@ async function loadExitHistory() {
                 btnGroup.appendChild(returnBtn);
             }
 
+            if (canDeleteHistory) {
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'p-1.5 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors';
+                deleteBtn.title = 'Apagar';
+                deleteBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">delete</span>';
+                deleteBtn.onclick = () => deleteExitHistory(exit);
+                btnGroup.appendChild(deleteBtn);
+            }
+
             actionTd.appendChild(btnGroup);
             tbody.appendChild(tr);
         });
     } catch (e) {
         console.error('Error loading history:', e);
         tbody.innerHTML = `<tr><td colspan="8" class="px-6 py-4 text-center text-sm text-red-500">Erro ao carregar histórico.</td></tr>`;
+    }
+}
+
+async function deleteExitHistory(exit) {
+    const itemName = exit.stock_items ? exit.stock_items.name : 'este registro';
+    if (!confirm(`Tem certeza que deseja apagar a saída de "${itemName}"? Esta ação removerá o registro do histórico e do custo por cliente.`)) return;
+
+    try {
+        await deleteStockExit(exit.id);
+        showToast('Registro apagado com sucesso!', 'success');
+        await loadExitHistory();
+    } catch (e) {
+        console.error('Error deleting exit history:', e);
+        showToast('Erro ao apagar registro: ' + (e.message || 'Erro desconhecido'), 'error');
     }
 }
 
