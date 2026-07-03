@@ -2,7 +2,7 @@
 
 const SLIDE_INTERVAL_MS = 15000;
 const REFRESH_INTERVAL_MS = 60000;
-const SLIDES = ['slide-progress', 'slide-hold', 'slide-done', 'slide-cost'];
+const ALL_SLIDE_IDS = ['slide-progress', 'slide-hold', 'slide-done', 'slide-cost'];
 const SCROLL_TARGETS = { 'slide-progress': 'progress-grid', 'slide-hold': 'hold-grid', 'slide-done': 'done-grid', 'slide-cost': 'cost-list' };
 
 let currentSlide = 0;
@@ -12,6 +12,21 @@ let allProjects = [];
 let allExits = [];
 let clientMap = {};
 let tasksByProject = {};
+
+// Only rotate through slides that actually have something to show — e.g. skip
+// "Em Espera" entirely if there are no on-hold projects right now. The cost
+// slide isn't a project-status bucket, so it always stays in rotation (it has
+// its own empty state for "no exits this month").
+let activeSlides = [...ALL_SLIDE_IDS];
+
+function computeActiveSlides() {
+    const active = [];
+    if (allProjects.some(p => isInProgress(p.status))) active.push('slide-progress');
+    if (allProjects.some(p => isOnHold(p.status))) active.push('slide-hold');
+    if (allProjects.some(p => isCompleted(p.status))) active.push('slide-done');
+    active.push('slide-cost');
+    return active;
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
     startClock();
@@ -60,6 +75,16 @@ async function loadData() {
         renderHoldSlide(allProjects);
         renderDoneSlide(allProjects);
         renderCostSlide(allExits);
+
+        // Recompute which slides currently have data. Keep showing whichever
+        // slide is on screen if it still qualifies (e.g. a periodic refresh
+        // shouldn't yank the display away mid-view); only jump back to the
+        // first slide if the one being shown just lost its last project.
+        const currentSlideId = activeSlides[currentSlide];
+        activeSlides = computeActiveSlides();
+        const idx = activeSlides.indexOf(currentSlideId);
+        currentSlide = idx !== -1 ? idx : 0;
+        applySlideVisibility();
 
         // Re-rendering replaces innerHTML (scrollTop resets to 0) — restart the
         // auto-scroll for whichever slide is currently on screen.
@@ -434,21 +459,37 @@ function renderCostSlide(exits) {
 function startSlideRotation() {
     goToSlide(0);
     slideTimer = setInterval(() => {
-        currentSlide = (currentSlide + 1) % SLIDES.length;
-        goToSlide(currentSlide);
+        goToSlide(currentSlide + 1);
     }, SLIDE_INTERVAL_MS);
 }
 
 function goToSlide(index) {
-    SLIDES.forEach((id, i) => {
-        const el = document.getElementById(id);
-        if (el) el.classList.toggle('active', i === index);
-    });
-    document.querySelectorAll('[data-dot]').forEach(dot => {
-        dot.classList.toggle('active', parseInt(dot.dataset.dot, 10) === index);
-    });
+    if (activeSlides.length === 0) return;
+    currentSlide = ((index % activeSlides.length) + activeSlides.length) % activeSlides.length;
+    applySlideVisibility();
     restartProgressBar();
     autoScrollActiveSlide();
+}
+
+// Shows/hides the slide sections and rebuilds the footer dots to match
+// activeSlides, without touching the rotation timer or progress bar — used
+// both by goToSlide() and by a periodic data refresh that may change which
+// slides qualify without advancing the carousel itself.
+function applySlideVisibility() {
+    const activeId = activeSlides[currentSlide];
+    ALL_SLIDE_IDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('active', id === activeId);
+    });
+    renderDots();
+}
+
+function renderDots() {
+    const container = document.getElementById('slide-dots');
+    if (!container) return;
+    container.innerHTML = activeSlides.map((_, i) =>
+        `<span class="dot ${i === currentSlide ? 'active' : ''}" data-dot="${i}"></span>`
+    ).join('');
 }
 
 function restartProgressBar() {
@@ -467,7 +508,7 @@ function restartProgressBar() {
 // scrolls itself from top to bottom during the slide's time on screen.
 
 function autoScrollActiveSlide() {
-    const containerId = SCROLL_TARGETS[SLIDES[currentSlide]];
+    const containerId = SCROLL_TARGETS[activeSlides[currentSlide]];
     autoScrollContainer(document.getElementById(containerId));
 }
 
