@@ -148,8 +148,15 @@ function formatDuration(ms) {
 }
 
 // "Etapas" = the project's tasks, pulled straight from the tasks board
-// (quadro de tarefas), ordered so whatever's in progress leads, with the
-// longest-running stage always surfaced and flagged.
+// (quadro de tarefas). Order is always by status first — In Progress leads,
+// Done trails last — with the longest-running stage flagged wherever it
+// naturally falls, never reordered ahead of that status grouping.
+function statusThenDueDate(a, b) {
+    const diff = (TASK_STATUS_ORDER[a.task.status] ?? 1) - (TASK_STATUS_ORDER[b.task.status] ?? 1);
+    if (diff !== 0) return diff;
+    return (a.task.due_date || '').localeCompare(b.task.due_date || '');
+}
+
 function renderEtapas(projectId) {
     const tasks = tasksByProject[projectId] || [];
     if (tasks.length === 0) return '';
@@ -161,19 +168,19 @@ function renderEtapas(projectId) {
         if (x.duration != null && (!longest || x.duration > longest.duration)) longest = x;
     });
 
-    const sorted = withDuration.slice().sort((a, b) => {
-        const diff = (TASK_STATUS_ORDER[a.task.status] ?? 1) - (TASK_STATUS_ORDER[b.task.status] ?? 1);
-        if (diff !== 0) return diff;
-        return (a.task.due_date || '').localeCompare(b.task.due_date || '');
-    });
+    const ordered = withDuration.slice().sort(statusThenDueDate);
 
-    // Guarantee the longest stage is visible (not just present in the data)
-    // by pinning it to the front, since surfacing it is the whole point.
-    const ordered = longest
-        ? [longest, ...sorted.filter(x => x.task.id !== longest.task.id)]
-        : sorted;
+    let visible = ordered.slice(0, ETAPAS_MAX_VISIBLE);
 
-    const visible = ordered.slice(0, ETAPAS_MAX_VISIBLE);
+    // Guarantee the longest stage is visible even if it'd be cut off by the
+    // slice above — but insert it back at its correct sorted position instead
+    // of pinning it to the front, so the status order is never broken.
+    if (longest && !visible.some(x => x.task.id === longest.task.id)) {
+        visible = visible.slice(0, ETAPAS_MAX_VISIBLE - 1);
+        visible.push(longest);
+        visible.sort(statusThenDueDate);
+    }
+
     const remaining = ordered.length - visible.length;
 
     const items = visible.map(({ task: t, duration }) => {
