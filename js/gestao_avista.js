@@ -11,6 +11,7 @@ let scrollAnimId = null;
 let allProjects = [];
 let allExits = [];
 let clientMap = {};
+let tasksByProject = {};
 
 document.addEventListener('DOMContentLoaded', async () => {
     startClock();
@@ -37,16 +38,23 @@ function startClock() {
 
 async function loadData() {
     try {
-        const [projects, exits, clients] = await Promise.all([
+        const [projects, exits, clients, tasks] = await Promise.all([
             fetchProjectSummaries(),
             fetchStockExits(),
-            fetchClients()
+            fetchClients(),
+            fetchTasks()
         ]);
 
         allProjects = projects || [];
         allExits = exits || [];
         clientMap = {};
         (clients || []).forEach(c => clientMap[c.id] = c);
+
+        tasksByProject = {};
+        (tasks || []).forEach(t => {
+            if (!t.project_id) return;
+            (tasksByProject[t.project_id] = tasksByProject[t.project_id] || []).push(t);
+        });
 
         renderProgressSlide(allProjects);
         renderHoldSlide(allProjects);
@@ -77,6 +85,96 @@ function isCompleted(status) {
 
 function isOnHold(status) {
     return status === 'On Hold' || status === 'Em Espera';
+}
+
+const TASK_STATUS_ORDER = { 'In Progress': 0, 'Em Andamento': 0, 'To Do': 1, 'A Fazer': 1, 'Done': 2, 'Concluída': 2, 'Concluído': 2 };
+const ETAPAS_MAX_VISIBLE = 4;
+
+function taskStatusIcon(status) {
+    const order = TASK_STATUS_ORDER[status];
+    if (order === 2) {
+        return `<span class="material-symbols-outlined ms-fill text-emerald-500 flex-shrink-0" style="font-size:14px">check_circle</span>`;
+    }
+    if (order === 0) {
+        return `<span class="relative flex items-center justify-center flex-shrink-0" style="width:14px;height:14px">
+            <span class="absolute inline-flex h-2 w-2 rounded-full bg-primary opacity-75 animate-ping"></span>
+            <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary"></span>
+        </span>`;
+    }
+    return `<span class="material-symbols-outlined text-gray-300 flex-shrink-0" style="font-size:14px">radio_button_unchecked</span>`;
+}
+
+// Time a task has spent "open": creation until completion (Done tasks — falling
+// back to due_date since tasks have no completed_at column, only projects do)
+// or creation until now (still-open tasks, i.e. how long it's been sitting).
+function taskDurationMs(t) {
+    if (!t.created_at) return null;
+    const start = new Date(t.created_at);
+    const isDone = TASK_STATUS_ORDER[t.status] === 2;
+    const end = isDone ? new Date(t.completed_at || t.due_date || t.created_at) : new Date();
+    const ms = end - start;
+    return Number.isFinite(ms) && ms >= 0 ? ms : null;
+}
+
+function formatDuration(ms) {
+    const hours = ms / 3.6e6;
+    if (hours < 24) return `${Math.max(1, Math.round(hours))}h`;
+    return `${Math.round(hours / 24)}d`;
+}
+
+// "Etapas" = the project's tasks, pulled straight from the tasks board
+// (quadro de tarefas), ordered so whatever's in progress leads, with the
+// longest-running stage always surfaced and flagged.
+function renderEtapas(projectId) {
+    const tasks = tasksByProject[projectId] || [];
+    if (tasks.length === 0) return '';
+
+    const withDuration = tasks.map(t => ({ task: t, duration: taskDurationMs(t) }));
+
+    let longest = null;
+    withDuration.forEach(x => {
+        if (x.duration != null && (!longest || x.duration > longest.duration)) longest = x;
+    });
+
+    const sorted = withDuration.slice().sort((a, b) => {
+        const diff = (TASK_STATUS_ORDER[a.task.status] ?? 1) - (TASK_STATUS_ORDER[b.task.status] ?? 1);
+        if (diff !== 0) return diff;
+        return (a.task.due_date || '').localeCompare(b.task.due_date || '');
+    });
+
+    // Guarantee the longest stage is visible (not just present in the data)
+    // by pinning it to the front, since surfacing it is the whole point.
+    const ordered = longest
+        ? [longest, ...sorted.filter(x => x.task.id !== longest.task.id)]
+        : sorted;
+
+    const visible = ordered.slice(0, ETAPAS_MAX_VISIBLE);
+    const remaining = ordered.length - visible.length;
+
+    const items = visible.map(({ task: t, duration }) => {
+        const isDone = TASK_STATUS_ORDER[t.status] === 2;
+        const isLongest = !!longest && t.id === longest.task.id;
+        const durationBadge = duration != null
+            ? `<span class="flex items-center gap-0.5 text-[10px] font-semibold flex-shrink-0 ${isLongest ? 'text-amber-600' : 'text-text-light-tertiary'}">
+                ${isLongest ? '<span class="material-symbols-outlined ms-fill" style="font-size:11px">timer</span>' : ''}${formatDuration(duration)}
+               </span>`
+            : '';
+        return `
+            <li class="flex items-center gap-2">
+                ${taskStatusIcon(t.status)}
+                <span class="text-[11px] flex-1 min-w-0 truncate ${isDone ? 'text-text-light-tertiary line-through decoration-gray-300' : (isLongest ? 'font-semibold text-text-light-primary' : 'text-text-light-secondary')}">${escapeHtml(t.title)}</span>
+                ${durationBadge}
+            </li>
+        `;
+    }).join('');
+
+    return `
+        <div class="pt-2.5 border-t border-gray-100">
+            <p class="text-[9px] font-semibold text-text-light-tertiary uppercase tracking-wide mb-1.5">Etapas</p>
+            <ul class="space-y-1.5">${items}</ul>
+            ${remaining > 0 ? `<p class="text-[10px] text-text-light-tertiary mt-1.5">+${remaining} etapa${remaining > 1 ? 's' : ''}</p>` : ''}
+        </div>
+    `;
 }
 
 function metaCustoRow(meta, custo) {
@@ -138,6 +236,7 @@ function renderProgressSlide(projects) {
                     <div class="h-1.5 rounded-full bg-gradient-to-r from-blue-500 to-sky-400 transition-all duration-700" style="width:${progress}%"></div>
                 </div>
                 <p class="text-[10px] text-text-light-tertiary">${completedTasks}/${totalTasks} tarefas</p>
+                ${renderEtapas(p.id)}
                 ${metaCustoRow(p.budget_goal, p.total_cost)}
                 ${p.due_date ? `<div class="flex items-center gap-1 text-[10px] ${isOverdue ? 'text-red-600 font-semibold' : 'text-text-light-tertiary'}">
                     <span class="material-symbols-outlined" style="font-size:12px">event</span>
@@ -187,6 +286,7 @@ function renderHoldSlide(projects) {
                     <div class="h-1.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-300 transition-all duration-700" style="width:${progress}%"></div>
                 </div>
                 <p class="text-[10px] text-text-light-tertiary">${completedTasks}/${totalTasks} tarefas</p>
+                ${renderEtapas(p.id)}
                 ${metaCustoRow(p.budget_goal, p.total_cost)}
                 ${p.due_date ? `<div class="flex items-center gap-1 text-[10px] text-text-light-tertiary">
                     <span class="material-symbols-outlined" style="font-size:12px">event</span>
@@ -231,6 +331,7 @@ function renderDoneSlide(projects) {
                         <span class="material-symbols-outlined" style="font-size:12px">check_circle</span>Concluído
                     </span>
                 </div>
+                ${renderEtapas(p.id)}
                 ${metaCustoRow(p.budget_goal, p.total_cost)}
                 ${p.due_date ? `<div class="flex items-center gap-1 text-[10px] text-text-light-tertiary">
                     <span class="material-symbols-outlined" style="font-size:12px">event_available</span>
