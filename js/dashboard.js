@@ -1,11 +1,13 @@
 let allProjects = [];
 let currentRenderId = 0;
+let projectItemsMap = {};
 
 document.addEventListener('DOMContentLoaded', async () => {
-    const [projects, tasks, allItems] = await Promise.all([
+    const [projects, tasks, allItems, allProjectItems] = await Promise.all([
         fetchProjectSummaries(),
         fetchTasks(),
-        _supabase.from('project_forecast_items').select('project_id, quantity, value, is_paid').then(r => r.data)
+        _supabase.from('project_forecast_items').select('project_id, quantity, value, is_paid').then(r => r.data),
+        _supabase.from('project_items').select('project_id, name, quantity, unit, value, category').then(r => r.data)
     ]);
 
     // Map forecast costs (unpaid only)
@@ -17,6 +19,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
     projects.forEach(p => p.forecast_total = itemsMap[p.id] || 0);
+
+    projectItemsMap = buildProjectItemsMap(allProjectItems);
 
     allProjects = projects;
     const stats = calculateLocalStats(projects, tasks);
@@ -33,7 +37,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('dashboardStatusFilter')?.addEventListener('change', filterDashboard);
 
     window.addEventListener('project-saved', async () => {
-        const [projects, tasks] = await Promise.all([fetchProjectSummaries(), fetchTasks()]);
+        const [projects, tasks, allProjectItems] = await Promise.all([
+            fetchProjectSummaries(),
+            fetchTasks(),
+            _supabase.from('project_items').select('project_id, name, quantity, unit, value, category').then(r => r.data)
+        ]);
         const allIt = await _supabase.from('project_forecast_items').select('project_id, quantity, value, is_paid').then(r => r.data);
         const iMap = {};
         if (allIt) allIt.forEach(item => {
@@ -41,6 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!item.is_paid) iMap[item.project_id] += (parseFloat(item.quantity) || 0) * (parseFloat(item.value) || 0);
         });
         projects.forEach(p => p.forecast_total = iMap[p.id] || 0);
+        projectItemsMap = buildProjectItemsMap(allProjectItems);
         allProjects = projects;
         const stats = calculateLocalStats(projects, tasks);
         loadDashboardStats(stats, tasks);
@@ -123,6 +132,177 @@ function formatCurrency(value) {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
 }
 
+function buildProjectItemsMap(allProjectItems) {
+    const map = {};
+    if (!allProjectItems) return map;
+    allProjectItems.forEach(item => {
+        if (!map[item.project_id]) map[item.project_id] = [];
+        map[item.project_id].push(item);
+    });
+    return map;
+}
+
+// Mirrors the "Real x Meta" progress cell used in the cost-per-client dashboard.
+function buildBudgetProgressCell(totalCost, budget) {
+    const hasMeta = budget > 0;
+    if (!hasMeta) return `<span class="text-xs text-gray-400">Sem meta definida</span>`;
+
+    const isOver = totalCost > budget;
+    const rawPct = (totalCost / budget) * 100;
+    const barPct = Math.min(rawPct, 100);
+
+    let barColor = 'bg-emerald-500';
+    if (rawPct > 100) barColor = 'bg-red-500';
+    else if (rawPct > 80) barColor = 'bg-amber-500';
+
+    return `
+        <div class="w-full min-w-[140px]">
+            <div class="flex justify-between items-baseline text-xs mb-1">
+                <span class="${isOver ? 'text-red-600 dark:text-red-400 font-bold' : 'font-semibold text-gray-700 dark:text-gray-300'}">${formatCurrency(totalCost)}</span>
+                <span class="text-gray-400" style="font-size:10px">${rawPct.toFixed(0)}% de ${formatCurrency(budget)}</span>
+            </div>
+            <div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                <div class="h-1.5 rounded-full ${barColor}" style="width:${barPct}%"></div>
+            </div>
+        </div>`;
+}
+
+// Called from inline onclick — must be global
+function toggleProjectDetail(rowId) {
+    const row = document.getElementById(rowId);
+    const icon = document.getElementById('expand-icon-' + rowId);
+    if (!row) return;
+    const isNowHidden = row.classList.toggle('hidden');
+    if (icon) icon.style.transform = isNowHidden ? '' : 'rotate(180deg)';
+}
+window.toggleProjectDetail = toggleProjectDetail;
+
+// Materials breakdown for a project — mirrors buildDetailHTML() in dashboard_custos.js
+function buildProjectDetailHTML(project, items) {
+    const meta = parseFloat(project.budget_goal || 0);
+    const hasMeta = meta > 0;
+
+    const sortedItems = items
+        .map(i => ({
+            name: i.name,
+            unit: i.unit || 'UN',
+            category: i.category || '—',
+            quantity: parseFloat(i.quantity) || 0,
+            cost: (parseFloat(i.quantity) || 0) * (parseFloat(i.value) || 0)
+        }))
+        .sort((a, b) => b.cost - a.cost);
+
+    const totalCost = sortedItems.reduce((s, i) => s + i.cost, 0);
+    const isOver = hasMeta && totalCost > meta;
+
+    if (sortedItems.length === 0) {
+        return '<div class="px-6 py-4 text-xs text-gray-400">Nenhum material registrado.</div>';
+    }
+
+    // Annotate each item with cumulative cost to identify the tipping point
+    let cumulative = 0;
+    const annotated = sortedItems.map(item => {
+        const before = cumulative;
+        cumulative += item.cost;
+        const isTipping = hasMeta && before < meta && cumulative >= meta;
+        const isExcess = hasMeta && before >= meta;
+        return { ...item, isTipping, isExcess };
+    });
+
+    const itemRows = annotated.map(item => {
+        const pct = totalCost > 0 ? ((item.cost / totalCost) * 100).toFixed(1) : '0.0';
+        const barWidth = totalCost > 0 ? Math.min((item.cost / totalCost) * 100, 100) : 0;
+
+        let rowBg = '';
+        let badge = '';
+        let barColor = 'bg-blue-500';
+
+        if (item.isTipping) {
+            rowBg = 'bg-orange-50 dark:bg-orange-950/20';
+            badge = `<span class="ml-2 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800 whitespace-nowrap">Estourou aqui</span>`;
+            barColor = 'bg-orange-500';
+        } else if (item.isExcess) {
+            rowBg = 'bg-red-50 dark:bg-red-950/20';
+            badge = `<span class="ml-2 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 whitespace-nowrap">Excesso</span>`;
+            barColor = 'bg-red-500';
+        }
+
+        return `
+            <tr class="${rowBg} border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50/80 dark:hover:bg-gray-800/30 transition-colors">
+                <td class="py-2.5 px-4 text-xs font-medium text-gray-800 dark:text-gray-200">
+                    <div class="flex items-center flex-wrap gap-1">${escapeHtml(item.name)}${badge}</div>
+                </td>
+                <td class="py-2.5 px-3 text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">${escapeHtml(item.category)}</td>
+                <td class="py-2.5 px-3 text-xs text-gray-600 dark:text-gray-400 text-right whitespace-nowrap">${item.quantity.toFixed(2)} ${escapeHtml(item.unit)}</td>
+                <td class="py-2.5 px-3 text-xs font-semibold text-gray-800 dark:text-gray-200 text-right whitespace-nowrap">${formatCurrency(item.cost)}</td>
+                <td class="py-2.5 px-4 w-40">
+                    <div class="flex items-center gap-2">
+                        <div class="flex-1 bg-gray-100 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                            <div class="h-1.5 rounded-full ${barColor}" style="width:${barWidth}%"></div>
+                        </div>
+                        <span class="text-gray-500 dark:text-gray-400 w-8 text-right flex-shrink-0" style="font-size:10px">${pct}%</span>
+                    </div>
+                </td>
+            </tr>`;
+    }).join('');
+
+    // Budget summary footer
+    let summaryHtml = '';
+    if (hasMeta) {
+        const excess = totalCost - meta;
+        const excessPct = ((excess / meta) * 100).toFixed(1);
+        summaryHtml = `
+            <div class="flex flex-wrap items-center gap-x-5 gap-y-1.5 px-4 py-2.5 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700">
+                <div class="flex items-center gap-1.5 text-xs">
+                    <span class="text-gray-400">Meta:</span>
+                    <span class="font-semibold text-gray-700 dark:text-gray-300">${formatCurrency(meta)}</span>
+                </div>
+                <div class="flex items-center gap-1.5 text-xs">
+                    <span class="text-gray-400">Realizado:</span>
+                    <span class="font-semibold ${isOver ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}">${formatCurrency(totalCost)}</span>
+                </div>
+                ${isOver ? `<div class="flex items-center gap-1.5 text-xs">
+                    <span class="text-gray-400">Excesso:</span>
+                    <span class="font-bold text-red-600 dark:text-red-400">+${formatCurrency(excess)} (↑${excessPct}%)</span>
+                </div>` : `<div class="flex items-center gap-1.5 text-xs">
+                    <span class="text-gray-400">Disponível:</span>
+                    <span class="font-semibold text-emerald-600 dark:text-emerald-400">${formatCurrency(meta - totalCost)}</span>
+                </div>`}
+            </div>`;
+    }
+
+    const headerWarning = isOver
+        ? `<span class="ml-auto flex items-center gap-1 text-xs font-semibold text-red-600 dark:text-red-400">
+            <span class="material-symbols-outlined" style="font-size:13px">warning</span>
+            Meta excedida em ${formatCurrency(totalCost - meta)}
+           </span>`
+        : '';
+
+    return `
+        <div class="mx-4 my-3 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+            <div class="px-4 py-2.5 bg-slate-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary" style="font-size:15px">inventory_2</span>
+                <span class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                    Materiais utilizados — ${escapeHtml(project.name)}
+                </span>
+                ${headerWarning}
+            </div>
+            <table class="w-full bg-white dark:bg-gray-900">
+                <thead>
+                    <tr class="bg-gray-50 dark:bg-gray-800/60 border-b border-gray-100 dark:border-gray-800">
+                        <th class="text-left py-2 px-4 text-[10px] font-semibold uppercase tracking-wider text-gray-500">Item</th>
+                        <th class="text-left py-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-gray-500">Categoria</th>
+                        <th class="text-right py-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-gray-500">Qtd</th>
+                        <th class="text-right py-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-gray-500">Custo</th>
+                        <th class="py-2 px-4 text-[10px] font-semibold uppercase tracking-wider text-gray-500 w-40">Participação</th>
+                    </tr>
+                </thead>
+                <tbody>${itemRows}</tbody>
+            </table>
+            ${summaryHtml}
+        </div>`;
+}
+
 function loadProjectsTable(projects) {
     currentRenderId++;
     const thisRenderId = currentRenderId;
@@ -130,7 +310,7 @@ function loadProjectsTable(projects) {
     tbody.innerHTML = '';
 
     if (projects.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" class="px-6 py-10 text-center">
+        tbody.innerHTML = `<tr><td colspan="8" class="px-6 py-10 text-center">
             <div class="flex flex-col items-center gap-2">
                 <span class="material-symbols-outlined text-gray-300 dark:text-gray-600" style="font-size:36px">search_off</span>
                 <p class="text-sm text-gray-400">Nenhum projeto encontrado para os filtros aplicados.</p>
@@ -151,19 +331,11 @@ function loadProjectsTable(projects) {
 
         const totalCost = parseFloat(project.total_cost || 0);
         const budget = parseFloat(project.budget_goal || 0);
-        const balance = budget - totalCost;
+        const budgetProgressHtml = buildBudgetProgressCell(totalCost, budget);
 
-        // Balance chip with contextual color
-        let balanceHtml;
-        if (budget === 0) {
-            balanceHtml = `<span class="text-xs text-gray-400">-</span>`;
-        } else if (balance < 0) {
-            balanceHtml = `<span class="inline-flex px-2 py-0.5 rounded-md bg-red-50 dark:bg-red-900/20 text-xs font-bold text-red-700 dark:text-red-400">${formatCurrency(balance)}</span>`;
-        } else if (balance < budget * 0.2) {
-            balanceHtml = `<span class="inline-flex px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-900/20 text-xs font-bold text-amber-700 dark:text-amber-400">${formatCurrency(balance)}</span>`;
-        } else {
-            balanceHtml = `<span class="inline-flex px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-900/20 text-xs font-bold text-emerald-700 dark:text-emerald-400">${formatCurrency(balance)}</span>`;
-        }
+        const projectItems = projectItemsMap[project.id] || [];
+        const hasItems = projectItems.length > 0;
+        const rowId = `project-detail-row-${project.id}`;
 
         const leadName = project.lead_name || (project.lead ? project.lead.name : '-');
         const isOverdue = project.due_date && project.due_date < today && project.status !== 'Completed' && project.status !== 'Concluído';
@@ -175,15 +347,23 @@ function loadProjectsTable(projects) {
         row.className = 'hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors';
         row.innerHTML = `
             <td class="px-5 py-3.5 whitespace-nowrap">
-                <div>
-                    <p class="text-sm font-semibold text-gray-900 dark:text-white">${escapeHtml(project.name)}</p>
-                    ${project.code ? `<p class="text-[10px] text-gray-400 mt-0.5">#${escapeHtml(project.code)}</p>` : ''}
+                <div class="flex items-center gap-1.5">
+                    ${hasItems
+                        ? `<button onclick="toggleProjectDetail('${rowId}')"
+                            class="text-gray-400 hover:text-primary transition-colors p-0.5 rounded-md hover:bg-primary/10 flex-shrink-0"
+                            title="Ver materiais utilizados">
+                            <span id="expand-icon-${rowId}" class="material-symbols-outlined" style="font-size:18px;transition:transform 0.25s ease">expand_more</span>
+                           </button>`
+                        : `<span class="inline-block flex-shrink-0" style="width:18px"></span>`}
+                    <div class="min-w-0">
+                        <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">${escapeHtml(project.name)}</p>
+                        ${project.code ? `<p class="text-[10px] text-gray-400 mt-0.5">#${escapeHtml(project.code)}</p>` : ''}
+                    </div>
                 </div>
             </td>
             <td class="px-5 py-3.5 whitespace-nowrap">${getStatusBadge(project.status)}</td>
             <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${escapeHtml(leadName)}</td>
-            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">${budget > 0 ? formatCurrency(budget) : '<span class="text-gray-400">-</span>'}</td>
-            <td class="px-5 py-3.5 whitespace-nowrap">${balanceHtml}</td>
+            <td class="px-5 py-3.5">${budgetProgressHtml}</td>
             <td class="px-5 py-3.5 whitespace-nowrap">${dueDateHtml}</td>
             <td class="px-5 py-3.5 whitespace-nowrap">
                 <div class="flex items-center gap-2">
@@ -203,6 +383,14 @@ function loadProjectsTable(projects) {
             </td>
         `;
         tbody.appendChild(row);
+
+        if (hasItems) {
+            const detailRow = document.createElement('tr');
+            detailRow.id = rowId;
+            detailRow.className = 'hidden';
+            detailRow.innerHTML = `<td colspan="8" class="p-0">${buildProjectDetailHTML(project, projectItems)}</td>`;
+            tbody.appendChild(detailRow);
+        }
     }
 }
 
