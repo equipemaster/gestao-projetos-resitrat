@@ -21,9 +21,9 @@ let activeSlides = [...ALL_SLIDE_IDS];
 
 function computeActiveSlides() {
     const active = [];
-    if (allProjects.some(p => isInProgress(p.status))) active.push('slide-progress');
+    if (allProjects.some(p => isEffectivelyInProgress(p))) active.push('slide-progress');
     if (allProjects.some(p => isOnHold(p.status))) active.push('slide-hold');
-    if (allProjects.some(p => isCompleted(p.status))) active.push('slide-done');
+    if (allProjects.some(p => isEffectivelyCompleted(p))) active.push('slide-done');
     active.push('slide-cost');
     return active;
 }
@@ -110,6 +110,24 @@ function isCompleted(status) {
 
 function isOnHold(status) {
     return status === 'On Hold' || status === 'Em Espera';
+}
+
+// A project pode estar marcado como Completed no banco mas ainda ter uma tarefa
+// pendente (ex.: uma tarefa nova adicionada depois da conclusão automática) —
+// nesses casos ele deve continuar aparecendo em "Em Andamento" até que todas as
+// tarefas estejam de fato concluídas.
+function hasPendingTasks(projectId) {
+    const tasks = tasksByProject[projectId] || [];
+    return tasks.some(t => t.status !== 'Done' && t.status !== 'Concluída');
+}
+
+function isEffectivelyCompleted(p) {
+    return isCompleted(p.status) && !hasPendingTasks(p.id);
+}
+
+function isEffectivelyInProgress(p) {
+    if (isInProgress(p.status)) return true;
+    return isCompleted(p.status) && hasPendingTasks(p.id);
 }
 
 const TASK_STATUS_ORDER = { 'In Progress': 0, 'Em Andamento': 0, 'To Do': 1, 'A Fazer': 1, 'Done': 2, 'Concluída': 2, 'Concluído': 2 };
@@ -233,7 +251,7 @@ function renderProgressSlide(projects) {
     const countEl = document.getElementById('progress-count');
     if (!grid) return;
 
-    const inProgress = projects.filter(p => isInProgress(p.status));
+    const inProgress = projects.filter(p => isEffectivelyInProgress(p));
     countEl.textContent = inProgress.length;
 
     if (inProgress.length === 0) {
@@ -337,7 +355,7 @@ function renderDoneSlide(projects) {
     if (!grid) return;
 
     const done = projects
-        .filter(p => isCompleted(p.status))
+        .filter(p => isEffectivelyCompleted(p))
         .sort((a, b) => new Date(b.due_date || b.created_at || 0) - new Date(a.due_date || a.created_at || 0));
 
     countEl.textContent = done.length;

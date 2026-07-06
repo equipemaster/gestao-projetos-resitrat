@@ -206,14 +206,14 @@ Requires `<div id="toast-container" class="fixed top-4 right-4 z-[100] flex flex
 | `simulacao_estoque.html` | `simulacao_estoque.js` | Purchase forecast — **não aparece no menu lateral**; acesso direto via URL |
 | `clientes.html` | `clientes.js`, `api.js` | Client CRUD |
 | `dashboard_custos.html` | `dashboard_custos.js` | Cost analysis per client; Chart.js |
-| `tarefas.html` | `tasks.js`, `api.js` | Task board by project |
+| `tarefas.html` | `tasks.js`, `api.js` | Task board by project; live search + status filter chips, collapsible project sections (see "Tarefas Board" under Key Patterns) |
 | `membros.html` | `members.js`, `api.js` | Team management |
 | `relatorios.html` | `reports.js` | Reports |
 | `previsao_projeto.html` | `project_forecasts.js` | Forecast per project (sub-page) |
 | `cadastro_usuario.html` | `cadastro_usuario.js` | Admin-only user registration |
 | `configuracoes.html` | `settings.js` | Settings |
 | `montecarlo.html` | `montecarlo.js` | Monte Carlo stock forecast — chemical/hydraulic materials; reached from relatorios.html |
-| `gestao_avista.html` | `gestao_avista.js` | Kiosk/TV dashboard — no sidebar; auto-rotates every 15s through active projects, completed projects, and current-month cost per client; refetches data every 60s. Exclusive to `adm@resitrat.com.br` and `gestaoavista@resitrat.com.br` (see "Gestão à Vista — Exclusive Third Role" above) |
+| `gestao_avista.html` | `gestao_avista.js` | Kiosk/TV dashboard — no sidebar; auto-rotates every 15s through whichever project-status slides currently have data, plus current-month cost per client; refetches data every 60s. Exclusive to `adm@resitrat.com.br` and `gestaoavista@resitrat.com.br` (see "Gestão à Vista — Exclusive Third Role" above). See "Gestão à Vista — Etapas per Project Card" and "Gestão à Vista — Slide Validation" under Key Patterns |
 | `login.html` | `auth.js` (defer) | No sidebar; split-panel layout |
 
 ## Login Page Design
@@ -311,3 +311,28 @@ Admin "Histórico Consolidado" tab exposes per-row **Editar** and **Apagar** act
 - **`openHistoryEditModal(req)`** — opens `#history-edit-modal` with editable fields: item name, quantity, unit, unit_price (DEFERIDO only), observation, and the **Aplicação/Motivo** (`#hist-edit-reason-select`), which toggles `#hist-edit-project-wrapper` / `#hist-edit-client-wrapper` via `updateHistEditDestinationFields()` exactly like the new-request form. Hidden inputs `hist-edit-status`, `hist-edit-orig-project-id`, `hist-edit-orig-client-id`, `hist-edit-orig-name`, `hist-edit-orig-reason` retain the pre-edit values for lookup/comparison.
 - **`saveHistoryEdit()`** — updates `stock_requests` (including the new `reason`/`project_id`/`client_id`). For DEFERIDO requests, if the edited Aplicação changes which destination type applies (or the selected project/client itself changes), it **reallocates**: deletes the old `project_items`/`stock_exits` row (matched via the `orig-*` hidden fields) and creates a new one at the new destination via `createProjectItem()` or `ensureStockItem()`+`processStockExit()`. If the destination is unchanged, it just updates the existing row in place (name/qty/unit/value).
 - **`deleteHistoryRecord(req)`** — cascade deletes: removes the linked `project_item` or `stock_exit` (if DEFERIDO, routed by `req.reason === 'Industrialização'`), then deletes the `stock_requests` row.
+
+### Gestão à Vista — Etapas per Project Card (gestao_avista.js)
+
+Each project card (Em Andamento / Em Espera / Concluídos slides) shows a compact "Etapas" list pulled straight from `tasks` (grouped by `project_id` into `tasksByProject` inside `loadData()`) — there's no separate stages/etapas table in the schema; the project's tasks *are* its stages.
+
+- **Order is always status-first and must never be broken**: In Progress leads, To Do in the middle, Done trails last (`TASK_STATUS_ORDER`), then by `due_date` within each group (`statusThenDueDate`). Nothing — including highlighting the longest stage — is allowed to reorder a task ahead of its status group.
+- **Duration per task** (`taskDurationMs`): from `created_at` until now for open tasks, or until `due_date` for Done tasks — `tasks` has no `completed_at` column (only `projects` does, set by `checkProjectCompletion()`), so `due_date` is the accepted fallback completion timestamp, same approximation `reports.js` already used.
+- **Longest-running stage** is flagged (amber text + timer icon via `isLongest`) and, if the 4-item visible cap (`ETAPAS_MAX_VISIBLE`) would cut it off, it's spliced back into its correct sorted position with `statusThenDueDate` — never pinned to the front, since that previously broke the status-order rule above (a long-finished Done task could jump ahead of an active In Progress one).
+
+### Gestão à Vista — Slide Validation (gestao_avista.js)
+
+The kiosk only rotates through slides that currently have data. `computeActiveSlides()` checks `allProjects` for at least one project in each status (Em Andamento / Em Espera / Concluído) before including that slide — e.g. "Em Espera" is skipped entirely from the rotation if there are zero on-hold projects. The Custo do Mês slide isn't project-status-based, so it always stays in rotation (it has its own "sem saídas este mês" empty state).
+
+- `activeSlides` (recomputed on every load/refresh) replaces the old fixed 4-item `SLIDES` list everywhere: `goToSlide`, `autoScrollActiveSlide`'s scroll target, and the footer dots.
+- Footer dots are no longer 4 static `<span>`s in the HTML — `#slide-dots` is an empty container rebuilt by `renderDots()` to match `activeSlides.length`.
+- On the 60s periodic refresh, if the slide currently on screen no longer qualifies (e.g. its last on-hold project just got marked Concluído), the kiosk jumps to the first valid slide; otherwise it keeps showing the same slide uninterrupted rather than restarting the carousel.
+
+### Tarefas Board — Search, Filters, Collapsible Sections (tasks.js)
+
+`renderBoard()` rebuilds the whole `#tasks-container` from `currentTasks`/`projects` on every keystroke or filter change (no incremental diffing — cheap enough at this board's scale).
+
+- Search (`#task-search`) matches task title, project name, or assignee name (case-insensitive substring), combined with the status chips (`#status-filter-chips`, `data-status="all|To Do|In Progress|Done"`). A project section is hidden entirely once filtering leaves it with zero matching tasks.
+- Matched text is highlighted via `highlightMatch()`, which finds the match index in the **raw** title and escapes the three slices (before/match/after) individually — escaping the whole string first and searching in the escaped version would misalign indices whenever the title contains `&`, `<`, `>`, `"`, or `'` before the match.
+- Project sections are collapsible (`collapsedProjects` Set keyed by project id; toggled via the `data-collapsed` attribute on `.project-section` + matching CSS in `tarefas.html`).
+- Avatars (header team stack and per-card assignee) go through `renderAvatar()`: real photo if `avatar_url` is set, otherwise colored initials (`avatarColor()` hashes the name into a fixed palette) — replaces the previous behavior of a broken `background-image` when `avatar_url` was empty.

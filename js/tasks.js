@@ -585,14 +585,11 @@ window.saveTask = async () => {
         closeTaskModal();
         await loadTasksBoard();
 
-        // Check for Project Auto-Completion
-        if (status === 'Done' || status === 'Concluída') {
-            const completed = await checkProjectCompletion(projectId);
-            if (completed) {
-                alert('🎉 Todas as tarefas concluídas! O projeto foi marcado como CONCLUÍDO automaticamente.');
-                // Optionally reload tasks board again if we want to reflect project status visually anywhere,
-                // though tasks board is usually just tasks.
-            }
+        // Verifica a conclusão automática do projeto (também reabre um projeto
+        // Concluído caso uma tarefa nova/pendente indique que ele não está mais totalmente concluído)
+        const completed = await checkProjectCompletion(projectId);
+        if (completed) {
+            alert('🎉 Todas as tarefas concluídas! O projeto foi marcado como CONCLUÍDO automaticamente.');
         }
 
     } catch (e) {

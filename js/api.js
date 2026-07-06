@@ -360,10 +360,10 @@ async function deleteStockItem(id) {
     }
 }
 
-// Logic to check and auto-complete project
+// Lógica para concluir automaticamente (ou reabrir) um projeto com base em suas tarefas
 async function checkProjectCompletion(projectId) {
     try {
-        // Fetch all tasks for the project
+        // Busca todas as tarefas do projeto
         const { data: tasks, error } = await _supabase
             .from('tasks')
             .select('status')
@@ -373,11 +373,11 @@ async function checkProjectCompletion(projectId) {
 
         if (!tasks || tasks.length === 0) return false;
 
-        // Check if there are any tasks NOT in 'Done' (or 'Concluída')
+        // Verifica se há alguma tarefa que NÃO esteja 'Done' (ou 'Concluída')
         const remaining = tasks.filter(t => t.status !== 'Done' && t.status !== 'Concluída').length;
 
         if (remaining === 0) {
-            // All tasks done. Mark project as Completed.
+            // Todas as tarefas concluídas. Marca o projeto como Completed.
             const today = new Date().toISOString();
             await updateProject(projectId, {
                 status: 'Completed',
@@ -385,6 +385,23 @@ async function checkProjectCompletion(projectId) {
             });
             return true;
         }
+
+        // Nem todas as tarefas estão concluídas: se o projeto já havia sido
+        // concluído automaticamente, reabre-o para que pare de aparecer em
+        // Concluídos (ex.: uma nova tarefa foi adicionada a um projeto já finalizado).
+        const { data: project, error: projectError } = await _supabase
+            .from('projects')
+            .select('status')
+            .eq('id', projectId)
+            .single();
+
+        if (!projectError && project && (project.status === 'Completed' || project.status === 'Concluído')) {
+            await updateProject(projectId, {
+                status: 'In Progress',
+                completed_at: null
+            });
+        }
+
         return false;
     } catch (e) {
         console.error("Error checking project completion:", e);
