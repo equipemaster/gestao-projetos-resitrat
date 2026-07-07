@@ -2,8 +2,8 @@
 
 const SLIDE_INTERVAL_MS = 15000;
 const REFRESH_INTERVAL_MS = 60000;
-const ALL_SLIDE_IDS = ['slide-progress', 'slide-hold', 'slide-done', 'slide-3d', 'slide-cost'];
-const SCROLL_TARGETS = { 'slide-progress': 'progress-grid', 'slide-hold': 'hold-grid', 'slide-done': 'done-grid', 'slide-3d': 'threed-grid', 'slide-cost': 'cost-list' };
+const ALL_SLIDE_IDS = ['slide-progress', 'slide-3d', 'slide-hold', 'slide-done', 'slide-cost'];
+const SCROLL_TARGETS = { 'slide-progress': 'progress-grid', 'slide-3d': 'threed-grid', 'slide-hold': 'hold-grid', 'slide-done': 'done-grid', 'slide-cost': 'cost-list' };
 
 // Every status this kiosk is capable of displaying (in progress, on hold,
 // completed — both the current English values and legacy Portuguese ones).
@@ -29,9 +29,9 @@ let activeSlides = [...ALL_SLIDE_IDS];
 function computeActiveSlides() {
     const active = [];
     if (allProjects.some(p => isEffectivelyInProgress(p))) active.push('slide-progress');
+    if (allProjects.some(p => isVisible3d(p))) active.push('slide-3d');
     if (allProjects.some(p => isOnHold(p.status))) active.push('slide-hold');
     if (allProjects.some(p => isEffectivelyCompleted(p))) active.push('slide-done');
-    if (allProjects.some(p => isVisible3d(p))) active.push('slide-3d');
     active.push('slide-cost');
     return active;
 }
