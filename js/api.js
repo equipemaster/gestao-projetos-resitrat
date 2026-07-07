@@ -549,6 +549,30 @@ async function fetchStockExits() {
     }
 }
 
+// Same as fetchStockExits() but scoped to a [startISO, endISO) created_at
+// range via .gte()/.lt() — used by callers that only ever need a bounded
+// window (e.g. gestao_avista.js's "current month" cost slide) so Postgres
+// filters the rows instead of shipping the entire, ever-growing stock_exits
+// history down the wire on every load.
+async function fetchStockExitsForDateRange(startISO, endISO) {
+    try {
+        const { data, error } = await _supabase
+            .from('stock_exits')
+            .select(`
+                *,
+                stock_items (name, value, unit, category),
+                clients (name)
+            `)
+            .gte('created_at', startISO)
+            .lt('created_at', endISO);
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Error fetching stock exits for date range:', error.message);
+        return [];
+    }
+}
+
 
 async function updateStockExit(id, updates) {
     const { data, error } = await _supabase.from('stock_exits').update(updates).eq('id', id);

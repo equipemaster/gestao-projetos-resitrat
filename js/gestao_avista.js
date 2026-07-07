@@ -59,15 +59,28 @@ function startClock() {
 
 // ─── Data Loading ─────────────────────────────────────────────────────────────
 
+// [start, end) bounds for "this month", used to scope the stock-exits query
+// to only the rows the cost slide actually displays.
+function currentMonthRange() {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    return { startISO: start.toISOString(), endISO: end.toISOString() };
+}
+
 async function loadData() {
     try {
         // The kiosk only ever shows these statuses (Cancelled/unknown statuses
         // are never rendered on any slide) — filtering server-side via .in()
         // means Postgres does the filtering instead of shipping every project
-        // ever created down the wire just to discard most of it in JS.
+        // ever created down the wire just to discard most of it in JS. Same
+        // idea for stock exits: the cost slide only ever shows the current
+        // month, so the query is scoped to that range instead of pulling the
+        // entire, ever-growing exit history.
+        const { startISO, endISO } = currentMonthRange();
         const [projects, exits, clients] = await Promise.all([
             fetchProjectSummariesByStatus(RELEVANT_PROJECT_STATUSES),
-            fetchStockExits(),
+            fetchStockExitsForDateRange(startISO, endISO),
             fetchClients()
         ]);
 
@@ -86,30 +99,52 @@ async function loadData() {
             (tasksByProject[t.project_id] = tasksByProject[t.project_id] || []).push(t);
         });
 
-        threeDPreviewByProject = await loadThreeDPreviews(allProjects);
-
         renderProgressSlide(allProjects);
         renderHoldSlide(allProjects);
         renderDoneSlide(allProjects);
-        renderThreeDSlide(allProjects);
         renderCostSlide(allExits);
-
-        // Recompute which slides currently have data. Keep showing whichever
-        // slide is on screen if it still qualifies (e.g. a periodic refresh
-        // shouldn't yank the display away mid-view); only jump back to the
-        // first slide if the one being shown just lost its last project.
-        const currentSlideId = activeSlides[currentSlide];
-        activeSlides = computeActiveSlides();
-        const idx = activeSlides.indexOf(currentSlideId);
-        currentSlide = idx !== -1 ? idx : 0;
-        applySlideVisibility();
+        refreshActiveSlides();
 
         // Re-rendering replaces innerHTML (scrollTop resets to 0) — restart the
         // auto-scroll for whichever slide is currently on screen.
         autoScrollActiveSlide();
+
+        // Fire-and-forget: rendering a PDF's first page to an image
+        // (loadThreeDPreviews) means a signed-URL round trip + pdf.js parse +
+        // canvas draw per project with a 3D attachment, which can take
+        // seconds. loadData() used to await this before doing anything else,
+        // so opening the kiosk — and every 60s refresh — stalled the
+        // "Em Andamento" slide (and slide rotation start) behind however long
+        // the 3D renders took, even though that's unrelated data. Not
+        // awaiting here lets the caller (DOMContentLoaded / the refresh
+        // interval) move on immediately; loadThreeDPreviewsAndRender() patches
+        // slide-3d in whenever it finishes.
+        loadThreeDPreviewsAndRender(allProjects);
     } catch (e) {
         console.error('Error loading Gestão à Vista data:', e);
     }
+}
+
+async function loadThreeDPreviewsAndRender(projects) {
+    try {
+        threeDPreviewByProject = await loadThreeDPreviews(projects);
+        renderThreeDSlide(projects);
+        refreshActiveSlides();
+    } catch (e) {
+        console.error('Error loading 3D previews:', e);
+    }
+}
+
+// Recomputes which slides currently have data. Keeps showing whichever slide
+// is on screen if it still qualifies (e.g. a periodic refresh shouldn't yank
+// the display away mid-view); only jumps back to the first slide if the one
+// being shown just lost its last project.
+function refreshActiveSlides() {
+    const currentSlideId = activeSlides[currentSlide];
+    activeSlides = computeActiveSlides();
+    const idx = activeSlides.indexOf(currentSlideId);
+    currentSlide = idx !== -1 ? idx : 0;
+    applySlideVisibility();
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
