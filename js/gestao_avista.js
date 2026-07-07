@@ -5,6 +5,12 @@ const REFRESH_INTERVAL_MS = 60000;
 const ALL_SLIDE_IDS = ['slide-progress', 'slide-hold', 'slide-done', 'slide-3d', 'slide-cost'];
 const SCROLL_TARGETS = { 'slide-progress': 'progress-grid', 'slide-hold': 'hold-grid', 'slide-done': 'done-grid', 'slide-3d': 'threed-grid', 'slide-cost': 'cost-list' };
 
+// Every status this kiosk is capable of displaying (in progress, on hold,
+// completed — both the current English values and legacy Portuguese ones).
+// Anything outside this set (e.g. a Cancelled project) is filtered out by the
+// backend query in loadData() rather than fetched and discarded client-side.
+const RELEVANT_PROJECT_STATUSES = ['In Progress', 'Em Andamento', 'On Hold', 'Em Espera', 'Completed', 'Concluído'];
+
 let currentSlide = 0;
 let slideTimer = null;
 let scrollAnimId = null;
@@ -55,11 +61,14 @@ function startClock() {
 
 async function loadData() {
     try {
-        const [projects, exits, clients, tasks] = await Promise.all([
-            fetchProjectSummaries(),
+        // The kiosk only ever shows these statuses (Cancelled/unknown statuses
+        // are never rendered on any slide) — filtering server-side via .in()
+        // means Postgres does the filtering instead of shipping every project
+        // ever created down the wire just to discard most of it in JS.
+        const [projects, exits, clients] = await Promise.all([
+            fetchProjectSummariesByStatus(RELEVANT_PROJECT_STATUSES),
             fetchStockExits(),
-            fetchClients(),
-            fetchTasks()
+            fetchClients()
         ]);
 
         allProjects = projects || [];
@@ -67,6 +76,10 @@ async function loadData() {
         clientMap = {};
         (clients || []).forEach(c => clientMap[c.id] = c);
 
+        // Tasks are only needed for the projects actually being displayed —
+        // scope the query to those project ids instead of fetching the whole
+        // tasks table.
+        const tasks = await fetchTasksByProjectIds(allProjects.map(p => p.id));
         tasksByProject = {};
         (tasks || []).forEach(t => {
             if (!t.project_id) return;

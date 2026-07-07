@@ -94,6 +94,24 @@ async function fetchProjectSummaries() {
     }
 }
 
+// Same as fetchProjectSummaries() but filters by status server-side via .in()
+// instead of pulling every row and filtering client-side — used by pages that
+// only ever display a known subset of statuses (e.g. gestao_avista.js).
+async function fetchProjectSummariesByStatus(statuses) {
+    try {
+        const { data, error } = await _supabase
+            .from('project_summaries')
+            .select('*')
+            .in('status', statuses)
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Error fetching project summaries by status:', error.message);
+        return [];
+    }
+}
+
 async function fetchTasks() {
     try {
         const { data, error } = await _supabase
@@ -106,6 +124,27 @@ async function fetchTasks() {
         return data;
     } catch (error) {
         console.error('Error fetching tasks:', error.message);
+        return [];
+    }
+}
+
+// Same as fetchTasks() but scoped to a set of project ids via .in() so callers
+// that already know which projects they care about (e.g. gestao_avista.js)
+// don't pull the entire tasks table across the wire.
+async function fetchTasksByProjectIds(projectIds) {
+    if (!projectIds || projectIds.length === 0) return [];
+    try {
+        const { data, error } = await _supabase
+            .from('tasks')
+            .select(`
+                *,
+                asignee:assigned_to (name, avatar_url)
+            `)
+            .in('project_id', projectIds);
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Error fetching tasks by project ids:', error.message);
         return [];
     }
 }
