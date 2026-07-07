@@ -110,28 +110,18 @@ async function loadData() {
         autoScrollActiveSlide();
 
         // Fire-and-forget: rendering a PDF's first page to an image
-        // (loadThreeDPreviews) means a signed-URL round trip + pdf.js parse +
-        // canvas draw per project with a 3D attachment, which can take
-        // seconds. loadData() used to await this before doing anything else,
-        // so opening the kiosk — and every 60s refresh — stalled the
-        // "Em Andamento" slide (and slide rotation start) behind however long
-        // the 3D renders took, even though that's unrelated data. Not
-        // awaiting here lets the caller (DOMContentLoaded / the refresh
-        // interval) move on immediately; loadThreeDPreviewsAndRender() patches
-        // slide-3d in whenever it finishes.
+        // (loadThreeDPreviewsAndRender, below) means a signed-URL round trip +
+        // pdf.js parse + canvas draw per project with a 3D attachment, which
+        // can take seconds. loadData() used to await this before doing
+        // anything else, so opening the kiosk — and every 60s refresh —
+        // stalled the "Em Andamento" slide (and slide rotation start) behind
+        // however long the 3D renders took, even though that's unrelated
+        // data. Not awaiting here lets the caller (DOMContentLoaded / the
+        // refresh interval) move on immediately; loadThreeDPreviewsAndRender()
+        // patches slide-3d in progressively as each preview finishes.
         loadThreeDPreviewsAndRender(allProjects);
     } catch (e) {
         console.error('Error loading Gestão à Vista data:', e);
-    }
-}
-
-async function loadThreeDPreviewsAndRender(projects) {
-    try {
-        threeDPreviewByProject = await loadThreeDPreviews(projects);
-        renderThreeDSlide(projects);
-        refreshActiveSlides();
-    } catch (e) {
-        console.error('Error loading 3D previews:', e);
     }
 }
 
@@ -202,10 +192,22 @@ const PROJECT_3D_BUCKET = 'project-3d-pdfs';
 // the pdf.js render cost.
 const threeDPreviewCache = {};
 
+// Kiosk tiles never display a preview wider than this (see THREE_D_LAYOUTS /
+// the h-64/lg:h-72 fallback grid). The render used to use a flat 1.5x scale
+// regardless of the PDF's actual page size — fine for a letter/A4 drawing,
+// but these are engineering design PDFs that are frequently large-format
+// (A1/A0), where 1.5x produces a canvas several thousand pixels wide. That
+// canvas has to be rasterized by pdf.js AND PNG-encoded on the main thread,
+// which is what was actually stalling the 3D slide — scaling to the page's
+// real size instead of a fixed multiplier was the single biggest win here.
+const THREE_D_PREVIEW_TARGET_WIDTH = 640;
+
 async function renderPdfFirstPageToImage(url) {
     const pdf = await pdfjsLib.getDocument(url).promise;
     const page = await pdf.getPage(1);
-    const viewport = page.getViewport({ scale: 1.5 });
+    const unscaledWidth = page.getViewport({ scale: 1 }).width;
+    const scale = Math.min(2, THREE_D_PREVIEW_TARGET_WIDTH / unscaledWidth);
+    const viewport = page.getViewport({ scale });
     const canvas = document.createElement('canvas');
     canvas.width = viewport.width;
     canvas.height = viewport.height;
@@ -213,26 +215,68 @@ async function renderPdfFirstPageToImage(url) {
     return canvas.toDataURL('image/png');
 }
 
-async function loadThreeDPreviews(projects) {
-    const withPdf = projects.filter(p => p.project_3d_pdf_path);
-    const previews = {};
-    await Promise.all(withPdf.map(async p => {
-        const path = p.project_3d_pdf_path;
-        if (threeDPreviewCache[path]) {
-            previews[p.id] = threeDPreviewCache[path];
-            return;
-        }
+// Renders/display 3D previews progressively instead of all-or-nothing: each
+// preview patches into threeDPreviewByProject and re-renders the slide as
+// soon as it's ready, rather than waiting for every PDF in the kiosk to
+// finish before showing any of them. Signed URLs for every pending PDF are
+// requested in a single batched call (createSignedUrls) instead of one
+// network round trip per project. Rendering itself is capped to a small
+// concurrency, since pdf.js's canvas draw is synchronous main-thread work —
+// running many at once doesn't make each one faster, it just makes the page
+// less responsive while they all fight for the same thread.
+const THREE_D_RENDER_CONCURRENCY = 3;
+
+async function loadThreeDPreviewsAndRender(projects) {
+    try {
+        const withPdf = projects.filter(p => p.project_3d_pdf_path);
+
+        const pending = [];
+        withPdf.forEach(p => {
+            const cached = threeDPreviewCache[p.project_3d_pdf_path];
+            if (cached) threeDPreviewByProject[p.id] = cached;
+            else pending.push(p);
+        });
+
+        renderThreeDSlide(projects);
+        refreshActiveSlides();
+
+        if (pending.length === 0) return;
+
+        let signedUrlByPath = {};
         try {
-            const { data, error } = await _supabase.storage.from(PROJECT_3D_BUCKET).createSignedUrl(path, 3600);
+            const paths = pending.map(p => p.project_3d_pdf_path);
+            const { data, error } = await _supabase.storage.from(PROJECT_3D_BUCKET).createSignedUrls(paths, 3600);
             if (error) throw error;
-            const image = await renderPdfFirstPageToImage(data.signedUrl);
-            threeDPreviewCache[path] = image;
-            previews[p.id] = image;
+            (data || []).forEach(entry => {
+                if (entry && entry.signedUrl && entry.path) signedUrlByPath[entry.path] = entry.signedUrl;
+            });
         } catch (e) {
-            console.error('Error rendering project 3D preview:', e);
+            console.error('Error creating signed URLs for 3D previews:', e);
         }
-    }));
-    return previews;
+
+        let cursor = 0;
+        async function worker() {
+            while (cursor < pending.length) {
+                const p = pending[cursor++];
+                const path = p.project_3d_pdf_path;
+                const url = signedUrlByPath[path];
+                if (!url) continue;
+                try {
+                    const image = await renderPdfFirstPageToImage(url);
+                    threeDPreviewCache[path] = image;
+                    threeDPreviewByProject[p.id] = image;
+                    renderThreeDSlide(projects);
+                    refreshActiveSlides();
+                } catch (e) {
+                    console.error('Error rendering project 3D preview:', e);
+                }
+            }
+        }
+        const workerCount = Math.min(THREE_D_RENDER_CONCURRENCY, pending.length);
+        await Promise.all(Array.from({ length: workerCount }, worker));
+    } catch (e) {
+        console.error('Error loading 3D previews:', e);
+    }
 }
 
 const TASK_STATUS_ORDER = { 'In Progress': 0, 'Em Andamento': 0, 'To Do': 1, 'A Fazer': 1, 'Done': 2, 'Concluída': 2, 'Concluído': 2 };
