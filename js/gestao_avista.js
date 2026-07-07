@@ -2,8 +2,8 @@
 
 const SLIDE_INTERVAL_MS = 15000;
 const REFRESH_INTERVAL_MS = 60000;
-const ALL_SLIDE_IDS = ['slide-progress', 'slide-hold', 'slide-done', 'slide-cost'];
-const SCROLL_TARGETS = { 'slide-progress': 'progress-grid', 'slide-hold': 'hold-grid', 'slide-done': 'done-grid', 'slide-cost': 'cost-list' };
+const ALL_SLIDE_IDS = ['slide-progress', 'slide-hold', 'slide-done', 'slide-3d', 'slide-cost'];
+const SCROLL_TARGETS = { 'slide-progress': 'progress-grid', 'slide-hold': 'hold-grid', 'slide-done': 'done-grid', 'slide-3d': 'threed-grid', 'slide-cost': 'cost-list' };
 
 let currentSlide = 0;
 let slideTimer = null;
@@ -12,6 +12,7 @@ let allProjects = [];
 let allExits = [];
 let clientMap = {};
 let tasksByProject = {};
+let threeDPreviewByProject = {};
 
 // Only rotate through slides that actually have something to show — e.g. skip
 // "Em Espera" entirely if there are no on-hold projects right now. The cost
@@ -24,6 +25,7 @@ function computeActiveSlides() {
     if (allProjects.some(p => isEffectivelyInProgress(p))) active.push('slide-progress');
     if (allProjects.some(p => isOnHold(p.status))) active.push('slide-hold');
     if (allProjects.some(p => isEffectivelyCompleted(p))) active.push('slide-done');
+    if (allProjects.some(p => isVisible3d(p))) active.push('slide-3d');
     active.push('slide-cost');
     return active;
 }
@@ -71,9 +73,12 @@ async function loadData() {
             (tasksByProject[t.project_id] = tasksByProject[t.project_id] || []).push(t);
         });
 
+        threeDPreviewByProject = await loadThreeDPreviews(allProjects);
+
         renderProgressSlide(allProjects);
         renderHoldSlide(allProjects);
         renderDoneSlide(allProjects);
+        renderThreeDSlide(allProjects);
         renderCostSlide(allExits);
 
         // Recompute which slides currently have data. Keep showing whichever
@@ -128,6 +133,58 @@ function isEffectivelyCompleted(p) {
 function isEffectivelyInProgress(p) {
     if (isInProgress(p.status)) return true;
     return isCompleted(p.status) && hasPendingTasks(p.id);
+}
+
+// Cancelled projects are never shown on any slide (matches the other status
+// slides, which likewise only cover in-progress/on-hold/completed).
+function isVisible3d(p) {
+    return !!p.project_3d_pdf_path && (isEffectivelyInProgress(p) || isOnHold(p.status) || isEffectivelyCompleted(p));
+}
+
+// The kiosk shows the 3D design directly on the card (no click required), so
+// the PDF's first page is rendered client-side to a PNG data URL via pdf.js
+// (same library itens_projeto.html already loads, just for rendering here
+// instead of text extraction). The storage bucket is private, so a signed
+// URL is needed to fetch the PDF bytes, but once rendered the image itself
+// needs no further requests.
+const PROJECT_3D_BUCKET = 'project-3d-pdfs';
+
+// Rendered previews are cached by storage path so an unchanged attachment
+// isn't re-rendered on every 60s refresh — only new/changed attachments pay
+// the pdf.js render cost.
+const threeDPreviewCache = {};
+
+async function renderPdfFirstPageToImage(url) {
+    const pdf = await pdfjsLib.getDocument(url).promise;
+    const page = await pdf.getPage(1);
+    const viewport = page.getViewport({ scale: 1.5 });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    return canvas.toDataURL('image/png');
+}
+
+async function loadThreeDPreviews(projects) {
+    const withPdf = projects.filter(p => p.project_3d_pdf_path);
+    const previews = {};
+    await Promise.all(withPdf.map(async p => {
+        const path = p.project_3d_pdf_path;
+        if (threeDPreviewCache[path]) {
+            previews[p.id] = threeDPreviewCache[path];
+            return;
+        }
+        try {
+            const { data, error } = await _supabase.storage.from(PROJECT_3D_BUCKET).createSignedUrl(path, 3600);
+            if (error) throw error;
+            const image = await renderPdfFirstPageToImage(data.signedUrl);
+            threeDPreviewCache[path] = image;
+            previews[p.id] = image;
+        } catch (e) {
+            console.error('Error rendering project 3D preview:', e);
+        }
+    }));
+    return previews;
 }
 
 const TASK_STATUS_ORDER = { 'In Progress': 0, 'Em Andamento': 0, 'To Do': 1, 'A Fazer': 1, 'Done': 2, 'Concluída': 2, 'Concluído': 2 };
@@ -392,7 +449,82 @@ function renderDoneSlide(projects) {
     }).join('');
 }
 
-// ─── Slide 4: Custo do Mês por Cliente ─────────────────────────────────────────
+// ─── Slide 4: Projetos 3D ─────────────────────────────────────────────────────
+// Cross-cutting category (presence of a project_3d_pdf_path attachment) rather
+// than a status bucket. Deliberately minimal card — just the name and the
+// rendered design, scaled to fill the card proportionally — no status/etapas/
+// custo clutter, since the point of this slide is to show the 3D design itself.
+
+// Grid dimensions for each tile count from 1 up to THREE_D_MAX_TILES_FULL —
+// picked so every tile stretches to fill an equal share of the slide with no
+// scrolling. Beyond that count, tiles would get too small to read, so the
+// slide falls back to the same fixed-size, scrollable tile layout the other
+// slides use.
+const THREE_D_LAYOUTS = { 1: [1, 1], 2: [2, 1], 3: [3, 1], 4: [2, 2], 5: [3, 2], 6: [3, 2] };
+const THREE_D_MAX_TILES_FULL = 6;
+
+function threeDCardHtml(p, fill) {
+    const preview = threeDPreviewByProject[p.id];
+    return `
+        <div class="glass-card overflow-hidden flex flex-col ${fill ? 'h-full' : 'h-64 lg:h-72'}">
+            <div class="flex-1 min-h-0 bg-gray-50 flex items-center justify-center">
+                ${preview
+                    ? `<img src="${preview}" alt="Prévia do Projeto 3D" class="max-w-full max-h-full object-contain">`
+                    : `<span class="material-symbols-outlined text-gray-300" style="font-size:40px">view_in_ar</span>`
+                }
+            </div>
+            <p class="px-3 py-2.5 text-sm font-bold text-text-light-primary text-center truncate border-t border-gray-100 flex-shrink-0">${escapeHtml(p.name)}</p>
+        </div>
+    `;
+}
+
+function renderThreeDSlide(projects) {
+    const grid = document.getElementById('threed-grid');
+    const countEl = document.getElementById('threed-count');
+    if (!grid) return;
+
+    const threeD = projects
+        .filter(p => isVisible3d(p))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+    countEl.textContent = threeD.length;
+
+    if (threeD.length === 0) {
+        grid.removeAttribute('style');
+        grid.classList.remove('overflow-hidden');
+        grid.classList.add('overflow-y-auto', 'auto-rows-min');
+        grid.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center gap-2 py-16 text-text-light-tertiary">
+            <span class="material-symbols-outlined" style="font-size:36px">view_in_ar</span>
+            <p class="text-sm">Nenhum projeto 3D no momento.</p>
+        </div>`;
+        return;
+    }
+
+    const layout = THREE_D_LAYOUTS[threeD.length];
+
+    if (layout) {
+        // Fits the whole slide with room to spare — stretch every tile to
+        // fill its share of the grid exactly (inline style beats the
+        // responsive grid-cols-* utility classes on the element, at every
+        // breakpoint), no scrolling needed.
+        const [cols, rows] = layout;
+        grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+        grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+        grid.classList.remove('overflow-y-auto', 'auto-rows-min');
+        grid.classList.add('overflow-hidden');
+        grid.innerHTML = threeD.map(p => threeDCardHtml(p, true)).join('');
+    } else {
+        // Too many to fit without shrinking tiles past readability — fall
+        // back to the fixed-size tile grid + auto-scroll (autoScrollActiveSlide
+        // already handles scrolling any slide taller than the viewport).
+        grid.removeAttribute('style');
+        grid.classList.remove('overflow-hidden');
+        grid.classList.add('overflow-y-auto', 'auto-rows-min');
+        grid.innerHTML = threeD.map(p => threeDCardHtml(p, false)).join('');
+    }
+}
+
+// ─── Slide 5: Custo do Mês por Cliente ─────────────────────────────────────────
 
 function renderCostSlide(exits) {
     const listEl = document.getElementById('cost-list');

@@ -37,7 +37,7 @@ No linting or test suite. Validation is done visually in the browser.
 | Table/View | Used by |
 |---|---|
 | `projects` | api.js `fetchProjects()`, project_modal_shared.js |
-| `project_summaries` (view) | dashboard.js — returns `total_tasks`, `completed_tasks`, `total_cost`, `lead_name` |
+| `project_summaries` (view) | dashboard.js — returns `total_tasks`, `completed_tasks`, `total_cost`, `lead_name`, `project_3d_pdf_path` |
 | `tasks` | api.js `fetchTasks()`, tasks.js |
 | `users` | auth.js, members.js — doubles as the member directory |
 | `stock_items` | saida_estoque.js, simulacao_estoque.js |
@@ -213,7 +213,7 @@ Requires `<div id="toast-container" class="fixed top-4 right-4 z-[100] flex flex
 | `cadastro_usuario.html` | `cadastro_usuario.js` | Admin-only user registration |
 | `configuracoes.html` | `settings.js` | Settings |
 | `montecarlo.html` | `montecarlo.js` | Monte Carlo stock forecast — chemical/hydraulic materials; reached from relatorios.html |
-| `gestao_avista.html` | `gestao_avista.js` | Kiosk/TV dashboard — no sidebar; auto-rotates every 15s through whichever project-status slides currently have data, plus current-month cost per client; refetches data every 60s. Exclusive to `adm@resitrat.com.br` and `gestaoavista@resitrat.com.br` (see "Gestão à Vista — Exclusive Third Role" above). See "Gestão à Vista — Etapas per Project Card" and "Gestão à Vista — Slide Validation" under Key Patterns |
+| `gestao_avista.html` | `gestao_avista.js` | Kiosk/TV dashboard — no sidebar; auto-rotates every 15s through whichever project-status slides currently have data, plus Projetos 3D and current-month cost per client; refetches data every 60s. Exclusive to `adm@resitrat.com.br` and `gestaoavista@resitrat.com.br` (see "Gestão à Vista — Exclusive Third Role" above). See "Gestão à Vista — Etapas per Project Card", "Gestão à Vista — Slide Validation" and "Gestão à Vista — Projetos 3D Slide" under Key Patterns |
 | `login.html` | `auth.js` (defer) | No sidebar; split-panel layout |
 
 ## Login Page Design
@@ -327,6 +327,17 @@ The kiosk only rotates through slides that currently have data. `computeActiveSl
 - `activeSlides` (recomputed on every load/refresh) replaces the old fixed 4-item `SLIDES` list everywhere: `goToSlide`, `autoScrollActiveSlide`'s scroll target, and the footer dots.
 - Footer dots are no longer 4 static `<span>`s in the HTML — `#slide-dots` is an empty container rebuilt by `renderDots()` to match `activeSlides.length`.
 - On the 60s periodic refresh, if the slide currently on screen no longer qualifies (e.g. its last on-hold project just got marked Concluído), the kiosk jumps to the first valid slide; otherwise it keeps showing the same slide uninterrupted rather than restarting the carousel.
+
+### Gestão à Vista — Projetos 3D Slide (gestao_avista.js, project_modal_shared.js)
+
+A 5th slide (`slide-3d`, between Concluídos and Custo do Mês) shows projects that have a 3D design PDF attached. This is a cross-cutting attachment, not a status bucket — `projects.project_3d_pdf_path` (nullable `text`, storage object path) is set from the **Projeto 3D (PDF)** file input in the shared project modal (`project_modal_shared.js`), not a checkbox/category field. `project_summaries` (view) exposes this column alongside its existing fields.
+
+- **Storage**: PDFs live in the private Supabase Storage bucket `project-3d-pdfs` (RLS: `authenticated`-only SELECT/INSERT/UPDATE/DELETE, no `anon` access — unlike the pre-existing `avatars` bucket, which still grants `anon` read/write and was left alone since fixing it wasn't part of the request that led to this feature; flag it back to the user before touching it). Object paths are random (`${crypto.randomUUID()}.pdf`), not derived from project id/name.
+- **Upload/replace/remove** (`project_modal_shared.js`): `uploadProject3dPdf()`, `deleteProject3dPdf()`, `getProject3dPdfSignedUrl()` wrap the bucket. `saveProject()` only touches storage if a new file was chosen or `remove3dPdf()` was clicked (`remove3dPdfRequested` flag) — replacing a file deletes the old object after the new upload succeeds; editing the modal without touching the file input leaves `existing3dPdfPath` untouched.
+- **Kiosk display renders the PDF's first page as an image directly on the card** (no click required — this was a deliberate correction from an earlier click-through-link version). `gestao_avista.html` loads `pdf.js` (`pdfjsLib`, same CDN build `itens_projeto.html` already uses for text extraction, here used for rendering instead). `loadThreeDPreviews()` in `gestao_avista.js`: for each project with a `project_3d_pdf_path`, generates a 1h signed URL (bucket is private), fetches/renders page 1 via `pdfjsLib.getDocument(url).getPage(1).render(...)` onto a canvas, and converts it to a `image/png` data URL with `canvas.toDataURL()`. Results are cached in `threeDPreviewCache` keyed by storage path so an unchanged attachment isn't re-rendered every 60s refresh — only new/changed PDFs pay the render cost.
+- `isVisible3d(p)` gates the slide the same way the other three do: only projects that are effectively in-progress/on-hold/completed (never cancelled) with a `project_3d_pdf_path` show up, and `computeActiveSlides()` skips the whole slide if none currently qualify.
+- **Cards are deliberately minimal** — just the project name and the rendered design, unlike every other slide's status/etapas/meta-custo card (`threeDCardHtml()`). The image fills the space above the name via `flex-1 min-h-0` + `object-contain` (scales proportionally, never cropped/stretched/blurred), falling back to a placeholder icon if the preview hasn't rendered yet. Sorted alphabetically by name (no status grouping, since status isn't shown).
+- **Layout adapts to how many 3D projects currently qualify** (`THREE_D_LAYOUTS`, 1–6 tiles): the grid's `grid-template-columns`/`-rows` are set inline (beats the element's responsive `grid-cols-*` utility classes at every breakpoint) so each tile stretches to fill an equal share of the whole slide with no scrolling — 1 project fills the entire slide, 2 fills it split in half, etc. Past 6 (not in the lookup table) tiles would shrink past readability, so it falls back to the fixed-size (`h-64`/`lg:h-72`) scrollable tile grid the other slides use, relying on the existing `autoScrollActiveSlide()` to scroll through the overflow.
 
 ### Tarefas Board — Search, Filters, Collapsible Sections (tasks.js)
 

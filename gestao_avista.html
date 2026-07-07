@@ -30,6 +30,10 @@
     };
   </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  </script>
   <script src="js/config.js"></script>
   <script src="js/supabaseClient.js"></script>
   <script src="js/auth.js"></script>
@@ -162,7 +166,17 @@
         <div id="done-grid" class="flex-1 min-h-0 overflow-y-auto kiosk-scroll grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 pr-1 auto-rows-min"></div>
       </section>
 
-      <!-- Slide 4: Custo do Mês -->
+      <!-- Slide 4: Projetos 3D -->
+      <section id="slide-3d" class="slide flex flex-col">
+        <div class="flex items-center gap-3 mb-5 flex-shrink-0">
+          <span class="material-symbols-outlined ms-fill text-primary" style="font-size:26px">view_in_ar</span>
+          <h2 class="text-xl lg:text-2xl font-extrabold text-text-light-primary">Projetos 3D</h2>
+          <span id="threed-count" class="ml-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-primary border border-blue-200">0</span>
+        </div>
+        <div id="threed-grid" class="flex-1 min-h-0 overflow-y-auto kiosk-scroll grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 pr-1 auto-rows-min"></div>
+      </section>
+
+      <!-- Slide 5: Custo do Mês -->
       <section id="slide-cost" class="slide flex flex-col">
         <div class="flex items-center gap-3 mb-5 flex-shrink-0">
           <span class="material-symbols-outlined ms-fill text-amber-600" style="font-size:26px">payments</span>

@@ -5,6 +5,8 @@
 
 let editingProjectId = null;
 let projectToDeleteId = null;
+let existing3dPdfPath = null;
+let remove3dPdfRequested = false;
 
 // Ensure this runs after DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
@@ -46,6 +48,14 @@ function setupProjectModal() {
                                 <select id="p-client" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring focus:ring-primary/50 dark:bg-gray-700 dark:text-white sm:text-sm">
                                     <option value="">Selecione um cliente...</option>
                                 </select>
+                            </div>
+                            <div>
+                                <label for="p-3d-file" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Projeto 3D (PDF)</label>
+                                <div id="p-3d-current" class="hidden mt-1 mb-2 flex items-center justify-between gap-2 rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 px-3 py-2">
+                                    <a id="p-3d-current-link" href="#" target="_blank" rel="noopener" class="text-sm text-primary hover:underline truncate">Ver PDF anexado</a>
+                                    <button type="button" onclick="remove3dPdf()" class="text-xs text-red-600 hover:underline flex-shrink-0">Remover</button>
+                                </div>
+                                <input type="file" id="p-3d-file" accept="application/pdf" class="mt-1 block w-full text-sm text-gray-700 dark:text-gray-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/20">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Detalhamento Financeiro</label>
@@ -177,6 +187,10 @@ window.openNewProjectModal = () => {
     document.getElementById('p-status').value = 'In Progress';
     document.getElementById('p-client').value = ''; // Reset client
     document.getElementById('p-budget').value = '';
+    document.getElementById('p-3d-file').value = '';
+    document.getElementById('p-3d-current').classList.add('hidden');
+    existing3dPdfPath = null;
+    remove3dPdfRequested = false;
 
     // Reset detailed budgets
     ['reservatorios', 'filtros', 'bombas', 'hidraulicos', 'eletricos', 'dosadoras', 'terceiros', 'frete', 'eletrolise'].forEach(key => {
@@ -228,6 +242,17 @@ window.editProject = async (id) => {
     document.getElementById('p-client').value = project.client_id || '';
     document.getElementById('p-budget').value = project.budget_goal || '';
 
+    existing3dPdfPath = project.project_3d_pdf_path || null;
+    remove3dPdfRequested = false;
+    document.getElementById('p-3d-file').value = '';
+    const current3dWrap = document.getElementById('p-3d-current');
+    if (existing3dPdfPath) {
+        current3dWrap.classList.remove('hidden');
+        document.getElementById('p-3d-current-link').href = await getProject3dPdfSignedUrl(existing3dPdfPath) || '#';
+    } else {
+        current3dWrap.classList.add('hidden');
+    }
+
     // Load detailed budgets
     document.getElementById('p-budget-reservatorios').value = project.budget_reservatorios || '';
     document.getElementById('p-budget-filtros').value = project.budget_filtros || '';
@@ -244,6 +269,37 @@ window.editProject = async (id) => {
     dueInput.disabled = true;
 
     document.getElementById('project-modal').classList.remove('hidden');
+}
+
+const PROJECT_3D_BUCKET = 'project-3d-pdfs';
+
+window.remove3dPdf = () => {
+    remove3dPdfRequested = true;
+    document.getElementById('p-3d-file').value = '';
+    document.getElementById('p-3d-current').classList.add('hidden');
+}
+
+async function getProject3dPdfSignedUrl(path) {
+    try {
+        const { data, error } = await _supabase.storage.from(PROJECT_3D_BUCKET).createSignedUrl(path, 3600);
+        if (error) throw error;
+        return data.signedUrl;
+    } catch (e) {
+        console.error('Error creating signed URL for project 3D PDF:', e);
+        return null;
+    }
+}
+
+async function uploadProject3dPdf(file) {
+    const path = `${crypto.randomUUID()}.pdf`;
+    const { error } = await _supabase.storage.from(PROJECT_3D_BUCKET).upload(path, file, { contentType: 'application/pdf' });
+    if (error) throw error;
+    return path;
+}
+
+async function deleteProject3dPdf(path) {
+    if (!path) return;
+    await _supabase.storage.from(PROJECT_3D_BUCKET).remove([path]);
 }
 
 async function loadClientsForModal() {
@@ -281,9 +337,29 @@ window.saveProject = async () => {
     const budget_frete = document.getElementById('p-budget-frete').value || null;
     const budget_eletrolise = document.getElementById('p-budget-eletrolise').value || null;
     const clientId = document.getElementById('p-client').value || null;
+    const new3dFile = document.getElementById('p-3d-file').files[0] || null;
 
     if (!name) {
         alert('O Nome do Projeto é obrigatório');
+        return;
+    }
+
+    if (new3dFile && new3dFile.type !== 'application/pdf') {
+        alert('O anexo do Projeto 3D deve ser um arquivo PDF.');
+        return;
+    }
+
+    let project3dPdfPath = existing3dPdfPath;
+    try {
+        if (new3dFile) {
+            project3dPdfPath = await uploadProject3dPdf(new3dFile);
+            if (existing3dPdfPath) await deleteProject3dPdf(existing3dPdfPath);
+        } else if (remove3dPdfRequested) {
+            await deleteProject3dPdf(existing3dPdfPath);
+            project3dPdfPath = null;
+        }
+    } catch (e) {
+        alert('Falha ao enviar o PDF do Projeto 3D: ' + e.message);
         return;
     }
 
@@ -294,6 +370,7 @@ window.saveProject = async () => {
         client_id: clientId,
         due_date: dueDate || null,
         budget_goal: budget || null,
+        project_3d_pdf_path: project3dPdfPath,
         budget_reservatorios,
         budget_filtros,
         budget_bombas,
