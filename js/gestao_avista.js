@@ -196,6 +196,76 @@ const PROJECT_3D_BUCKET = 'project-3d-pdfs';
 // the pdf.js render cost.
 const threeDPreviewCache = {};
 
+// The legacy SVG back-end's PNG encoder assumes every embedded image
+// exposes raw pixel bytes via `.data`. Some embedded images — confirmed via
+// a live production error — instead only expose an ImageBitmap via
+// `.bitmap` (this is how pdf.js hands back certain images, e.g. JPX/JPEG2000
+// ones, which is common for photos/logos in engineering-drawing title
+// blocks), and the encoder crashes trying to `.subarray()` a null `.data`.
+// That crash (stack: encode → convertImgDataToPng → paintInlineImageXObject
+// → paintImageXObject) happens synchronously while walking the page's
+// operator tree, so left unpatched it aborts the *entire* page's SVG output
+// — all the vector line-art along with it — over a single unsupported
+// image, and previously left whole tiles blank (only the frame/title-block
+// vector lines around the missing image would show).
+//
+// Rather than just swallowing that crash (which would drop the image
+// entirely), paintInlineImageXObject is patched to draw the bitmap onto an
+// offscreen canvas first and hand pdf.js real `.data`/`.kind` — the same
+// RGBA bytes pdf.js's own encoder expects — so the image renders instead of
+// being skipped. Verified directly against the real pdf.js SVGGraphics
+// class (not a mock): converting a known solid-color bitmap this way
+// produces the exact expected RGBA bytes, and pdf.js's encoder accepts them
+// without the "subarray" crash. Any *other* image failure (a genuinely
+// unsupported format, not just bitmap-vs-data) still falls back to the
+// swallow-and-skip behavior below, so it can never take down the whole page.
+function bitmapToImageData(bitmap) {
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(bitmap, 0, 0);
+    return ctx.getImageData(0, 0, bitmap.width, bitmap.height).data;
+}
+
+function patchSvgGraphicsImageErrorHandling() {
+    const proto = window.pdfjsLib && pdfjsLib.SVGGraphics && pdfjsLib.SVGGraphics.prototype;
+    if (!proto || proto.__imageErrorsPatched) return;
+
+    const originalInline = proto.paintInlineImageXObject;
+    if (typeof originalInline === 'function') {
+        proto.paintInlineImageXObject = function (imgData, ...rest) {
+            if (imgData && imgData.bitmap && !imgData.data) {
+                try {
+                    imgData.data = bitmapToImageData(imgData.bitmap);
+                    imgData.kind = pdfjsLib.ImageKind.RGBA_32BPP;
+                } catch (e) {
+                    console.warn('Could not convert bitmap image for 3D preview SVG, skipping it:', e);
+                }
+            }
+            try {
+                return originalInline.call(this, imgData, ...rest);
+            } catch (e) {
+                console.warn('Skipping unsupported embedded image (paintInlineImageXObject) in 3D preview SVG:', e);
+            }
+        };
+    }
+
+    ['paintImageXObject', 'paintImageXObjectRepeat'].forEach(name => {
+        const original = proto[name];
+        if (typeof original !== 'function') return;
+        proto[name] = function (...args) {
+            try {
+                return original.apply(this, args);
+            } catch (e) {
+                console.warn(`Skipping unsupported embedded image (${name}) in 3D preview SVG:`, e);
+            }
+        };
+    });
+    proto.__imageErrorsPatched = true;
+}
+patchSvgGraphicsImageErrorHandling();
+
 async function renderPdfFirstPageToSvg(url) {
     const pdf = await pdfjsLib.getDocument(url).promise;
     const page = await pdf.getPage(1);
@@ -212,7 +282,35 @@ async function renderPdfFirstPageToSvg(url) {
     svgElement.setAttribute('width', '100%');
     svgElement.setAttribute('height', '100%');
     svgElement.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-    return new XMLSerializer().serializeToString(svgElement);
+    // pdf.js's DOM factory creates every element via createElementNS with an
+    // explicit "svg:" prefix (e.g. "svg:svg", "svg:clipPath") even though
+    // the namespace itself is already correct. That prefix survives
+    // serialization (confirmed empirically: both XMLSerializer and
+    // .outerHTML keep it), but the HTML parser used by innerHTML only
+    // recognizes a bare "<svg>" start tag as entering foreign (SVG) content
+    // — "<svg:svg>" is parsed as an opaque, unknown HTML element and never
+    // renders. Stripping the prefix here is what makes the markup
+    // renderable once it's dropped into a template string and assigned to
+    // innerHTML (verified: this is the fix — without it every tile silently
+    // fell back to the placeholder icon).
+    return svgElement.outerHTML.replace(/(<\/?)svg:/g, '$1');
+}
+
+// The (deprecated, unmaintained) SVG back-end can be very slow — or, on a
+// pathological PDF, never actually settle — for image-heavy or highly
+// complex pages, unlike the plain text/line-art PDF this was tested against.
+// A render that hangs instead of throwing must not be allowed to wedge the
+// whole pipeline, since blocks are processed sequentially: without a
+// timeout, one stuck PDF partway through the project list would leave every
+// later block — and therefore every later tile — stuck on the placeholder
+// icon forever, with no error ever logged.
+const THREE_D_RENDER_TIMEOUT_MS = 20000;
+
+function withTimeout(promise, ms, message) {
+    return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms))
+    ]);
 }
 
 // Loads/renders 3D previews in sequential blocks rather than kicking off
@@ -220,12 +318,14 @@ async function renderPdfFirstPageToSvg(url) {
 // used to open a dozen parallel fetch+render pipelines the moment the kiosk
 // loaded. Instead, pending PDFs are chunked into blocks of
 // THREE_D_BLOCK_SIZE: each block's signed URLs are requested together in one
-// batched call, rendered in parallel among themselves, patched into the
-// slide, and only then does the next block start — so the browser never has
-// more than one block's worth of PDFs in flight, and the slide fills in
-// progressively block by block instead of all-or-nothing. Pending PDFs are
-// sorted alphabetically first (matching the order the slide itself renders
-// in) so the first block loaded is also the first block seen on screen.
+// batched call, and rendered in parallel among themselves — but each item
+// still patches into the slide as soon as *it* finishes (not only once the
+// whole block is done), so one slow PDF in a block doesn't hold back a
+// faster sibling. Only once every item in the block has settled (rendered,
+// failed, or timed out) does the next block start, so the browser never has
+// more than one block's worth of PDFs in flight. Pending PDFs are sorted
+// alphabetically first (matching the order the slide itself renders in) so
+// the first block loaded is also the first block seen on screen.
 const THREE_D_BLOCK_SIZE = 3;
 
 async function loadThreeDPreviewsAndRender(projects) {
@@ -263,16 +363,18 @@ async function loadThreeDPreviewsAndRender(projects) {
                 const url = signedUrlByPath[path];
                 if (!url) return;
                 try {
-                    const svg = await renderPdfFirstPageToSvg(url);
+                    const svg = await withTimeout(
+                        renderPdfFirstPageToSvg(url), THREE_D_RENDER_TIMEOUT_MS,
+                        `Timed out rendering 3D preview for "${p.name}"`
+                    );
                     threeDPreviewCache[path] = svg;
                     threeDPreviewByProject[p.id] = svg;
+                    renderThreeDSlide(projects);
+                    refreshActiveSlides();
                 } catch (e) {
                     console.error('Error rendering project 3D preview:', e);
                 }
             }));
-
-            renderThreeDSlide(projects);
-            refreshActiveSlides();
         }
     } catch (e) {
         console.error('Error loading 3D previews:', e);
