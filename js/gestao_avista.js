@@ -38,6 +38,10 @@ function computeActiveSlides() {
 
 document.addEventListener('DOMContentLoaded', async () => {
     startClock();
+    // Must happen before the first loadData()/loadThreeDPreviewsAndRender()
+    // call so already-cached previews are picked up on the very first
+    // render pass instead of the placeholder icon flashing first.
+    await hydrateThreeDPreviewCacheFromDb();
     await loadData();
     startSlideRotation();
     setInterval(loadData, REFRESH_INTERVAL_MS);
@@ -189,8 +193,98 @@ const PROJECT_3D_BUCKET = 'project-3d-pdfs';
 
 // Rendered previews are cached by storage path so an unchanged attachment
 // isn't re-rendered on every 60s refresh — only new/changed attachments pay
-// the pdf.js render cost.
+// the pdf.js render cost. This in-memory cache alone only survives within
+// one page load, though — reloading the kiosk tab (a display reboot, a
+// manual refresh) wiped it and forced every 3D PDF to re-render from
+// scratch. threeDPreviewCache is now backed by IndexedDB (see
+// hydrateThreeDPreviewCacheFromDb / persistThreeDPreviewToDb below) so a
+// reload restores every previously-rendered preview instantly instead of
+// re-rendering. The storage path is what makes this safe to keep
+// indefinitely: project_modal_shared.js gives every uploaded 3D PDF a fresh
+// random path and only ever adds/replaces (never reuses) it, so a path
+// changing is already the exact "did this project's 3D file change" signal
+// — same path in means the cached render is still correct, a new path means
+// a real change happened and it's rendered (and persisted) fresh.
 const threeDPreviewCache = {};
+
+// ─── Persistent 3D preview cache (IndexedDB) ───────────────────────────────
+
+const THREE_D_CACHE_DB_NAME = 'resitrat-gestao-avista';
+const THREE_D_CACHE_DB_VERSION = 1;
+const THREE_D_CACHE_STORE = 'three-d-previews';
+
+function openThreeDPreviewDb() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(THREE_D_CACHE_DB_NAME, THREE_D_CACHE_DB_VERSION);
+        request.onupgradeneeded = () => {
+            if (!request.result.objectStoreNames.contains(THREE_D_CACHE_STORE)) {
+                request.result.createObjectStore(THREE_D_CACHE_STORE);
+            }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+// Reads every cached preview into threeDPreviewCache before the first
+// render pass, so a page reload shows previously-rendered PDFs immediately
+// instead of the placeholder icon while they re-render.
+async function hydrateThreeDPreviewCacheFromDb() {
+    try {
+        const db = await openThreeDPreviewDb();
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction(THREE_D_CACHE_STORE, 'readonly');
+            const cursorReq = tx.objectStore(THREE_D_CACHE_STORE).openCursor();
+            cursorReq.onsuccess = (e) => {
+                const cursor = e.target.result;
+                if (!cursor) { resolve(); return; }
+                threeDPreviewCache[cursor.key] = cursor.value;
+                cursor.continue();
+            };
+            cursorReq.onerror = () => reject(cursorReq.error);
+        });
+    } catch (e) {
+        console.error('Error hydrating 3D preview cache from IndexedDB:', e);
+    }
+}
+
+// Fire-and-forget write-through: called right after a render succeeds so
+// the next page load can skip re-rendering that same path.
+async function persistThreeDPreviewToDb(path, dataUrl) {
+    try {
+        const db = await openThreeDPreviewDb();
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction(THREE_D_CACHE_STORE, 'readwrite');
+            tx.objectStore(THREE_D_CACHE_STORE).put(dataUrl, path);
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+        });
+    } catch (e) {
+        console.error('Error persisting 3D preview to IndexedDB:', e);
+    }
+}
+
+// Drops cached entries for storage paths no longer attached to any current
+// project (a replaced or removed 3D PDF) so the cache doesn't grow forever
+// with previews that can never be shown again.
+async function pruneThreeDPreviewDb(validPaths) {
+    try {
+        const db = await openThreeDPreviewDb();
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction(THREE_D_CACHE_STORE, 'readwrite');
+            const cursorReq = tx.objectStore(THREE_D_CACHE_STORE).openCursor();
+            cursorReq.onsuccess = (e) => {
+                const cursor = e.target.result;
+                if (!cursor) { resolve(); return; }
+                if (!validPaths.has(cursor.key)) cursor.delete();
+                cursor.continue();
+            };
+            cursorReq.onerror = () => reject(cursorReq.error);
+        });
+    } catch (e) {
+        console.error('Error pruning 3D preview cache:', e);
+    }
+}
 
 // Kiosk tiles never display a preview wider than this (see THREE_D_LAYOUTS /
 // the h-64/lg:h-72 fallback grid). The render used to use a flat 1.5x scale
@@ -240,6 +334,11 @@ async function loadThreeDPreviewsAndRender(projects) {
         renderThreeDSlide(projects);
         refreshActiveSlides();
 
+        // Fire-and-forget: drop any persisted preview whose path isn't
+        // attached to a current project anymore (a replaced/removed 3D PDF)
+        // so the IndexedDB cache doesn't grow forever.
+        pruneThreeDPreviewDb(new Set(withPdf.map(p => p.project_3d_pdf_path)));
+
         if (pending.length === 0) return;
 
         let signedUrlByPath = {};
@@ -267,6 +366,10 @@ async function loadThreeDPreviewsAndRender(projects) {
                     threeDPreviewByProject[p.id] = image;
                     renderThreeDSlide(projects);
                     refreshActiveSlides();
+                    // Fire-and-forget: persist so the next page load can
+                    // reuse this render instead of paying the pdf.js cost
+                    // again for an attachment that hasn't changed.
+                    persistThreeDPreviewToDb(path, image);
                 } catch (e) {
                     console.error('Error rendering project 3D preview:', e);
                 }
