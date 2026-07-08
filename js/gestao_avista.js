@@ -109,16 +109,16 @@ async function loadData() {
         // auto-scroll for whichever slide is currently on screen.
         autoScrollActiveSlide();
 
-        // Fire-and-forget: rendering a PDF's first page to SVG
+        // Fire-and-forget: rendering a PDF's first page to an image
         // (loadThreeDPreviewsAndRender, below) means a signed-URL round trip +
-        // pdf.js parse + SVG build per project with a 3D attachment, which
+        // pdf.js parse + canvas draw per project with a 3D attachment, which
         // can take seconds. loadData() used to await this before doing
         // anything else, so opening the kiosk — and every 60s refresh —
         // stalled the "Em Andamento" slide (and slide rotation start) behind
         // however long the 3D renders took, even though that's unrelated
         // data. Not awaiting here lets the caller (DOMContentLoaded / the
         // refresh interval) move on immediately; loadThreeDPreviewsAndRender()
-        // patches slide-3d in progressively, block by block, as each finishes.
+        // patches slide-3d in progressively as each preview finishes.
         loadThreeDPreviewsAndRender(allProjects);
     } catch (e) {
         console.error('Error loading Gestão à Vista data:', e);
@@ -180,15 +180,11 @@ function isVisible3d(p) {
 }
 
 // The kiosk shows the 3D design directly on the card (no click required), so
-// the PDF's first page is rendered client-side via pdf.js — as an inline
-// SVG rather than a rasterized PNG data URL. These are engineering design
-// PDFs, i.e. mostly vector line-art, so an SVG stays crisp at any tile size
-// and is typically far lighter than a canvas-rasterized-then-PNG-encoded
-// image of the same page, with no need to pick a target pixel width up
-// front (unlike a raster, an SVG scales via CSS with no quality loss, so
-// there's no THREE_D_PREVIEW_TARGET_WIDTH tradeoff to make). The storage
-// bucket is private, so a signed URL is still needed to fetch the PDF
-// bytes, but once rendered the SVG markup itself needs no further requests.
+// the PDF's first page is rendered client-side to a PNG data URL via pdf.js
+// (same library itens_projeto.html already loads, just for rendering here
+// instead of text extraction). The storage bucket is private, so a signed
+// URL is needed to fetch the PDF bytes, but once rendered the image itself
+// needs no further requests.
 const PROJECT_3D_BUCKET = 'project-3d-pdfs';
 
 // Rendered previews are cached by storage path so an unchanged attachment
@@ -196,137 +192,39 @@ const PROJECT_3D_BUCKET = 'project-3d-pdfs';
 // the pdf.js render cost.
 const threeDPreviewCache = {};
 
-// The legacy SVG back-end's PNG encoder assumes every embedded image
-// exposes raw pixel bytes via `.data`. Some embedded images — confirmed via
-// a live production error — instead only expose an ImageBitmap via
-// `.bitmap` (this is how pdf.js hands back certain images, e.g. JPX/JPEG2000
-// ones, which is common for photos/logos in engineering-drawing title
-// blocks), and the encoder crashes trying to `.subarray()` a null `.data`.
-// That crash (stack: encode → convertImgDataToPng → paintInlineImageXObject
-// → paintImageXObject) happens synchronously while walking the page's
-// operator tree, so left unpatched it aborts the *entire* page's SVG output
-// — all the vector line-art along with it — over a single unsupported
-// image, and previously left whole tiles blank (only the frame/title-block
-// vector lines around the missing image would show).
-//
-// Rather than just swallowing that crash (which would drop the image
-// entirely), paintInlineImageXObject is patched to draw the bitmap onto an
-// offscreen canvas first and hand pdf.js real `.data`/`.kind` — the same
-// RGBA bytes pdf.js's own encoder expects — so the image renders instead of
-// being skipped. Verified directly against the real pdf.js SVGGraphics
-// class (not a mock): converting a known solid-color bitmap this way
-// produces the exact expected RGBA bytes, and pdf.js's encoder accepts them
-// without the "subarray" crash. Any *other* image failure (a genuinely
-// unsupported format, not just bitmap-vs-data) still falls back to the
-// swallow-and-skip behavior below, so it can never take down the whole page.
-function bitmapToImageData(bitmap) {
-    const canvas = document.createElement('canvas');
-    canvas.width = bitmap.width;
-    canvas.height = bitmap.height;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(bitmap, 0, 0);
-    return ctx.getImageData(0, 0, bitmap.width, bitmap.height).data;
-}
+// Kiosk tiles never display a preview wider than this (see THREE_D_LAYOUTS /
+// the h-64/lg:h-72 fallback grid). The render used to use a flat 1.5x scale
+// regardless of the PDF's actual page size — fine for a letter/A4 drawing,
+// but these are engineering design PDFs that are frequently large-format
+// (A1/A0), where 1.5x produces a canvas several thousand pixels wide. That
+// canvas has to be rasterized by pdf.js AND PNG-encoded on the main thread,
+// which is what was actually stalling the 3D slide — scaling to the page's
+// real size instead of a fixed multiplier was the single biggest win here.
+const THREE_D_PREVIEW_TARGET_WIDTH = 640;
 
-function patchSvgGraphicsImageErrorHandling() {
-    const proto = window.pdfjsLib && pdfjsLib.SVGGraphics && pdfjsLib.SVGGraphics.prototype;
-    if (!proto || proto.__imageErrorsPatched) return;
-
-    const originalInline = proto.paintInlineImageXObject;
-    if (typeof originalInline === 'function') {
-        proto.paintInlineImageXObject = function (imgData, ...rest) {
-            if (imgData && imgData.bitmap && !imgData.data) {
-                try {
-                    imgData.data = bitmapToImageData(imgData.bitmap);
-                    imgData.kind = pdfjsLib.ImageKind.RGBA_32BPP;
-                } catch (e) {
-                    console.warn('Could not convert bitmap image for 3D preview SVG, skipping it:', e);
-                }
-            }
-            try {
-                return originalInline.call(this, imgData, ...rest);
-            } catch (e) {
-                console.warn('Skipping unsupported embedded image (paintInlineImageXObject) in 3D preview SVG:', e);
-            }
-        };
-    }
-
-    ['paintImageXObject', 'paintImageXObjectRepeat'].forEach(name => {
-        const original = proto[name];
-        if (typeof original !== 'function') return;
-        proto[name] = function (...args) {
-            try {
-                return original.apply(this, args);
-            } catch (e) {
-                console.warn(`Skipping unsupported embedded image (${name}) in 3D preview SVG:`, e);
-            }
-        };
-    });
-    proto.__imageErrorsPatched = true;
-}
-patchSvgGraphicsImageErrorHandling();
-
-async function renderPdfFirstPageToSvg(url) {
+async function renderPdfFirstPageToImage(url) {
     const pdf = await pdfjsLib.getDocument(url).promise;
     const page = await pdf.getPage(1);
-    const viewport = page.getViewport({ scale: 1 });
-    const opList = await page.getOperatorList();
-    const svgGfx = new pdfjsLib.SVGGraphics(page.commonObjs, page.objs);
-    const svgElement = await svgGfx.getSVG(opList, viewport);
-    // getSVG sizes the element in absolute px and sets preserveAspectRatio to
-    // "none" (stretch to fill). The card should instead scale the SVG to fit
-    // its box the way object-contain does for an <img>: stretch width/height
-    // to fill the container, but swap preserveAspectRatio to "xMidYMid meet"
-    // so the viewBox getSVG already set is scaled proportionally (never
-    // cropped/stretched) and centered within it.
-    svgElement.setAttribute('width', '100%');
-    svgElement.setAttribute('height', '100%');
-    svgElement.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-    // pdf.js's DOM factory creates every element via createElementNS with an
-    // explicit "svg:" prefix (e.g. "svg:svg", "svg:clipPath") even though
-    // the namespace itself is already correct. That prefix survives
-    // serialization (confirmed empirically: both XMLSerializer and
-    // .outerHTML keep it), but the HTML parser used by innerHTML only
-    // recognizes a bare "<svg>" start tag as entering foreign (SVG) content
-    // — "<svg:svg>" is parsed as an opaque, unknown HTML element and never
-    // renders. Stripping the prefix here is what makes the markup
-    // renderable once it's dropped into a template string and assigned to
-    // innerHTML (verified: this is the fix — without it every tile silently
-    // fell back to the placeholder icon).
-    return svgElement.outerHTML.replace(/(<\/?)svg:/g, '$1');
+    const unscaledWidth = page.getViewport({ scale: 1 }).width;
+    const scale = Math.min(2, THREE_D_PREVIEW_TARGET_WIDTH / unscaledWidth);
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    return canvas.toDataURL('image/png');
 }
 
-// The (deprecated, unmaintained) SVG back-end can be very slow — or, on a
-// pathological PDF, never actually settle — for image-heavy or highly
-// complex pages, unlike the plain text/line-art PDF this was tested against.
-// A render that hangs instead of throwing must not be allowed to wedge the
-// whole pipeline, since blocks are processed sequentially: without a
-// timeout, one stuck PDF partway through the project list would leave every
-// later block — and therefore every later tile — stuck on the placeholder
-// icon forever, with no error ever logged.
-const THREE_D_RENDER_TIMEOUT_MS = 20000;
-
-function withTimeout(promise, ms, message) {
-    return Promise.race([
-        promise,
-        new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms))
-    ]);
-}
-
-// Loads/renders 3D previews in sequential blocks rather than kicking off
-// every pending PDF at once — a project list with a dozen 3D attachments
-// used to open a dozen parallel fetch+render pipelines the moment the kiosk
-// loaded. Instead, pending PDFs are chunked into blocks of
-// THREE_D_BLOCK_SIZE: each block's signed URLs are requested together in one
-// batched call, and rendered in parallel among themselves — but each item
-// still patches into the slide as soon as *it* finishes (not only once the
-// whole block is done), so one slow PDF in a block doesn't hold back a
-// faster sibling. Only once every item in the block has settled (rendered,
-// failed, or timed out) does the next block start, so the browser never has
-// more than one block's worth of PDFs in flight. Pending PDFs are sorted
-// alphabetically first (matching the order the slide itself renders in) so
-// the first block loaded is also the first block seen on screen.
-const THREE_D_BLOCK_SIZE = 3;
+// Renders/display 3D previews progressively instead of all-or-nothing: each
+// preview patches into threeDPreviewByProject and re-renders the slide as
+// soon as it's ready, rather than waiting for every PDF in the kiosk to
+// finish before showing any of them. Signed URLs for every pending PDF are
+// requested in a single batched call (createSignedUrls) instead of one
+// network round trip per project. Rendering itself is capped to a small
+// concurrency, since pdf.js's canvas draw is synchronous main-thread work —
+// running many at once doesn't make each one faster, it just makes the page
+// less responsive while they all fight for the same thread.
+const THREE_D_RENDER_CONCURRENCY = 3;
 
 async function loadThreeDPreviewsAndRender(projects) {
     try {
@@ -338,44 +236,44 @@ async function loadThreeDPreviewsAndRender(projects) {
             if (cached) threeDPreviewByProject[p.id] = cached;
             else pending.push(p);
         });
-        pending.sort((a, b) => a.name.localeCompare(b.name));
 
         renderThreeDSlide(projects);
         refreshActiveSlides();
 
-        for (let i = 0; i < pending.length; i += THREE_D_BLOCK_SIZE) {
-            const block = pending.slice(i, i + THREE_D_BLOCK_SIZE);
+        if (pending.length === 0) return;
 
-            let signedUrlByPath = {};
-            try {
-                const paths = block.map(p => p.project_3d_pdf_path);
-                const { data, error } = await _supabase.storage.from(PROJECT_3D_BUCKET).createSignedUrls(paths, 3600);
-                if (error) throw error;
-                (data || []).forEach(entry => {
-                    if (entry && entry.signedUrl && entry.path) signedUrlByPath[entry.path] = entry.signedUrl;
-                });
-            } catch (e) {
-                console.error('Error creating signed URLs for 3D previews:', e);
-            }
+        let signedUrlByPath = {};
+        try {
+            const paths = pending.map(p => p.project_3d_pdf_path);
+            const { data, error } = await _supabase.storage.from(PROJECT_3D_BUCKET).createSignedUrls(paths, 3600);
+            if (error) throw error;
+            (data || []).forEach(entry => {
+                if (entry && entry.signedUrl && entry.path) signedUrlByPath[entry.path] = entry.signedUrl;
+            });
+        } catch (e) {
+            console.error('Error creating signed URLs for 3D previews:', e);
+        }
 
-            await Promise.all(block.map(async p => {
+        let cursor = 0;
+        async function worker() {
+            while (cursor < pending.length) {
+                const p = pending[cursor++];
                 const path = p.project_3d_pdf_path;
                 const url = signedUrlByPath[path];
-                if (!url) return;
+                if (!url) continue;
                 try {
-                    const svg = await withTimeout(
-                        renderPdfFirstPageToSvg(url), THREE_D_RENDER_TIMEOUT_MS,
-                        `Timed out rendering 3D preview for "${p.name}"`
-                    );
-                    threeDPreviewCache[path] = svg;
-                    threeDPreviewByProject[p.id] = svg;
+                    const image = await renderPdfFirstPageToImage(url);
+                    threeDPreviewCache[path] = image;
+                    threeDPreviewByProject[p.id] = image;
                     renderThreeDSlide(projects);
                     refreshActiveSlides();
                 } catch (e) {
                     console.error('Error rendering project 3D preview:', e);
                 }
-            }));
+            }
         }
+        const workerCount = Math.min(THREE_D_RENDER_CONCURRENCY, pending.length);
+        await Promise.all(Array.from({ length: workerCount }, worker));
     } catch (e) {
         console.error('Error loading 3D previews:', e);
     }
@@ -658,14 +556,14 @@ const THREE_D_LAYOUTS = { 1: [1, 1], 2: [2, 1], 3: [3, 1], 4: [2, 2], 5: [3, 2],
 const THREE_D_MAX_TILES_FULL = 6;
 
 function threeDCardHtml(p, fill) {
-    // preview is raw <svg>...</svg> markup produced by renderPdfFirstPageToSvg
-    // (pdf.js output, not user-controlled text — safe to inline directly,
-    // unlike the free-text fields elsewhere that go through escapeHtml).
     const preview = threeDPreviewByProject[p.id];
     return `
         <div class="glass-card overflow-hidden flex flex-col ${fill ? 'h-full' : 'h-64 lg:h-72'}">
-            <div class="flex-1 min-h-0 bg-gray-50 flex items-center justify-center overflow-hidden">
-                ${preview || `<span class="material-symbols-outlined text-gray-300" style="font-size:40px">view_in_ar</span>`}
+            <div class="flex-1 min-h-0 bg-gray-50 flex items-center justify-center">
+                ${preview
+                    ? `<img src="${preview}" alt="Prévia do Projeto 3D" class="max-w-full max-h-full object-contain">`
+                    : `<span class="material-symbols-outlined text-gray-300" style="font-size:40px">view_in_ar</span>`
+                }
             </div>
             <p class="px-3 py-2.5 text-sm font-bold text-text-light-primary text-center truncate border-t border-gray-100 flex-shrink-0">${escapeHtml(p.name)}</p>
         </div>
