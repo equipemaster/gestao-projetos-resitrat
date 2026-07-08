@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(node --check js/gestao_avista.js)",
-      "Bash(node driver.mjs)"
+      "Bash(node driver.mjs)",
+      "WebSearch",
+      "WebFetch(domain:cdnjs.com)",
+      "Bash(node --check \"c:\\\\Users\\\\Samsung\\\\Documents\\\\GitHub\\\\gestao-projetos-resitrat\\\\js\\\\gestao_avista.js\")"
     ]
   }
 }
