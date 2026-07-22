@@ -655,3 +655,98 @@ async function deleteStockRequest(id) {
     if (error) throw error;
 }
 
+// --- Purchase Orders (Ordem de Compra / Conferência de Recebimento) ---
+
+async function fetchPurchaseOrders() {
+    try {
+        const { data, error } = await _supabase
+            .from('purchase_orders')
+            .select(`
+                *,
+                projects (name),
+                purchase_order_items (*)
+            `)
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Error fetching purchase orders:', error.message);
+        return [];
+    }
+}
+
+async function createPurchaseOrder(orderData, items) {
+    const { data: order, error: orderError } = await _supabase
+        .from('purchase_orders')
+        .insert([orderData])
+        .select()
+        .single();
+    if (orderError) throw orderError;
+
+    const itemRows = items.map(item => ({ ...item, order_id: order.id }));
+    const { error: itemsError } = await _supabase.from('purchase_order_items').insert(itemRows);
+    if (itemsError) throw itemsError;
+
+    return order;
+}
+
+async function updatePurchaseOrder(id, updates) {
+    const { data, error } = await _supabase.from('purchase_orders').update(updates).eq('id', id).select();
+    if (error) throw error;
+    return data;
+}
+
+async function deletePurchaseOrder(id) {
+    const { error } = await _supabase.from('purchase_orders').delete().eq('id', id);
+    if (error) throw error;
+}
+
+async function createPurchaseOrderItem(itemData) {
+    const { data, error } = await _supabase.from('purchase_order_items').insert([itemData]).select();
+    if (error) throw error;
+    return data;
+}
+
+async function updatePurchaseOrderItem(id, updates) {
+    const { data, error } = await _supabase.from('purchase_order_items').update(updates).eq('id', id).select();
+    if (error) throw error;
+    return data;
+}
+
+async function deletePurchaseOrderItem(id) {
+    const { error } = await _supabase.from('purchase_order_items').delete().eq('id', id);
+    if (error) throw error;
+}
+
+// All receipts for a set of item ids, newest first — used to render the
+// "restante pendente" history log per item on the conference page.
+async function fetchPurchaseOrderReceipts(itemIds) {
+    if (!itemIds || itemIds.length === 0) return [];
+    try {
+        const { data, error } = await _supabase
+            .from('purchase_order_receipts')
+            .select('*')
+            .in('order_item_id', itemIds)
+            .order('received_at', { ascending: false });
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Error fetching purchase order receipts:', error.message);
+        return [];
+    }
+}
+
+// Registers a partial (or full) receipt for one item. The DB trigger
+// (apply_purchase_receipt) resyncs the item's quantity_received and the
+// parent order's status automatically — callers just need to re-fetch after.
+async function createPurchaseOrderReceipt(receiptData) {
+    const { data, error } = await _supabase.from('purchase_order_receipts').insert([receiptData]).select();
+    if (error) throw error;
+    return data;
+}
+
+async function deletePurchaseOrderReceipt(id) {
+    const { error } = await _supabase.from('purchase_order_receipts').delete().eq('id', id);
+    if (error) throw error;
+}
+
