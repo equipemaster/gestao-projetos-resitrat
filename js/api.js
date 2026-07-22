@@ -261,6 +261,16 @@ async function adminUpdateUserAuth(userId, newEmail, newPassword) {
     return data;
 }
 
+// Every account in auth.users (not just the ones with a public.users profile
+// row) — admin-only RPC, see list_auth_accounts migration. Used by
+// cadastro_usuario.js to surface accounts that exist in Supabase Auth but
+// never got a profile (silently treated as operators otherwise).
+async function fetchAuthAccounts() {
+    const { data, error } = await _supabase.rpc('list_auth_accounts');
+    if (error) throw error;
+    return data;
+}
+
 // Project Items
 async function fetchProjectItems(projectId) {
     try {

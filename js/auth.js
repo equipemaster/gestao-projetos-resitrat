@@ -110,7 +110,7 @@ async function checkSession() {
             // Fetch profile to verify role dynamically
             const { data: profile } = await _supabase
                 .from('users')
-                .select('role')
+                .select('role, allowed_pages')
                 .eq('email', session.user.email)
                 .maybeSingle();
 
@@ -147,6 +147,14 @@ async function checkSession() {
             const isRequisicaoPage = window.location.pathname.endsWith('requisicao_estoque.html');
             const isGestaoAvistaPage = window.location.pathname.endsWith('gestao_avista.html');
 
+            // Per-user page allow-list (cadastro_usuario.html → Permissões de Acesso).
+            // NULL/empty means the legacy default: operator-tier accounts only get
+            // requisicao_estoque.html. Admin-tier roles ignore this entirely — they
+            // always have full access (see isAdmin branch below).
+            const allowedPages = Array.isArray(profile?.allowed_pages) ? profile.allowed_pages : [];
+            const currentPageName = window.location.pathname.split('/').pop();
+            const isPageAllowed = isRequisicaoPage || allowedPages.includes(currentPageName);
+
             if (isGestaoAvistaUser) {
                 // This account exists only to display the Gestão à Vista panel
                 if (!isGestaoAvistaPage) {
@@ -162,8 +170,8 @@ async function checkSession() {
             }
 
             if (!isAdmin) {
-                // Block direct operator access to any page except requisicao_estoque.html
-                if (!isRequisicaoPage) {
+                // Block direct operator access to any page outside their allow-list
+                if (!isPageAllowed) {
                     window.location.href = 'requisicao_estoque.html';
                     return;
                 }
@@ -173,9 +181,11 @@ async function checkSession() {
                 menuLinks.forEach(link => {
                     const href = link.getAttribute('href') || '';
                     const onclickStr = link.getAttribute('onclick') || '';
+                    const hrefPage = href.split('/').pop();
                     const isAllowed = href.includes('requisicao_estoque.html') ||
                                       href.includes('logout') ||
-                                      onclickStr.includes('signOut');
+                                      onclickStr.includes('signOut') ||
+                                      allowedPages.includes(hrefPage);
                     if (!isAllowed) {
                         link.classList.add('hidden');
                         link.classList.remove('flex');

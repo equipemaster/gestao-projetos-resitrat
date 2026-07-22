@@ -140,7 +140,7 @@ function statusBadge(status) {
         CANCELADO: { label: 'Cancelado', cls: 'bg-gray-100 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700' }
     };
     const s = map[status] || map.ABERTO;
-    return `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold border ${s.cls}">${s.label}</span>`;
+    return `<span class="inline-block whitespace-nowrap px-2.5 py-0.5 rounded-full text-xs font-bold border ${s.cls}">${s.label}</span>`;
 }
 
 // ─── Orders Table ────────────────────────────────────────────────────────────
@@ -193,7 +193,7 @@ function renderOrders() {
                     </div>
                 </td>
                 <td class="px-5 py-3.5 text-sm font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap">${formatCurrency(totalValue)}</td>
-                <td class="px-5 py-3.5">${statusBadge(o.status)}</td>
+                <td class="px-5 py-3.5 whitespace-nowrap">${statusBadge(o.status)}</td>
                 <td class="px-5 py-3.5 text-right whitespace-nowrap">
                     <button onclick="openDetailModal('${o.id}')" class="p-1.5 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-md transition-colors" title="Ver detalhes">
                         <span class="material-symbols-outlined" style="font-size:18px">visibility</span>

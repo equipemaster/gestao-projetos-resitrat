@@ -150,7 +150,7 @@ function statusBadge(status) {
         CANCELADO: { label: 'Cancelado', cls: 'bg-gray-100 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700' }
     };
     const s = map[status] || map.ABERTO;
-    return `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold border ${s.cls}">${s.label}</span>`;
+    return `<span class="inline-block whitespace-nowrap px-2.5 py-0.5 rounded-full text-xs font-bold border ${s.cls}">${s.label}</span>`;
 }
 
 // ─── Orders Table ────────────────────────────────────────────────────────────
@@ -215,7 +215,7 @@ function renderOrders() {
                         <span class="text-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">${itemsDone}/${items.length}</span>
                     </div>
                 </td>
-                <td class="px-5 py-3.5">${statusBadge(o.status)}</td>
+                <td class="px-5 py-3.5 whitespace-nowrap">${statusBadge(o.status)}</td>
                 <td class="px-5 py-3.5 text-right whitespace-nowrap">
                     ${canReceive ? `
                     <button onclick="openReceiptModal('${o.id}')" class="flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold text-white bg-primary hover:bg-blue-700 transition-colors shadow-sm ml-auto">
