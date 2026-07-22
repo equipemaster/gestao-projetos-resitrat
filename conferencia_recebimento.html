@@ -32,7 +32,7 @@
     <script src="js/supabaseClient.js"></script>
     <script src="js/auth.js?v=3"></script>
     <script src="js/api.js?v=1" defer></script>
-    <script src="js/conferencia_recebimento.js?v=2" defer></script>
+    <script src="js/conferencia_recebimento.js?v=3" defer></script>
     <style>
         ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -269,7 +269,7 @@
                                 <th class="px-3 py-2 text-left font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Qtd. Recebida</th>
                                 <th class="px-3 py-2 text-left font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Restante Pendente</th>
                                 <th class="px-3 py-2 text-left font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Recebido por</th>
-                                <th class="px-3 py-2 text-left font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">NF / Obs.</th>
+                                <th class="px-3 py-2 text-left font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Nota Fiscal</th>
                             </tr>
                         </thead>
                         <tbody id="rm-history-body" class="bg-white dark:bg-background-dark divide-y divide-gray-200 dark:divide-gray-700">
@@ -295,14 +295,20 @@
             <span>Val. Unit.: <strong class="rm-item-unit-price text-gray-700 dark:text-gray-200"></strong></span>
             <span>Recebido: <strong class="rm-item-received text-emerald-600"></strong></span>
         </div>
-        <div class="flex items-end gap-2">
-            <div class="flex-1">
+        <div class="grid grid-cols-2 gap-2 mb-2">
+            <div>
                 <label class="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 mb-1">Receber agora</label>
                 <input type="number" class="rm-item-qty-input input-field" step="any" min="0.01" placeholder="0.00">
             </div>
+            <div>
+                <label class="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 mb-1">Nota Fiscal <span class="text-red-500">*</span></label>
+                <input type="text" class="rm-item-nf-input input-field" placeholder="Número da NF">
+            </div>
+        </div>
+        <div class="flex items-end gap-2">
             <div class="flex-1">
-                <label class="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 mb-1">Nota Fiscal / Obs.</label>
-                <input type="text" class="rm-item-notes-input input-field" placeholder="Opcional">
+                <label class="block text-[10px] font-semibold text-gray-500 dark:text-gray-400 mb-1">Responsável pela Conferência <span class="text-red-500">*</span></label>
+                <input type="text" class="rm-item-responsible-input input-field" placeholder="Nome de quem conferiu">
             </div>
             <button type="button" class="rm-item-register-btn flex items-center gap-1.5 py-2 px-3.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-sm whitespace-nowrap">
                 <span class="material-symbols-outlined" style="font-size:15px">check</span>

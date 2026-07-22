@@ -1,24 +1,10 @@
 let allOrders = [];
 let currentReceiptOrder = null;
-let currentUserName = 'Usuário';
 
 document.addEventListener('DOMContentLoaded', async () => {
     if (typeof checkSession === 'function') await checkSession();
-    await loadCurrentUserName();
     await refreshOrders();
 });
-
-async function loadCurrentUserName() {
-    try {
-        const { data: { session } } = await _supabase.auth.getSession();
-        if (!session?.user) return;
-        const { data: profile } = await _supabase
-            .from('users').select('name').eq('email', session.user.email).maybeSingle();
-        currentUserName = profile?.name || session.user.email.split('@')[0].toUpperCase();
-    } catch (e) {
-        console.error('Error loading current user name:', e);
-    }
-}
 
 // ─── Toast Notification ─────────────────────────────────────────────────────
 
@@ -298,27 +284,31 @@ function renderReceiptItems(order) {
         barFill.style.background = pct >= 100 ? '#16a34a' : pct > 0 ? '#d97706' : '#9ca3af';
 
         const qtyInput = root.querySelector('.rm-item-qty-input');
-        const notesInput = root.querySelector('.rm-item-notes-input');
+        const nfInput = root.querySelector('.rm-item-nf-input');
+        const responsibleInput = root.querySelector('.rm-item-responsible-input');
         const registerBtn = root.querySelector('.rm-item-register-btn');
 
         if (!canReceive || pending <= 0) {
             qtyInput.disabled = true;
-            notesInput.disabled = true;
+            nfInput.disabled = true;
+            responsibleInput.disabled = true;
             registerBtn.disabled = true;
             registerBtn.classList.add('opacity-40', 'cursor-not-allowed');
         } else {
             qtyInput.max = pending;
             qtyInput.placeholder = `Máx: ${pending}`;
-            registerBtn.addEventListener('click', () => registerReceipt(item.id, item, qtyInput, notesInput));
+            registerBtn.addEventListener('click', () => registerReceipt(item.id, item, qtyInput, nfInput, responsibleInput));
         }
 
         container.appendChild(clone);
     });
 }
 
-async function registerReceipt(itemId, item, qtyInput, notesInput) {
+async function registerReceipt(itemId, item, qtyInput, nfInput, responsibleInput) {
     const qty = parseFloat(qtyInput.value);
     const pending = Math.max(0, (item.quantity || 0) - (item.quantity_received || 0));
+    const notaFiscal = nfInput.value.trim();
+    const responsibleName = responsibleInput.value.trim();
 
     if (!qty || qty <= 0) {
         showToast('Informe uma quantidade válida para receber.', 'error');
@@ -328,14 +318,23 @@ async function registerReceipt(itemId, item, qtyInput, notesInput) {
         showToast(`Quantidade maior que o pendente (${pending} ${item.unit}).`, 'error');
         return;
     }
+    // Recebimento só pode ser aceito com a nota fiscal e o responsável pela
+    // conferência identificados — sem isso não há como rastrear o que chegou.
+    if (!notaFiscal) {
+        showToast('Informe o número da nota fiscal antes de registrar o recebimento.', 'error');
+        return;
+    }
+    if (!responsibleName) {
+        showToast('Informe o nome do responsável pela conferência antes de registrar o recebimento.', 'error');
+        return;
+    }
 
     try {
-        const notes = notesInput.value.trim() || null;
         await createPurchaseOrderReceipt({
             order_item_id: itemId,
             quantity: qty,
-            received_by: currentUserName,
-            notes: notes
+            received_by: responsibleName,
+            nota_fiscal: notaFiscal
         });
 
         let toastMsg = `Recebimento de ${qty} ${item.unit} registrado para "${item.name}".`;
@@ -353,7 +352,7 @@ async function registerReceipt(itemId, item, qtyInput, notesInput) {
                     unit: item.unit,
                     value: item.unit_price || 0,
                     category: 'Ordem de Compra',
-                    nota_fiscal: notes
+                    nota_fiscal: notaFiscal
                 });
                 toastMsg += ` Lançado em Itens do Projeto (${currentReceiptOrder.projects?.name || 'projeto vinculado'}).`;
             } catch (projErr) {
@@ -417,7 +416,7 @@ async function renderReceiptHistory(order) {
                 <span class="font-semibold ${r.remainingAfter > 0 ? 'text-amber-600' : 'text-gray-400'}">${r.remainingAfter} ${escapeHtml(r.unit)}</span>
             </td>
             <td class="px-3 py-2 text-gray-500 dark:text-gray-400">${escapeHtml(r.received_by || '-')}</td>
-            <td class="px-3 py-2 text-gray-500 dark:text-gray-400">${escapeHtml(r.notes || '-')}</td>
+            <td class="px-3 py-2 text-gray-500 dark:text-gray-400">${escapeHtml(r.nota_fiscal || '-')}</td>
         </tr>
     `).join('');
 }
