@@ -24,11 +24,12 @@ async function checkAdminAccess() {
             return;
         }
 
-        // Fetch user profile from database
+        // Fetch user profile from database (by id — see auth.js checkSession()
+        // for why matching by email breaks if it's ever duplicated)
         const { data: profile, error: profileError } = await _supabase
             .from('users')
             .select('role')
-            .eq('email', session.user.email)
+            .eq('id', session.user.id)
             .maybeSingle();
 
         if (profileError) throw profileError;

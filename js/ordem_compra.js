@@ -2,27 +2,13 @@ let allOrders = [];
 let allProjectsList = [];
 let editingOrderId = null;
 let pendingDeleteId = null;
-let currentUserName = 'Usuário';
 
 document.addEventListener('DOMContentLoaded', async () => {
     if (typeof checkSession === 'function') await checkSession();
     setupFormHandlers();
-    await loadCurrentUserName();
     await loadProjectsDropdown();
     await refreshOrders();
 });
-
-async function loadCurrentUserName() {
-    try {
-        const { data: { session } } = await _supabase.auth.getSession();
-        if (!session?.user) return;
-        const { data: profile } = await _supabase
-            .from('users').select('name').eq('email', session.user.email).maybeSingle();
-        currentUserName = profile?.name || session.user.email.split('@')[0].toUpperCase();
-    } catch (e) {
-        console.error('Error loading current user name:', e);
-    }
-}
 
 // ─── Toast Notification ─────────────────────────────────────────────────────
 
@@ -310,11 +296,11 @@ function setupFormHandlers() {
         const orderData = {
             supplier_name: document.getElementById('order-supplier').value.trim(),
             project_id: document.getElementById('order-project').value || null,
+            created_by_name: document.getElementById('order-responsible-name').value.trim(),
             order_date: document.getElementById('order-date').value || new Date().toISOString().split('T')[0],
             expected_date: document.getElementById('order-expected-date').value || null,
             notes: document.getElementById('order-notes').value.trim() || null
         };
-        if (!editingOrderId) orderData.created_by_name = currentUserName;
 
         const submitBtn = document.getElementById('order-submit-btn');
         submitBtn.disabled = true;
@@ -396,7 +382,10 @@ function exportOrderPDF(orderId) {
 
     try {
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF('portrait');
+        // Landscape: 7 columns of currency/quantity data wrap badly in portrait's
+        // ~180mm usable width (e.g. "R$ 21.000,00" breaking mid-number) — the
+        // extra width plus fixed columnStyles below fixes that.
+        const doc = new jsPDF('landscape');
         const items = order.purchase_order_items || [];
 
         doc.setFontSize(16);
@@ -414,7 +403,7 @@ function exportOrderPDF(orderId) {
             `Projeto: ${order.projects?.name || 'Estoque geral / sem projeto'}`,
             `Data do Pedido: ${formatDate(order.order_date)}    Previsão de Entrega: ${order.expected_date ? formatDate(order.expected_date) : '-'}`,
             `Status: ${order.status}`,
-            order.created_by_name ? `Solicitado por: ${order.created_by_name}` : null
+            order.created_by_name ? `Responsável: ${order.created_by_name}` : null
         ].filter(Boolean);
         let y = 36;
         infoLines.forEach(line => { doc.text(line, 14, y); y += 5; });
@@ -422,7 +411,7 @@ function exportOrderPDF(orderId) {
         if (order.notes) {
             doc.setFontSize(9);
             doc.setTextColor(120);
-            const noteLines = doc.splitTextToSize(`Observações: ${order.notes}`, 180);
+            const noteLines = doc.splitTextToSize(`Observações: ${order.notes}`, 260);
             doc.text(noteLines, 14, y + 2);
             y += 2 + noteLines.length * 5;
         }
@@ -447,11 +436,20 @@ function exportOrderPDF(orderId) {
                 ];
             }),
             theme: 'striped',
-            headStyles: { fillColor: [30, 58, 138] },
-            styles: { fontSize: 8.5 },
+            headStyles: { fillColor: [30, 58, 138], fontSize: 8.5 },
+            styles: { fontSize: 8.5, cellPadding: 3, overflow: 'linebreak' },
+            columnStyles: {
+                0: { cellWidth: 'auto' },
+                1: { cellWidth: 16, halign: 'center' },
+                2: { cellWidth: 22, halign: 'right' },
+                3: { cellWidth: 28, halign: 'right' },
+                4: { cellWidth: 30, halign: 'right' },
+                5: { cellWidth: 30, halign: 'right' },
+                6: { cellWidth: 28, halign: 'right' }
+            },
             alternateRowStyles: { fillColor: [248, 250, 252] },
-            foot: [['', '', String(totalOrdered), '', formatCurrency(totalValue), String(totalReceived), '']],
-            footStyles: { fillColor: [241, 245, 249], textColor: 20, fontStyle: 'bold' }
+            foot: [['Total', '', String(totalOrdered), '', formatCurrency(totalValue), `${totalReceived}`, '']],
+            footStyles: { fillColor: [241, 245, 249], textColor: 20, fontStyle: 'bold', fontSize: 8.5 }
         });
 
         const finalY = doc.lastAutoTable.finalY || y + 6;
@@ -476,6 +474,7 @@ function editOrder(id) {
     document.getElementById('editing-order-id').value = id;
     document.getElementById('order-supplier').value = order.supplier_name || '';
     document.getElementById('order-project').value = order.project_id || '';
+    document.getElementById('order-responsible-name').value = order.created_by_name || '';
     document.getElementById('order-date').value = order.order_date || '';
     document.getElementById('order-expected-date').value = order.expected_date || '';
     document.getElementById('order-notes').value = order.notes || '';
@@ -499,6 +498,7 @@ function openDetailModal(id) {
     document.getElementById('detail-supplier').textContent = order.supplier_name || '';
     const metaParts = [
         order.projects?.name ? `Projeto: ${order.projects.name}` : 'Estoque geral',
+        order.created_by_name ? `Responsável: ${order.created_by_name}` : null,
         `Pedido em ${formatDate(order.order_date)}`,
         order.expected_date ? `Previsão: ${formatDate(order.expected_date)}` : null
     ].filter(Boolean);

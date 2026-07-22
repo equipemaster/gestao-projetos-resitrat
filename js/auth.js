@@ -23,11 +23,12 @@ async function signIn(email, password) {
         });
         if (error) throw error;
 
-        // Fetch profile to verify role dynamically
+        // Fetch profile to verify role dynamically (by id, not email — see
+        // checkSession() for why email matching is unsafe if it's ever duplicated)
         const { data: profile } = await _supabase
             .from('users')
             .select('role')
-            .eq('email', email)
+            .eq('id', data.user.id)
             .maybeSingle();
 
         let isAdmin = false;
@@ -107,11 +108,15 @@ async function checkSession() {
             // Not logged in and trying to access a protected page
             window.location.href = 'login.html';
         } else if (session) {
-            // Fetch profile to verify role dynamically
+            // Fetch profile to verify role dynamically. Looked up by id (the
+            // actual FK to auth.users), not email — email matching silently
+            // broke if two profile rows ever shared an email (maybeSingle()
+            // errors on >1 rows, profile resolves to null, allowed_pages is
+            // lost even though the row was updated correctly in the DB).
             const { data: profile } = await _supabase
                 .from('users')
                 .select('role, allowed_pages')
-                .eq('email', session.user.email)
+                .eq('id', session.user.id)
                 .maybeSingle();
 
             let isAdmin = false;
