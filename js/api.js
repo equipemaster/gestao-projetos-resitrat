@@ -674,6 +674,7 @@ async function fetchPurchaseOrders() {
             .select(`
                 *,
                 projects (name),
+                clients (name),
                 purchase_order_items (*)
             `)
             .order('created_at', { ascending: false });

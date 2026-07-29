@@ -128,6 +128,18 @@ function itemsCellHtml(items) {
     return `<div class="text-xs space-y-0.5 max-w-[220px]">${visible}${more}</div>`;
 }
 
+// Industrialização orders link to a Projeto; any other Aplicação/Motivo
+// links to a Cliente instead — only one of the two is ever set per order.
+function destinationCellHtml(o) {
+    if (o.client_id) {
+        return `<span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-gray-400" style="font-size:14px">person</span>${escapeHtml(o.clients?.name || '-')}</span>`;
+    }
+    if (o.project_id) {
+        return `<span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-gray-400" style="font-size:14px">folder</span>${escapeHtml(o.projects?.name || '-')}</span>`;
+    }
+    return '<span class="italic text-gray-400">Estoque geral</span>';
+}
+
 function statusBadge(status) {
     const map = {
         ABERTO: { label: 'Em Aberto', cls: 'bg-blue-50 text-primary border-blue-200 dark:bg-blue-900/20 dark:border-blue-800' },
@@ -159,7 +171,8 @@ function renderOrders() {
         list = list.filter(o =>
             (o.code || '').toUpperCase().includes(search) ||
             (o.supplier_name || '').toUpperCase().includes(search) ||
-            (o.projects?.name || '').toUpperCase().includes(search)
+            (o.projects?.name || '').toUpperCase().includes(search) ||
+            (o.clients?.name || '').toUpperCase().includes(search)
         );
     }
 
@@ -190,7 +203,7 @@ function renderOrders() {
                 <td class="px-5 py-3.5 text-sm font-bold text-primary whitespace-nowrap">${escapeHtml(o.code || '-')}</td>
                 <td class="px-5 py-3.5 text-sm text-gray-700 dark:text-gray-200">${escapeHtml(o.supplier_name)}</td>
                 <td class="px-5 py-3.5">${itemsCellHtml(items)}</td>
-                <td class="px-5 py-3.5 text-sm text-gray-500 dark:text-gray-400">${o.projects?.name ? escapeHtml(o.projects.name) : '<span class="italic text-gray-400">Estoque geral</span>'}</td>
+                <td class="px-5 py-3.5 text-sm text-gray-500 dark:text-gray-400">${destinationCellHtml(o)}</td>
                 <td class="px-5 py-3.5 text-sm whitespace-nowrap ${isOverdue ? 'text-red-600 font-semibold' : 'text-gray-500 dark:text-gray-400'}">
                     ${o.expected_date ? formatDate(o.expected_date) : '-'}
                     ${isOverdue ? '<span class="material-symbols-outlined align-middle ml-1" style="font-size:14px">warning</span>' : ''}
@@ -227,7 +240,7 @@ async function openReceiptModal(orderId) {
     document.getElementById('rm-code').textContent = order.code || '';
     document.getElementById('rm-supplier').textContent = order.supplier_name || '';
     const metaParts = [
-        order.projects?.name ? `Projeto: ${order.projects.name}` : 'Estoque geral',
+        order.clients?.name ? `Cliente: ${order.clients.name}` : (order.projects?.name ? `Projeto: ${order.projects.name}` : 'Estoque geral'),
         `Pedido em ${formatDate(order.order_date)}`,
         order.expected_date ? `Previsão: ${formatDate(order.expected_date)}` : null
     ].filter(Boolean);
@@ -236,6 +249,9 @@ async function openReceiptModal(orderId) {
     const projectHint = document.getElementById('rm-project-hint');
     if (order.project_id) {
         projectHint.innerHTML = `<span class="material-symbols-outlined flex-shrink-0" style="font-size:15px">sync_alt</span><span>Cada recebimento confirmado aqui será lançado automaticamente em <strong>Itens do Projeto</strong> (${escapeHtml(order.projects?.name || 'projeto vinculado')}).</span>`;
+        projectHint.classList.remove('hidden');
+    } else if (order.client_id) {
+        projectHint.innerHTML = `<span class="material-symbols-outlined flex-shrink-0" style="font-size:15px">sync_alt</span><span>Cada recebimento confirmado aqui será lançado automaticamente em <strong>Saída de Estoque</strong> e contabilizado em <strong>Custos por Cliente</strong> (${escapeHtml(order.clients?.name || 'cliente vinculado')}).</span>`;
         projectHint.classList.remove('hidden');
     } else {
         projectHint.classList.add('hidden');
@@ -358,6 +374,19 @@ async function registerReceipt(itemId, item, qtyInput, nfInput, responsibleInput
             } catch (projErr) {
                 console.error('Error posting receipt to project items:', projErr);
                 showToast('Recebimento registrado, mas houve um erro ao lançar em Itens do Projeto: ' + projErr.message, 'warning');
+            }
+        } else if (currentReceiptOrder?.client_id) {
+            // Orders for any other Aplicação/Motivo (Serviço, Manutenção, etc.)
+            // route to a Cliente instead of a Projeto — same destination split
+            // requisicao_estoque.js already uses, so the cost lands in Saída de
+            // Estoque / Custos por Cliente instead of Itens do Projeto.
+            try {
+                const stockItemId = await ensureStockItem(item.name, item.unit_price || 0, qty, item.unit);
+                await processStockExit(stockItemId, qty, currentReceiptOrder.reason || 'Ordem de Compra', null, `NF ${notaFiscal}`, currentReceiptOrder.client_id);
+                toastMsg += ` Lançado em Saída de Estoque (${currentReceiptOrder.clients?.name || 'cliente vinculado'}).`;
+            } catch (clientErr) {
+                console.error('Error posting receipt to stock exits:', clientErr);
+                showToast('Recebimento registrado, mas houve um erro ao lançar em Saída de Estoque: ' + clientErr.message, 'warning');
             }
         }
 

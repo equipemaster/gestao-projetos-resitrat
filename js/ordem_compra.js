@@ -1,12 +1,13 @@
 let allOrders = [];
 let allProjectsList = [];
+let allClientsList = [];
 let editingOrderId = null;
 let pendingDeleteId = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     if (typeof checkSession === 'function') await checkSession();
     setupFormHandlers();
-    await loadProjectsDropdown();
+    await Promise.all([loadProjectsDropdown(), loadClientsDropdown()]);
     await refreshOrders();
 });
 
@@ -58,6 +59,17 @@ async function loadProjectsDropdown() {
             opt.textContent = p.name;
             select.appendChild(opt);
         });
+}
+
+async function loadClientsDropdown() {
+    allClientsList = await fetchClients();
+    const select = document.getElementById('order-client');
+    allClientsList.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.name;
+        select.appendChild(opt);
+    });
 }
 
 async function refreshOrders() {
@@ -118,6 +130,18 @@ function receiptBarHtml(ordered, received) {
     `;
 }
 
+// Industrialização orders link to a Projeto; any other Aplicação/Motivo
+// links to a Cliente instead — only one of the two is ever set per order.
+function destinationCellHtml(o) {
+    if (o.client_id) {
+        return `<span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-gray-400" style="font-size:14px">person</span>${escapeHtml(o.clients?.name || '-')}</span>`;
+    }
+    if (o.project_id) {
+        return `<span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-gray-400" style="font-size:14px">folder</span>${escapeHtml(o.projects?.name || '-')}</span>`;
+    }
+    return '<span class="italic text-gray-400">Estoque geral</span>';
+}
+
 function statusBadge(status) {
     const map = {
         ABERTO: { label: 'Em Aberto', cls: 'bg-blue-50 text-primary border-blue-200 dark:bg-blue-900/20 dark:border-blue-800' },
@@ -145,7 +169,8 @@ function renderOrders() {
         list = list.filter(o =>
             (o.code || '').toUpperCase().includes(search) ||
             (o.supplier_name || '').toUpperCase().includes(search) ||
-            (o.projects?.name || '').toUpperCase().includes(search)
+            (o.projects?.name || '').toUpperCase().includes(search) ||
+            (o.clients?.name || '').toUpperCase().includes(search)
         );
     }
 
@@ -169,7 +194,7 @@ function renderOrders() {
             <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors">
                 <td class="px-5 py-3.5 text-sm font-bold text-primary whitespace-nowrap">${escapeHtml(o.code || '-')}</td>
                 <td class="px-5 py-3.5 text-sm text-gray-700 dark:text-gray-200">${escapeHtml(o.supplier_name)}</td>
-                <td class="px-5 py-3.5 text-sm text-gray-500 dark:text-gray-400">${o.projects?.name ? escapeHtml(o.projects.name) : '<span class="italic text-gray-400">Estoque geral</span>'}</td>
+                <td class="px-5 py-3.5 text-sm text-gray-500 dark:text-gray-400">${destinationCellHtml(o)}</td>
                 <td class="px-5 py-3.5 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">${formatDate(o.order_date)}</td>
                 <td class="px-5 py-3.5 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">${o.expected_date ? formatDate(o.expected_date) : '-'}</td>
                 <td class="px-5 py-3.5 min-w-[140px]">
@@ -212,7 +237,7 @@ function openNewOrderModal() {
     document.getElementById('order-items-container').innerHTML = '';
     addItemRow();
     updateTotalPreview();
-    toggleProjectHint();
+    updateOrderDestinationFields();
     document.getElementById('order-modal').classList.remove('hidden');
 }
 
@@ -220,11 +245,35 @@ function closeOrderModal() {
     document.getElementById('order-modal').classList.add('hidden');
 }
 
-// Shown whenever a project is selected, so it's clear receipts on this order
-// will auto-post to Itens do Projeto (see registerReceipt in conferencia_recebimento.js).
+// Industrialização routes the order to a Projeto; any other Aplicação/Motivo
+// (Serviço, Manutenção, etc.) routes it to a Cliente instead — same
+// destination model as Requisições de Estoque. Only one field is shown/used
+// at a time, and the matching hint explains where receipts will auto-post
+// (see registerReceipt in conferencia_recebimento.js).
+function updateOrderDestinationFields() {
+    const reason = document.getElementById('order-reason')?.value;
+    const isIndustrializacao = reason === 'Industrialização';
+
+    document.getElementById('order-project-wrapper')?.classList.toggle('hidden', !isIndustrializacao);
+    document.getElementById('order-client-wrapper')?.classList.toggle('hidden', isIndustrializacao);
+
+    if (isIndustrializacao) {
+        const clientSelect = document.getElementById('order-client');
+        if (clientSelect) clientSelect.value = '';
+    } else {
+        const projectSelect = document.getElementById('order-project');
+        if (projectSelect) projectSelect.value = '';
+    }
+
+    toggleProjectHint();
+}
+
 function toggleProjectHint() {
+    const isIndustrializacao = document.getElementById('order-reason')?.value === 'Industrialização';
     const hasProject = !!document.getElementById('order-project').value;
-    document.getElementById('order-project-hint').classList.toggle('hidden', !hasProject);
+    const hasClient = !!document.getElementById('order-client').value;
+    document.getElementById('order-project-hint').classList.toggle('hidden', !(isIndustrializacao && hasProject));
+    document.getElementById('order-client-hint').classList.toggle('hidden', !(!isIndustrializacao && hasClient));
 }
 
 function addItemRow(item) {
@@ -293,9 +342,22 @@ function setupFormHandlers() {
             return;
         }
 
+        const reason = document.getElementById('order-reason').value;
+        const isIndustrializacao = reason === 'Industrialização';
+        const projectIdVal = document.getElementById('order-project').value || null;
+        const clientIdVal = document.getElementById('order-client').value || null;
+
+        if (!isIndustrializacao && !clientIdVal) {
+            showToast('Selecione o cliente para esta ordem de compra.', 'error');
+            document.getElementById('order-client').focus();
+            return;
+        }
+
         const orderData = {
             supplier_name: document.getElementById('order-supplier').value.trim(),
-            project_id: document.getElementById('order-project').value || null,
+            reason: reason,
+            project_id: projectIdVal,
+            client_id: clientIdVal,
             created_by_name: document.getElementById('order-responsible-name').value.trim(),
             order_date: document.getElementById('order-date').value || new Date().toISOString().split('T')[0],
             expected_date: document.getElementById('order-expected-date').value || null,
@@ -400,7 +462,8 @@ function exportOrderPDF(orderId) {
         doc.setTextColor(100);
         const infoLines = [
             `Fornecedor: ${order.supplier_name || '-'}`,
-            `Projeto: ${order.projects?.name || 'Estoque geral / sem projeto'}`,
+            `Aplicação/Motivo: ${order.reason || '-'}`,
+            order.clients?.name ? `Cliente: ${order.clients.name}` : `Projeto: ${order.projects?.name || 'Estoque geral / sem projeto'}`,
             `Data do Pedido: ${formatDate(order.order_date)}    Previsão de Entrega: ${order.expected_date ? formatDate(order.expected_date) : '-'}`,
             `Status: ${order.status}`,
             order.created_by_name ? `Responsável: ${order.created_by_name}` : null
@@ -473,7 +536,9 @@ function editOrder(id) {
     document.getElementById('order-modal-title').textContent = `Editar Ordem ${order.code || ''}`;
     document.getElementById('editing-order-id').value = id;
     document.getElementById('order-supplier').value = order.supplier_name || '';
+    document.getElementById('order-reason').value = order.reason || 'Industrialização';
     document.getElementById('order-project').value = order.project_id || '';
+    document.getElementById('order-client').value = order.client_id || '';
     document.getElementById('order-responsible-name').value = order.created_by_name || '';
     document.getElementById('order-date').value = order.order_date || '';
     document.getElementById('order-expected-date').value = order.expected_date || '';
@@ -483,7 +548,7 @@ function editOrder(id) {
     (order.purchase_order_items || []).forEach(item => addItemRow(item));
     if ((order.purchase_order_items || []).length === 0) addItemRow();
     updateTotalPreview();
-    toggleProjectHint();
+    updateOrderDestinationFields();
 
     document.getElementById('order-modal').classList.remove('hidden');
 }
@@ -497,7 +562,7 @@ function openDetailModal(id) {
     document.getElementById('detail-code').textContent = order.code || '';
     document.getElementById('detail-supplier').textContent = order.supplier_name || '';
     const metaParts = [
-        order.projects?.name ? `Projeto: ${order.projects.name}` : 'Estoque geral',
+        order.clients?.name ? `Cliente: ${order.clients.name}` : (order.projects?.name ? `Projeto: ${order.projects.name}` : 'Estoque geral'),
         order.created_by_name ? `Responsável: ${order.created_by_name}` : null,
         `Pedido em ${formatDate(order.order_date)}`,
         order.expected_date ? `Previsão: ${formatDate(order.expected_date)}` : null

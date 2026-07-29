@@ -51,7 +51,16 @@ function checkForDuplicates() {
     const operatorName = (document.getElementById('req-operator-name')?.value || '').trim().toUpperCase();
     const editingId = document.getElementById('editing-req-id')?.value || '';
 
-    if (!operatorName || allRequests.length === 0) {
+    // Duplicidade exige o MESMO produto para o MESMO destino (cliente, ou
+    // projeto quando a Aplicação/Motivo é Industrialização) — o mesmo produto
+    // pedido para um destino diferente não é duplicado, então o solicitante
+    // sozinho não basta como critério.
+    const isIndustrializacao = document.getElementById('req-reason')?.value === 'Industrialização';
+    const projectId = document.getElementById('req-project-select')?.value || null;
+    const clientId = document.getElementById('req-client-select')?.value || null;
+    const destinationId = isIndustrializacao ? projectId : clientId;
+
+    if (!operatorName || !destinationId || allRequests.length === 0) {
         hideDuplicateWarning();
         return false;
     }
@@ -65,9 +74,9 @@ function checkForDuplicates() {
 
         const pendingDups = allRequests.filter(r => {
             if (editingId && r.id === editingId) return false;
-            return r.status === 'PENDENTE' &&
-                (r.item_name || '').toUpperCase().trim() === itemName &&
-                (r.requested_by || '').toUpperCase().trim() === operatorName;
+            if (r.status !== 'PENDENTE') return false;
+            if ((r.item_name || '').toUpperCase().trim() !== itemName) return false;
+            return isIndustrializacao ? r.project_id === projectId : r.client_id === clientId;
         });
 
         if (pendingDups.length > 0) foundDups.push({ itemName, requests: pendingDups });
@@ -91,7 +100,9 @@ function showDuplicateWarning(duplicates) {
         const timeStr = req.created_at
             ? new Date(req.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
             : '';
-        return `<li class="flex items-start gap-1.5"><span class="material-symbols-outlined text-amber-500 flex-shrink-0 mt-px" style="font-size:13px">fiber_manual_record</span><span><strong>${escapeHtml(d.itemName)}</strong> — solicitado em ${dateStr} às ${timeStr}, aguardando aprovação</span></li>`;
+        const destination = req.projects?.name || req.clients?.name;
+        const destinationStr = destination ? ` para <strong>${escapeHtml(destination)}</strong>` : '';
+        return `<li class="flex items-start gap-1.5"><span class="material-symbols-outlined text-amber-500 flex-shrink-0 mt-px" style="font-size:13px">fiber_manual_record</span><span><strong>${escapeHtml(d.itemName)}</strong>${destinationStr} — solicitado em ${dateStr} às ${timeStr}, aguardando aprovação</span></li>`;
     }).join('');
 
     warnDiv.innerHTML = `
@@ -498,7 +509,10 @@ function setupFormHandlers() {
     const addItemBtn = document.getElementById('add-item-btn');
     const container = document.getElementById('items-container');
 
-    document.getElementById('req-reason')?.addEventListener('change', updateReqDestinationFields);
+    document.getElementById('req-reason')?.addEventListener('change', () => {
+        updateReqDestinationFields();
+        checkForDuplicates();
+    });
     updateReqDestinationFields();
 
     // Initialize first row
@@ -515,6 +529,11 @@ function setupFormHandlers() {
         clearTimeout(duplicateCheckTimeout);
         duplicateCheckTimeout = setTimeout(checkForDuplicates, 500);
     });
+
+    // Destination (client or project, depending on Aplicação/Motivo) is now
+    // part of the duplicate match criteria — re-check whenever it changes.
+    document.getElementById('req-client-select')?.addEventListener('change', checkForDuplicates);
+    document.getElementById('req-project-select')?.addEventListener('change', checkForDuplicates);
 
     // Remove item via event delegation
     container?.addEventListener('click', (e) => {
