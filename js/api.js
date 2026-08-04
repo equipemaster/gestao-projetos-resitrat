@@ -756,6 +756,16 @@ async function createPurchaseOrderReceipt(receiptData) {
     return data;
 }
 
+// Corrects a past receiving entry (quantity, nota fiscal, responsible) — the
+// apply_purchase_receipt DB trigger recomputes the item's quantity_received
+// (full re-sum, not a delta) and the order status on UPDATE, same as it does
+// on INSERT/DELETE.
+async function updatePurchaseOrderReceipt(id, updates) {
+    const { data, error } = await _supabase.from('purchase_order_receipts').update(updates).eq('id', id).select();
+    if (error) throw error;
+    return data;
+}
+
 async function deletePurchaseOrderReceipt(id) {
     const { error } = await _supabase.from('purchase_order_receipts').delete().eq('id', id);
     if (error) throw error;

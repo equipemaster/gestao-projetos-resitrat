@@ -32,7 +32,7 @@
     <script src="js/supabaseClient.js"></script>
     <script src="js/auth.js?v=3"></script>
     <script src="js/api.js?v=1" defer></script>
-    <script src="js/conferencia_recebimento.js?v=4" defer></script>
+    <script src="js/conferencia_recebimento.js?v=8" defer></script>
     <style>
         ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -270,10 +270,11 @@
                                 <th class="px-3 py-2 text-left font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Restante Pendente</th>
                                 <th class="px-3 py-2 text-left font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Recebido por</th>
                                 <th class="px-3 py-2 text-left font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Nota Fiscal</th>
+                                <th class="px-3 py-2 text-right font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Ações</th>
                             </tr>
                         </thead>
                         <tbody id="rm-history-body" class="bg-white dark:bg-background-dark divide-y divide-gray-200 dark:divide-gray-700">
-                            <tr><td colspan="6" class="px-3 py-6 text-center text-gray-400">Nenhum recebimento registrado ainda.</td></tr>
+                            <tr><td colspan="7" class="px-3 py-6 text-center text-gray-400">Nenhum recebimento registrado ainda.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -317,6 +318,61 @@
         </div>
     </div>
 </template>
+
+<!-- EDIT RECEIPT MODAL — corrects a past receiving entry (quantity, nota
+     fiscal, responsible) without touching the purchase order itself. -->
+<div id="receipt-edit-modal" class="fixed inset-0 z-50 hidden">
+    <div class="modal-backdrop fixed inset-0 bg-black/50 backdrop-blur-sm" onclick="closeReceiptEditModal()"></div>
+    <div class="fixed inset-0 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-md relative">
+            <form id="receipt-edit-form">
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:linear-gradient(135deg,#92400e 0%,#d97706 100%)">
+                                <span class="material-symbols-outlined text-white" style="font-size:18px">edit</span>
+                            </div>
+                            <div>
+                                <h3 class="text-base font-bold text-gray-900 dark:text-white">Editar Recebimento</h3>
+                                <p id="re-item-name" class="text-xs text-gray-400"></p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="closeReceiptEditModal()" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                            <span class="material-symbols-outlined text-gray-400" style="font-size:20px">close</span>
+                        </button>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">Quantidade Recebida <span class="text-red-500">*</span></label>
+                        <input type="number" id="re-quantity" step="any" min="0.01" required class="input-field">
+                        <p id="re-quantity-hint" class="text-[11px] text-gray-400 mt-1"></p>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">Nota Fiscal <span class="text-red-500">*</span></label>
+                        <input type="text" id="re-nota-fiscal" required placeholder="Número da NF" class="input-field">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">Recebido por <span class="text-red-500">*</span></label>
+                        <input type="text" id="re-received-by" required placeholder="Nome de quem conferiu" class="input-field">
+                    </div>
+                </div>
+
+                <input type="hidden" id="re-receipt-id">
+                <div class="flex gap-3 px-6 pb-6">
+                    <button type="submit" id="re-submit-btn"
+                        class="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-sm">
+                        <span class="material-symbols-outlined" style="font-size:16px">save</span>
+                        Salvar
+                    </button>
+                    <button type="button" onclick="closeReceiptEditModal()"
+                        class="px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        Cancelar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 </body>
 </html>

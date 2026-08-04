@@ -3,6 +3,7 @@ let currentReceiptOrder = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     if (typeof checkSession === 'function') await checkSession();
+    setupReceiptEditFormHandler();
     await refreshOrders();
 });
 
@@ -196,7 +197,9 @@ function renderOrders() {
         const itemsDone = items.filter(i => (i.quantity_received || 0) >= (i.quantity || 0)).length;
         const isOverdue = o.expected_date && o.expected_date < new Date().toISOString().split('T')[0] &&
             (o.status === 'ABERTO' || o.status === 'PARCIAL');
-        const canReceive = o.status === 'ABERTO' || o.status === 'PARCIAL';
+        // Kept actionable ("Conferir") for RECEBIDO too — items already
+        // marked "Completo" can still take a follow-up/extra receipt.
+        const canReceive = o.status !== 'CANCELADO';
 
         return `
             <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors">
@@ -217,7 +220,7 @@ function renderOrders() {
                 <td class="px-5 py-3.5 whitespace-nowrap">${statusBadge(o.status)}</td>
                 <td class="px-5 py-3.5 text-right whitespace-nowrap">
                     ${canReceive ? `
-                    <button onclick="openReceiptModal('${o.id}')" class="flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold text-white bg-primary hover:bg-blue-700 transition-colors shadow-sm ml-auto">
+                    <button onclick="openReceiptModal('${o.id}')" class="flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold text-white bg-primary hover:bg-blue-700 transition-colors shadow-sm ml-auto inline-flex">
                         <span class="material-symbols-outlined" style="font-size:15px">fact_check</span>
                         Conferir
                     </button>` : `
@@ -271,7 +274,11 @@ function closeReceiptModal() {
 function renderReceiptItems(order) {
     const container = document.getElementById('rm-items-list');
     const template = document.getElementById('rm-item-template');
-    const canReceive = order.status === 'ABERTO' || order.status === 'PARCIAL';
+    // Registering stays open for any non-cancelled order — including fully
+    // RECEBIDO ones — since an item marked "Completo" can still need an
+    // extra receipt logged (e.g. a follow-up delivery beyond what was
+    // originally ordered).
+    const canReceive = order.status !== 'CANCELADO';
     container.innerHTML = '';
 
     (order.purchase_order_items || []).forEach(item => {
@@ -304,20 +311,48 @@ function renderReceiptItems(order) {
         const responsibleInput = root.querySelector('.rm-item-responsible-input');
         const registerBtn = root.querySelector('.rm-item-register-btn');
 
-        if (!canReceive || pending <= 0) {
+        if (!canReceive) {
             qtyInput.disabled = true;
             nfInput.disabled = true;
             responsibleInput.disabled = true;
             registerBtn.disabled = true;
             registerBtn.classList.add('opacity-40', 'cursor-not-allowed');
         } else {
-            qtyInput.max = pending;
-            qtyInput.placeholder = `Máx: ${pending}`;
+            if (pending > 0) {
+                qtyInput.max = pending;
+                qtyInput.placeholder = `Máx: ${pending}`;
+            } else {
+                // Item already fully received — quantity is no longer capped,
+                // so an extra/follow-up receipt can still be logged.
+                qtyInput.removeAttribute('max');
+                qtyInput.placeholder = 'Qtd. extra';
+            }
+
+            // Keep "Registrar" disabled until every required field is filled,
+            // so an incomplete conference can't be saved even before the user
+            // tries to click — not just caught after the fact in registerReceipt().
+            const updateRegisterBtnState = () => {
+                const qtyVal = parseFloat(qtyInput.value);
+                const valid = qtyVal > 0 && (pending <= 0 || qtyVal <= pending) && nfInput.value.trim() && responsibleInput.value.trim();
+                registerBtn.disabled = !valid;
+                registerBtn.classList.toggle('opacity-40', !valid);
+                registerBtn.classList.toggle('cursor-not-allowed', !valid);
+            };
+            [qtyInput, nfInput, responsibleInput].forEach(input => {
+                input.addEventListener('input', updateRegisterBtnState);
+            });
+            updateRegisterBtnState();
+
             registerBtn.addEventListener('click', () => registerReceipt(item.id, item, qtyInput, nfInput, responsibleInput));
         }
 
         container.appendChild(clone);
     });
+}
+
+function markFieldInvalid(input) {
+    input.classList.add('border-red-500', 'focus:border-red-500');
+    input.addEventListener('input', () => input.classList.remove('border-red-500', 'focus:border-red-500'), { once: true });
 }
 
 async function registerReceipt(itemId, item, qtyInput, nfInput, responsibleInput) {
@@ -327,20 +362,28 @@ async function registerReceipt(itemId, item, qtyInput, nfInput, responsibleInput
     const responsibleName = responsibleInput.value.trim();
 
     if (!qty || qty <= 0) {
+        markFieldInvalid(qtyInput);
         showToast('Informe uma quantidade válida para receber.', 'error');
         return;
     }
-    if (qty > pending) {
+    // Once an item is fully received (pending 0), quantity is no longer
+    // capped — a follow-up/extra receipt can still be registered beyond what
+    // was originally ordered. Partially-received items still can't exceed
+    // what's left pending in a single registration.
+    if (pending > 0 && qty > pending) {
+        markFieldInvalid(qtyInput);
         showToast(`Quantidade maior que o pendente (${pending} ${item.unit}).`, 'error');
         return;
     }
     // Recebimento só pode ser aceito com a nota fiscal e o responsável pela
     // conferência identificados — sem isso não há como rastrear o que chegou.
     if (!notaFiscal) {
+        markFieldInvalid(nfInput);
         showToast('Informe o número da nota fiscal antes de registrar o recebimento.', 'error');
         return;
     }
     if (!responsibleName) {
+        markFieldInvalid(responsibleInput);
         showToast('Informe o nome do responsável pela conferência antes de registrar o recebimento.', 'error');
         return;
     }
@@ -414,12 +457,14 @@ async function renderReceiptHistory(order) {
     const receipts = await fetchPurchaseOrderReceipts(itemIds);
 
     if (receipts.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="px-3 py-6 text-center text-gray-400">Nenhum recebimento registrado ainda.</td></tr>`;
+        currentReceiptsList = [];
+        tbody.innerHTML = `<tr><td colspan="7" class="px-3 py-6 text-center text-gray-400">Nenhum recebimento registrado ainda.</td></tr>`;
         return;
     }
 
     const itemById = {};
     items.forEach(i => { itemById[i.id] = i; });
+    currentReceiptsList = receipts;
 
     // Running total per item, oldest first, so "restante pendente" reflects
     // the balance immediately after each event — not just the final state.
@@ -446,6 +491,106 @@ async function renderReceiptHistory(order) {
             </td>
             <td class="px-3 py-2 text-gray-500 dark:text-gray-400">${escapeHtml(r.received_by || '-')}</td>
             <td class="px-3 py-2 text-gray-500 dark:text-gray-400">${escapeHtml(r.nota_fiscal || '-')}</td>
+            <td class="px-3 py-2 text-right whitespace-nowrap">
+                <button type="button" onclick="openReceiptEditModal('${r.id}')" class="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors" title="Editar recebimento">
+                    <span class="material-symbols-outlined" style="font-size:16px">edit</span>
+                </button>
+            </td>
         </tr>
     `).join('');
+}
+
+// ─── Edit Receipt Modal ──────────────────────────────────────────────────────
+// Corrects a past receiving entry (quantity, nota fiscal, responsible) without
+// touching the purchase order itself — that stays editable only in
+// ordem_compra.js, restricted to ABERTO orders as before.
+
+let currentReceiptsList = [];
+let editingReceiptId = null;
+
+function openReceiptEditModal(receiptId) {
+    const receipt = currentReceiptsList.find(r => r.id === receiptId);
+    if (!receipt || !currentReceiptOrder) return;
+
+    const item = (currentReceiptOrder.purchase_order_items || []).find(i => i.id === receipt.order_item_id);
+    if (!item) return;
+
+    // Everything already received for this item except this entry — the cap
+    // this entry's quantity can't cross without exceeding what was ordered.
+    const otherReceiptsTotal = currentReceiptsList
+        .filter(r => r.order_item_id === receipt.order_item_id && r.id !== receiptId)
+        .reduce((s, r) => s + Number(r.quantity), 0);
+    const maxQty = Math.max(0, (item.quantity || 0) - otherReceiptsTotal);
+
+    editingReceiptId = receiptId;
+    document.getElementById('re-item-name').textContent = item.name;
+    document.getElementById('re-quantity').value = receipt.quantity;
+    document.getElementById('re-quantity').max = maxQty;
+    document.getElementById('re-quantity-hint').textContent = `Máx: ${maxQty} ${item.unit} (pedido: ${item.quantity} ${item.unit})`;
+    document.getElementById('re-nota-fiscal').value = receipt.nota_fiscal || '';
+    document.getElementById('re-received-by').value = receipt.received_by || '';
+    document.getElementById('re-receipt-id').value = receiptId;
+
+    document.getElementById('receipt-edit-modal').classList.remove('hidden');
+}
+
+function closeReceiptEditModal() {
+    document.getElementById('receipt-edit-modal').classList.add('hidden');
+    editingReceiptId = null;
+}
+
+function setupReceiptEditFormHandler() {
+    document.getElementById('receipt-edit-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!editingReceiptId) return;
+
+        const qty = parseFloat(document.getElementById('re-quantity').value);
+        const maxQty = parseFloat(document.getElementById('re-quantity').max);
+        const notaFiscal = document.getElementById('re-nota-fiscal').value.trim();
+        const receivedBy = document.getElementById('re-received-by').value.trim();
+
+        if (!qty || qty <= 0) {
+            showToast('Informe uma quantidade válida.', 'error');
+            return;
+        }
+        if (maxQty >= 0 && qty > maxQty) {
+            showToast(`Quantidade maior que o permitido (máx: ${maxQty}).`, 'error');
+            return;
+        }
+        if (!notaFiscal) {
+            showToast('Informe o número da nota fiscal.', 'error');
+            return;
+        }
+        if (!receivedBy) {
+            showToast('Informe o nome do responsável pela conferência.', 'error');
+            return;
+        }
+
+        const submitBtn = document.getElementById('re-submit-btn');
+        submitBtn.disabled = true;
+
+        try {
+            await updatePurchaseOrderReceipt(editingReceiptId, {
+                quantity: qty,
+                nota_fiscal: notaFiscal,
+                received_by: receivedBy
+            });
+
+            showToast('Recebimento atualizado com sucesso!', 'success');
+            closeReceiptEditModal();
+
+            await refreshOrders();
+            const updatedOrder = allOrders.find(o => o.id === currentReceiptOrder?.id);
+            if (updatedOrder) {
+                currentReceiptOrder = updatedOrder;
+                renderReceiptItems(updatedOrder);
+                await renderReceiptHistory(updatedOrder);
+            }
+        } catch (err) {
+            console.error(err);
+            showToast('Erro ao atualizar recebimento: ' + err.message, 'error');
+        } finally {
+            submitBtn.disabled = false;
+        }
+    });
 }
