@@ -187,7 +187,12 @@ function renderOrders() {
         const totalReceived = items.reduce((s, i) => s + (i.quantity_received || 0), 0);
         const itemsDone = items.filter(i => (i.quantity_received || 0) >= (i.quantity || 0)).length;
         const totalValue = items.reduce((s, i) => s + (i.quantity || 0) * (i.unit_price || 0), 0);
-        const canEdit = o.status === 'ABERTO';
+        // Editable for any status except CANCELADO — including PARCIAL/RECEBIDO,
+        // so items can still be added after receiving has started. Items that
+        // already have quantity_received > 0 get protected inside the modal
+        // (see addItemRow): quantity can't drop below what's received, and
+        // they can't be removed.
+        const canEdit = o.status !== 'CANCELADO';
         const canDelete = totalReceived === 0;
 
         return `
@@ -234,6 +239,7 @@ function openNewOrderModal() {
     document.getElementById('order-form').reset();
     document.getElementById('editing-order-id').value = '';
     document.getElementById('order-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('order-edit-warning')?.classList.add('hidden');
     document.getElementById('order-items-container').innerHTML = '';
     addItemRow();
     updateTotalPreview();
@@ -281,6 +287,9 @@ function addItemRow(item) {
     const clone = template.content.cloneNode(true);
     const row = clone.querySelector('.order-item-row');
 
+    const receivedQty = item?.quantity_received || 0;
+    row.dataset.receivedQty = receivedQty;
+
     if (item) {
         row.querySelector('[name="item_name"]').value = item.name || '';
         row.querySelector('[name="item_unit"]').value = item.unit || 'UN';
@@ -289,11 +298,22 @@ function addItemRow(item) {
         if (item.id) row.dataset.itemId = item.id;
     }
 
-    row.querySelector('.remove-item-btn').addEventListener('click', () => {
-        row.remove();
-        toggleRemoveButtons();
-        updateTotalPreview();
-    });
+    const removeBtn = row.querySelector('.remove-item-btn');
+    if (receivedQty > 0) {
+        // Already-received items are locked from removal, and their quantity
+        // can't drop below what's received — deleting them or under-cutting
+        // the quantity would orphan/contradict the receiving history.
+        removeBtn.classList.add('hidden');
+        const qtyInput = row.querySelector('[name="item_qty"]');
+        qtyInput.min = receivedQty;
+        qtyInput.title = `Já foram recebidos ${receivedQty} ${item.unit}. A quantidade não pode ficar abaixo disso.`;
+    } else {
+        removeBtn.addEventListener('click', () => {
+            row.remove();
+            toggleRemoveButtons();
+            updateTotalPreview();
+        });
+    }
     row.querySelectorAll('[name="item_qty"], [name="item_price"]').forEach(el => {
         el.addEventListener('input', updateTotalPreview);
     });
@@ -304,9 +324,11 @@ function addItemRow(item) {
 
 function toggleRemoveButtons() {
     const rows = document.querySelectorAll('.order-item-row');
+    const removableRows = Array.from(rows).filter(r => !(Number(r.dataset.receivedQty) > 0));
     rows.forEach(row => {
+        if (Number(row.dataset.receivedQty) > 0) return; // stays hidden regardless of count
         const btn = row.querySelector('.remove-item-btn');
-        btn.classList.toggle('hidden', rows.length <= 1);
+        btn.classList.toggle('hidden', removableRows.length <= 1);
     });
 }
 
@@ -323,6 +345,7 @@ function updateTotalPreview() {
 function collectItemRows() {
     return Array.from(document.querySelectorAll('.order-item-row')).map(row => ({
         id: row.dataset.itemId || null,
+        receivedQty: Number(row.dataset.receivedQty) || 0,
         name: row.querySelector('[name="item_name"]').value.trim(),
         unit: row.querySelector('[name="item_unit"]').value,
         quantity: parseFloat(row.querySelector('[name="item_qty"]').value) || 0,
@@ -339,6 +362,12 @@ function setupFormHandlers() {
         const items = collectItemRows();
         if (items.length === 0) {
             showToast('Adicione ao menos um item válido ao pedido.', 'error');
+            return;
+        }
+
+        const belowReceived = items.find(i => i.receivedQty > 0 && i.quantity < i.receivedQty);
+        if (belowReceived) {
+            showToast(`A quantidade de "${belowReceived.name}" não pode ser menor que o já recebido (${belowReceived.receivedQty} ${belowReceived.unit}).`, 'error');
             return;
         }
 
@@ -375,22 +404,25 @@ function setupFormHandlers() {
                 const existingIds = new Set((existing?.purchase_order_items || []).map(i => i.id));
                 const keptIds = new Set(items.filter(i => i.id).map(i => i.id));
 
-                for (const item of items) {
-                    if (item.id) {
-                        await updatePurchaseOrderItem(item.id, {
-                            name: item.name, unit: item.unit, quantity: item.quantity, unit_price: item.unit_price
-                        });
-                    } else {
-                        await createPurchaseOrderItem({ ...item, order_id: editingOrderId, id: undefined });
-                    }
-                }
-                for (const oldId of existingIds) {
-                    if (!keptIds.has(oldId)) await deletePurchaseOrderItem(oldId);
-                }
+                // Run item writes in parallel instead of awaiting each one in
+                // sequence — with several items, sequential round-trips to
+                // Supabase were the main reason saving felt slow.
+                await Promise.all(items.map(item => item.id
+                    ? updatePurchaseOrderItem(item.id, {
+                        name: item.name, unit: item.unit, quantity: item.quantity, unit_price: item.unit_price
+                    })
+                    : createPurchaseOrderItem({
+                        name: item.name, unit: item.unit, quantity: item.quantity, unit_price: item.unit_price,
+                        order_id: editingOrderId
+                    })
+                ));
+
+                const idsToDelete = Array.from(existingIds).filter(oldId => !keptIds.has(oldId));
+                await Promise.all(idsToDelete.map(oldId => deletePurchaseOrderItem(oldId)));
 
                 showToast('Ordem de compra atualizada com sucesso!', 'success');
             } else {
-                const cleanItems = items.map(({ id, ...rest }) => rest);
+                const cleanItems = items.map(({ id, receivedQty, ...rest }) => rest);
                 await createPurchaseOrder(orderData, cleanItems);
                 showToast('Ordem de compra criada com sucesso!', 'success');
             }
@@ -543,6 +575,9 @@ function editOrder(id) {
     document.getElementById('order-date').value = order.order_date || '';
     document.getElementById('order-expected-date').value = order.expected_date || '';
     document.getElementById('order-notes').value = order.notes || '';
+
+    const hasReceipts = (order.purchase_order_items || []).some(i => (i.quantity_received || 0) > 0);
+    document.getElementById('order-edit-warning')?.classList.toggle('hidden', !hasReceipts);
 
     document.getElementById('order-items-container').innerHTML = '';
     (order.purchase_order_items || []).forEach(item => addItemRow(item));

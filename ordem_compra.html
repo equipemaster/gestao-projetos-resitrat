@@ -34,7 +34,7 @@
     <script src="js/supabaseClient.js"></script>
     <script src="js/auth.js?v=3"></script>
     <script src="js/api.js?v=1" defer></script>
-    <script src="js/ordem_compra.js?v=4" defer></script>
+    <script src="js/ordem_compra.js?v=7" defer></script>
     <style>
         ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -264,6 +264,11 @@
                         </button>
                     </div>
 
+                    <div id="order-edit-warning" class="hidden mb-4 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-xs flex items-start gap-2">
+                        <span class="material-symbols-outlined flex-shrink-0" style="font-size:15px">warning</span>
+                        <span>Este pedido já tem recebimentos registrados. Itens com quantidade já recebida não podem ter a quantidade reduzida abaixo do recebido nem ser removidos.</span>
+                    </div>
+
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">Fornecedor <span class="text-red-500">*</span></label>
@@ -395,7 +400,7 @@
         </div>
         <div class="col-span-3 md:col-span-2">
             <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Val. Unit. (R$)</label>
-            <input type="number" name="item_price" step="0.01" min="0" placeholder="0,00" class="input-field">
+            <input type="number" name="item_price" step="0.00001" min="0" placeholder="0,00" class="input-field">
         </div>
         <div class="col-span-1 flex justify-center">
             <button type="button" class="remove-item-btn hidden p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Remover item">
