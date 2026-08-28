@@ -3,6 +3,12 @@ if (typeof _supabase === 'undefined') {
     console.error('_supabase is undefined. Check supabaseClient.js load order.');
 }
 
+// PostgREST caps every response at the project's "Max rows" setting (Supabase
+// default: 1000). Any unfiltered .select() on a table past that size silently
+// returns only a partial page with no error. Helpers that must return a whole
+// table page through it with .range() in chunks of this size.
+const PGRST_PAGE_SIZE = 1000;
+
 // --- GLOBAL UPPERCASE STANDARDIZATION ---
 document.addEventListener('input', (e) => {
     // Apply to text inputs and textareas
@@ -365,12 +371,23 @@ async function deleteProjectForecastItem(id) {
 
 // Stock Items
 async function fetchStockItems() {
+    // Same PostgREST "Max rows" cap as fetchStockExits(): stock_items is at ~780
+    // rows and climbing, so page through with .range() before a plain .select()
+    // starts silently dropping the newest items once it crosses 1000.
     try {
-        const { data, error } = await _supabase
-            .from('stock_items')
-            .select('*');
-        if (error) throw error;
-        return data;
+        const all = [];
+        for (let from = 0; ; from += PGRST_PAGE_SIZE) {
+            const { data, error } = await _supabase
+                .from('stock_items')
+                .select('*')
+                .order('id', { ascending: true })
+                .range(from, from + PGRST_PAGE_SIZE - 1);
+            if (error) throw error;
+            if (!data || data.length === 0) break;
+            all.push(...data);
+            if (data.length < PGRST_PAGE_SIZE) break;
+        }
+        return all;
     } catch (error) {
         console.error('Error fetching stock items:', error.message);
         return [];
@@ -533,6 +550,16 @@ async function processStockExit(itemId, quantity, reason, projectId, obs, client
             .select();
 
         if (error) throw error;
+
+        // Supabase/PostgREST gotcha: if the INSERT succeeds but the table's
+        // SELECT RLS policy is more restrictive than its INSERT policy, the
+        // row is committed to the DB but .select() comes back empty with no
+        // `error` set — this function would otherwise report success while
+        // the exit stays invisible to Saída de Estoque / Custo por Cliente.
+        if (!data || data.length === 0) {
+            throw new Error('A saída pode ter sido gravada, mas não foi possível confirmá-la (retorno vazio). Verifique a política de RLS (SELECT) da tabela stock_exits no Supabase.');
+        }
+
         return data;
     } catch (error) {
         console.error('Error processing stock exit:', error);
@@ -541,17 +568,30 @@ async function processStockExit(itemId, quantity, reason, projectId, obs, client
 }
 
 
+// stock_exits passed 1000 rows on 2026-08-07, so a plain .select() (capped at
+// PGRST_PAGE_SIZE, see top of file) silently returned only the oldest 1000 —
+// every newer exit vanished from Saída de Estoque and Custo por Cliente with no
+// error. Page through the whole table with .range() (newest first) until a
+// short page comes back.
 async function fetchStockExits() {
     try {
-        const { data, error } = await _supabase
-            .from('stock_exits')
-            .select(`
-                *,
-                stock_items (name, value, unit, category),
-                clients (name)
-            `);
-        if (error) throw error;
-        return data;
+        const all = [];
+        for (let from = 0; ; from += PGRST_PAGE_SIZE) {
+            const { data, error } = await _supabase
+                .from('stock_exits')
+                .select(`
+                    *,
+                    stock_items (name, value, unit, category),
+                    clients (name)
+                `)
+                .order('created_at', { ascending: false })
+                .range(from, from + PGRST_PAGE_SIZE - 1);
+            if (error) throw error;
+            if (!data || data.length === 0) break;
+            all.push(...data);
+            if (data.length < PGRST_PAGE_SIZE) break;
+        }
+        return all;
     } catch (error) {
         console.error('Error fetching stock exits:', error.message);
         alert('Erro ao buscar saídas de estoque: ' + error.message);
@@ -566,17 +606,25 @@ async function fetchStockExits() {
 // history down the wire on every load.
 async function fetchStockExitsForDateRange(startISO, endISO) {
     try {
-        const { data, error } = await _supabase
-            .from('stock_exits')
-            .select(`
-                *,
-                stock_items (name, value, unit, category),
-                clients (name)
-            `)
-            .gte('created_at', startISO)
-            .lt('created_at', endISO);
-        if (error) throw error;
-        return data;
+        const all = [];
+        for (let from = 0; ; from += PGRST_PAGE_SIZE) {
+            const { data, error } = await _supabase
+                .from('stock_exits')
+                .select(`
+                    *,
+                    stock_items (name, value, unit, category),
+                    clients (name)
+                `)
+                .gte('created_at', startISO)
+                .lt('created_at', endISO)
+                .order('created_at', { ascending: false })
+                .range(from, from + PGRST_PAGE_SIZE - 1);
+            if (error) throw error;
+            if (!data || data.length === 0) break;
+            all.push(...data);
+            if (data.length < PGRST_PAGE_SIZE) break;
+        }
+        return all;
     } catch (error) {
         console.error('Error fetching stock exits for date range:', error.message);
         return [];
