@@ -381,10 +381,12 @@
             </div>
             <div>
               <h2 class="text-sm font-bold text-[#0d121b] dark:text-white">Histórico de Saídas</h2>
-              <p class="text-xs text-gray-400">Registro de baixas com filtros por período e cliente</p>
+              <p class="text-xs text-gray-400">Registro de baixas com filtros por período, cliente e nota fiscal</p>
             </div>
           </div>
           <div class="flex items-center gap-2 flex-wrap">
+            <input type="text" id="history-nf-filter" placeholder="Filtrar por Nota Fiscal..."
+              class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 py-2 px-3 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:text-white" />
             <input type="month" id="history-date-filter"
               class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 py-2 px-3 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:text-white" />
             <div class="relative">

@@ -334,6 +334,7 @@ async function parsePDF(file) {
 function setupFilters() {
     const searchInput = document.getElementById('itemSearch');
     const categoryFilter = document.getElementById('categoryFilter');
+    const nfFilter = document.getElementById('nfFilter');
 
     if (searchInput) {
         searchInput.addEventListener('input', filterItems);
@@ -341,11 +342,15 @@ function setupFilters() {
     if (categoryFilter) {
         categoryFilter.addEventListener('change', filterItems);
     }
+    if (nfFilter) {
+        nfFilter.addEventListener('input', filterItems);
+    }
 }
 
 function filterItems() {
     const searchInput = document.getElementById('itemSearch');
     const categoryFilter = document.getElementById('categoryFilter');
+    const nfFilter = document.getElementById('nfFilter');
 
     if (!searchInput || !categoryFilter) return;
 
@@ -354,6 +359,7 @@ function filterItems() {
 
     const searchTerm = normalize(searchInput.value);
     const category = categoryFilter.value;
+    const nfTerm = normalize(nfFilter ? nfFilter.value : '');
 
     const filtered = currentItems.filter(item => {
         const itemName = normalize(item.name || '');
@@ -362,7 +368,10 @@ function filterItems() {
         const itemCategory = item.category || 'Outros';
         const matchesCategory = category === 'All' || itemCategory === category;
 
-        return matchesSearch && matchesCategory;
+        const itemNf = normalize(item.nota_fiscal || '');
+        const matchesNf = nfTerm === '' || itemNf.includes(nfTerm);
+
+        return matchesSearch && matchesCategory && matchesNf;
     });
 
     renderItemsTable(filtered);

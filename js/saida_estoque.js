@@ -103,6 +103,8 @@ async function loadInitialData() {
         if (filterSelect) filterSelect.addEventListener('change', () => loadExitHistory());
         const dateFilter = document.getElementById('history-date-filter');
         if (dateFilter) dateFilter.addEventListener('change', () => loadExitHistory());
+        const nfFilter = document.getElementById('history-nf-filter');
+        if (nfFilter) nfFilter.addEventListener('input', () => loadExitHistory());
 
         await loadExitHistory();
     } catch (e) {
@@ -301,12 +303,22 @@ window.editExit = (exit) => {
 
 // ─── Filters ──────────────────────────────────────────────────────────────────
 
+// Normalize strings for accent-insensitive comparison
+function normalizeText(str) {
+    return (str || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
 async function getFilteredExits() {
     let exits = await fetchStockExits();
     const filterClientId = document.getElementById('history-client-filter')?.value || '';
     const filterMonth = document.getElementById('history-date-filter')?.value || '';
+    // stock_exits has no dedicated nota_fiscal column — the invoice number
+    // lives as free text inside `observation` (e.g. "NF 12345"), populated
+    // either manually or from Conferência de Recebimento. Filter by substring.
+    const filterNf = normalizeText(document.getElementById('history-nf-filter')?.value || '');
     if (filterClientId) exits = exits.filter(e => e.client_id == filterClientId);
     if (filterMonth) exits = exits.filter(e => e.created_at?.startsWith(filterMonth));
+    if (filterNf) exits = exits.filter(e => normalizeText(e.observation).includes(filterNf));
     exits = exits.filter(e => e.stock_items);
     exits.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     return exits;
@@ -347,7 +359,10 @@ async function loadExitHistory() {
             tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors';
 
             const formattedDate = formatDate(exit.created_at.split('T')[0]);
-            const itemName = exit.stock_items ? escapeHtml(exit.stock_items.name) : '<span class="text-red-400 text-xs">Item excluído</span>';
+            const obsTitle = exit.observation ? ` title="${escapeHtml(exit.observation)}"` : '';
+            const itemName = exit.stock_items
+                ? `<span${obsTitle}>${escapeHtml(exit.stock_items.name)}</span>`
+                : '<span class="text-red-400 text-xs">Item excluído</span>';
             let destination = '-';
             if (exit.project_id) destination = 'Projeto';
             if (exit.clients) destination = escapeHtml(exit.clients.name);
