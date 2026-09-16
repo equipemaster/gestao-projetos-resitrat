@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 let currentItems = [];
+let displayedItems = [];
 
 async function loadProjectSelect() {
     const projects = await fetchProjects();
@@ -67,7 +68,19 @@ function formatCurrency(value) {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
 }
 
+// Some items were created by the naive PDF-text importer, which can turn an
+// entire invoice paragraph into a single item name. Cap what's shown so one
+// bad row can't blow up the table/PDF layout; the full text stays in a title
+// tooltip (table) and nothing is altered in the database.
+const ITEM_NAME_DISPLAY_LIMIT = 120;
+function truncateName(name) {
+    const str = name || '';
+    if (str.length <= ITEM_NAME_DISPLAY_LIMIT) return str;
+    return str.slice(0, ITEM_NAME_DISPLAY_LIMIT).trim() + '…';
+}
+
 function renderItemsTable(items) {
+    displayedItems = items;
     const tableBody = document.querySelector('tbody');
     if (!tableBody) return;
     tableBody.innerHTML = '';
@@ -87,7 +100,7 @@ function renderItemsTable(items) {
         const row = document.createElement('tr');
         row.className = "hover:bg-gray-50 dark:hover:bg-gray-800/50";
         row.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap text-[#0d121b] dark:text-white text-sm font-medium">${escapeHtml(item.name)}</td>
+            <td class="px-6 py-4 text-[#0d121b] dark:text-white text-sm font-medium max-w-xs break-words" title="${escapeHtml(item.name)}">${escapeHtml(truncateName(item.name))}</td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm"><span class="px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-xs">${escapeHtml(item.category || 'Outros')}</span></td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${escapeHtml(item.nota_fiscal || '-')}</td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">${item.quantity}</td>
@@ -330,6 +343,76 @@ async function parsePDF(file) {
     };
     reader.readAsArrayBuffer(file);
 }
+
+// ─── PDF Export ──────────────────────────────────────────────────────────────
+
+window.exportItemsPDF = () => {
+    const select = document.getElementById('project-select');
+    const projectId = select ? select.value : '';
+    if (!projectId) return alert('Selecione um projeto primeiro.');
+
+    const items = displayedItems;
+    if (!items || items.length === 0) return alert('Nenhum item para exportar.');
+
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('landscape');
+        const projectName = select.options[select.selectedIndex]?.textContent || '';
+
+        doc.setFontSize(16);
+        doc.setTextColor(30, 58, 138);
+        doc.text('Itens do Projeto — Resitrat', 14, 18);
+
+        doc.setFontSize(12);
+        doc.setTextColor(20);
+        doc.text(projectName, 14, 27);
+
+        doc.setFontSize(9);
+        doc.setTextColor(100);
+        doc.text(`Gerado em ${new Date().toLocaleString('pt-BR')}`, 14, 34);
+
+        let totalValue = 0;
+
+        doc.autoTable({
+            startY: 40,
+            head: [['Nome do Item', 'Categoria', 'Nota Fiscal', 'Quantidade', 'Unidade', 'Valor Unit.', 'Total']],
+            body: items.map(item => {
+                const val = parseFloat(item.value) || 0;
+                const total = val * (item.quantity || 0);
+                totalValue += total;
+                return [
+                    truncateName(item.name),
+                    item.category || 'Outros',
+                    item.nota_fiscal || '-',
+                    item.quantity,
+                    item.unit,
+                    formatCurrency(val),
+                    formatCurrency(total)
+                ];
+            }),
+            theme: 'striped',
+            headStyles: { fillColor: [30, 58, 138], fontSize: 8.5 },
+            styles: { fontSize: 8.5, cellPadding: 3, overflow: 'linebreak' },
+            columnStyles: {
+                0: { cellWidth: 'auto' },
+                1: { cellWidth: 35 },
+                2: { cellWidth: 30 },
+                3: { cellWidth: 25, halign: 'right' },
+                4: { cellWidth: 25 },
+                5: { cellWidth: 30, halign: 'right' },
+                6: { cellWidth: 30, halign: 'right' }
+            },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+            foot: [['', '', '', '', '', 'TOTAL GERAL', formatCurrency(totalValue)]],
+            footStyles: { fillColor: [241, 245, 249], textColor: 20, fontStyle: 'bold', fontSize: 8.5 }
+        });
+
+        doc.save(`Itens_Projeto_${projectName.replace(/[^a-zA-Z0-9-]/g, '_')}.pdf`);
+    } catch (e) {
+        console.error('PDF Export Error:', e);
+        alert('Erro ao gerar PDF: ' + e.message);
+    }
+};
 
 function setupFilters() {
     const searchInput = document.getElementById('itemSearch');
