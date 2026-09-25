@@ -819,3 +819,198 @@ async function deletePurchaseOrderReceipt(id) {
     if (error) throw error;
 }
 
+// ─── Controle de Documentação da Frota ─────────────────────────────────────
+
+async function fetchFrotaVeiculos() {
+    try {
+        const all = [];
+        for (let from = 0; ; from += PGRST_PAGE_SIZE) {
+            const { data, error } = await _supabase
+                .from('frota_veiculos')
+                .select('*')
+                .order('placa', { ascending: true })
+                .range(from, from + PGRST_PAGE_SIZE - 1);
+            if (error) throw error;
+            if (!data || data.length === 0) break;
+            all.push(...data);
+            if (data.length < PGRST_PAGE_SIZE) break;
+        }
+        return all;
+    } catch (error) {
+        console.error('Error fetching frota_veiculos:', error.message);
+        return [];
+    }
+}
+
+async function createFrotaVeiculo(veiculoData) {
+    const { data, error } = await _supabase.from('frota_veiculos').insert([veiculoData]).select();
+    if (error) throw error;
+    return data;
+}
+
+async function updateFrotaVeiculo(id, updates) {
+    const { data, error } = await _supabase.from('frota_veiculos').update(updates).eq('id', id).select();
+    if (error) throw error;
+    return data;
+}
+
+async function deleteFrotaVeiculo(id) {
+    const { error } = await _supabase.from('frota_veiculos').delete().eq('id', id);
+    if (error) throw error;
+}
+
+async function fetchFrotaDocumentos() {
+    try {
+        const all = [];
+        for (let from = 0; ; from += PGRST_PAGE_SIZE) {
+            const { data, error } = await _supabase
+                .from('frota_documentos')
+                .select('*')
+                .range(from, from + PGRST_PAGE_SIZE - 1);
+            if (error) throw error;
+            if (!data || data.length === 0) break;
+            all.push(...data);
+            if (data.length < PGRST_PAGE_SIZE) break;
+        }
+        return all;
+    } catch (error) {
+        console.error('Error fetching frota_documentos:', error.message);
+        return [];
+    }
+}
+
+// One row per (veiculo_id, tipo, ano) — upsert keeps the "preencher os dados"
+// workflow idempotent: reopening the modal for an already-created row updates
+// it instead of violating the unique constraint.
+async function upsertFrotaDocumento(docData) {
+    const { data, error } = await _supabase
+        .from('frota_documentos')
+        .upsert([docData], { onConflict: 'veiculo_id,tipo,ano' })
+        .select();
+    if (error) throw error;
+    return data;
+}
+
+async function deleteFrotaDocumento(id) {
+    const { error } = await _supabase.from('frota_documentos').delete().eq('id', id);
+    if (error) throw error;
+}
+
+async function fetchFrotaManutencoes() {
+    try {
+        const all = [];
+        for (let from = 0; ; from += PGRST_PAGE_SIZE) {
+            const { data, error } = await _supabase
+                .from('frota_manutencoes')
+                .select('*')
+                .order('data_realizada', { ascending: false })
+                .range(from, from + PGRST_PAGE_SIZE - 1);
+            if (error) throw error;
+            if (!data || data.length === 0) break;
+            all.push(...data);
+            if (data.length < PGRST_PAGE_SIZE) break;
+        }
+        return all;
+    } catch (error) {
+        console.error('Error fetching frota_manutencoes:', error.message);
+        return [];
+    }
+}
+
+async function createFrotaManutencao(manutencaoData) {
+    const { data, error } = await _supabase.from('frota_manutencoes').insert([manutencaoData]).select();
+    if (error) throw error;
+    return data;
+}
+
+async function updateFrotaManutencao(id, updates) {
+    const { data, error } = await _supabase.from('frota_manutencoes').update(updates).eq('id', id).select();
+    if (error) throw error;
+    return data;
+}
+
+async function deleteFrotaManutencao(id) {
+    const { error } = await _supabase.from('frota_manutencoes').delete().eq('id', id);
+    if (error) throw error;
+}
+
+async function fetchFrotaCalendario() {
+    try {
+        const { data, error } = await _supabase.from('frota_calendario').select('*');
+        if (error) throw error;
+        return data || [];
+    } catch (error) {
+        console.error('Error fetching frota_calendario:', error.message);
+        return [];
+    }
+}
+
+async function upsertFrotaCalendario(calData) {
+    const { data, error } = await _supabase
+        .from('frota_calendario')
+        .upsert([calData], { onConflict: 'ano,tipo,final_placa' })
+        .select();
+    if (error) throw error;
+    return data;
+}
+
+async function fetchFrotaParametros() {
+    try {
+        const { data, error } = await _supabase.from('frota_parametros').select('*');
+        if (error) throw error;
+        const map = {};
+        (data || []).forEach(row => { map[row.chave] = row.valor; });
+        return map;
+    } catch (error) {
+        console.error('Error fetching frota_parametros:', error.message);
+        return {};
+    }
+}
+
+async function updateFrotaParametro(chave, valor) {
+    const { data, error } = await _supabase
+        .from('frota_parametros')
+        .upsert([{ chave, valor: String(valor) }], { onConflict: 'chave' })
+        .select();
+    if (error) throw error;
+    return data;
+}
+
+async function fetchFrotaPagamentos() {
+    try {
+        const all = [];
+        for (let from = 0; ; from += PGRST_PAGE_SIZE) {
+            const { data, error } = await _supabase
+                .from('frota_pagamentos')
+                .select('*')
+                .order('data_pagamento', { ascending: false })
+                .range(from, from + PGRST_PAGE_SIZE - 1);
+            if (error) throw error;
+            if (!data || data.length === 0) break;
+            all.push(...data);
+            if (data.length < PGRST_PAGE_SIZE) break;
+        }
+        return all;
+    } catch (error) {
+        console.error('Error fetching frota_pagamentos:', error.message);
+        return [];
+    }
+}
+
+async function createFrotaPagamento(pagamentoData) {
+    const { data, error } = await _supabase.from('frota_pagamentos').insert([pagamentoData]).select();
+    if (error) throw error;
+    return data;
+}
+
+async function updateFrotaPagamento(id, updates) {
+    const { data, error } = await _supabase.from('frota_pagamentos').update(updates).eq('id', id).select();
+    if (error) throw error;
+    return data;
+}
+
+async function deleteFrotaPagamento(id) {
+    const { error } = await _supabase.from('frota_pagamentos').delete().eq('id', id);
+    if (error) throw error;
+}
+

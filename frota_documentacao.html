@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-BR">
+
+<head>
+  <meta charset="utf-8" />
+  <link href="./logoresitrat.png" rel="icon" type="image/png" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <title>Controle de Frota - Resitrat</title>
+  <meta content="light" name="color-scheme" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            primary: "#135bec",
+            text: {
+              light: { primary: "#0d121b", secondary: "#526071", tertiary: "#8292a2" },
+              dark: { primary: "#ffffff", secondary: "#9ca3af", tertiary: "#6b7280" }
+            },
+            background: { light: "#f0f2f8", dark: "#101622" }
+          },
+          fontFamily: { sans: ["Inter", "sans-serif"] }
+        }
+      }
+    };
+  </script>
+  <!-- Libs -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+  <!-- Supabase and Auth -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/supabaseClient.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/frota_documentacao.js" defer></script>
+  <style>
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+    .input-field {
+      width: 100%; border: 1.5px solid #e5e7eb; border-radius: 8px; padding: 8px 12px;
+      font-size: 0.8125rem; color: #0d121b; background: #f9fafb; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s; font-family: Inter, sans-serif;
+      text-transform: uppercase;
+    }
+    .input-field:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.12); background: #fff; }
+    .select-field {
+      width: 100%; border: 1.5px solid #e5e7eb; border-radius: 8px; padding: 8px 12px;
+      font-size: 0.8125rem; color: #0d121b; background: #f9fafb; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s; font-family: Inter, sans-serif; appearance: none; cursor: pointer;
+    }
+    .select-field:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.12); background: #fff; }
+    .textarea-field {
+      width: 100%; border: 1.5px solid #e5e7eb; border-radius: 8px; padding: 8px 12px;
+      font-size: 0.8125rem; color: #0d121b; background: #f9fafb; outline: none; resize: vertical; min-height: 64px;
+      transition: border-color 0.2s, box-shadow 0.2s; font-family: Inter, sans-serif;
+    }
+    .textarea-field:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.12); background: #fff; }
+    .field-label { display: block; font-size: 0.75rem; font-weight: 600; color: #374151; margin-bottom: 5px; }
+    @keyframes toast-in  { from { opacity:0; transform: translateX(24px); } to { opacity:1; transform: translateX(0); } }
+    @keyframes toast-out { from { opacity:1; transform: translateX(0); } to { opacity:0; transform: translateX(24px); } }
+    .toast { animation: toast-in 0.25s ease both; }
+    .toast.hiding { animation: toast-out 0.2s ease both; }
+    @keyframes modal-in { from { opacity:0; transform: scale(0.96); } to { opacity:1; transform: scale(1); } }
+    .modal-card { animation: modal-in 0.2s ease both; }
+    .tab-btn { border-bottom: 2px solid transparent; }
+    .tab-btn.active { border-bottom-color: #135bec; color: #135bec; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+  </style>
+</head>
+
+<body class="bg-background-light dark:bg-background-dark text-text-light-primary dark:text-text-dark-primary font-sans antialiased overflow-hidden">
+<div class="flex h-screen w-full">
+
+  <!-- ── Sidebar ─────────────────────────────────────────────────────── -->
+  <aside class="w-52 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark flex-shrink-0 flex flex-col h-full">
+    <div class="p-4 pb-0">
+      <img src="logoresitrat.png" alt="Logo" class="h-10 w-auto object-contain">
+    </div>
+    <div class="flex-1 overflow-y-auto px-3 py-3">
+      <nav class="space-y-0.5">
+        <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="gerenciamentodeprojetos.html">
+          <span class="material-symbols-outlined" style="font-size:18px">dashboard</span>
+          <p class="text-xs font-medium">Dashboard</p>
+        </a>
+        <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="listaprojetos.html">
+          <span class="material-symbols-outlined" style="font-size:18px">folder</span>
+          <p class="text-xs font-medium">Projetos</p>
+        </a>
+        <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="itens_projeto.html">
+          <span class="material-symbols-outlined" style="font-size:18px">inventory_2</span>
+          <p class="text-xs font-medium">Itens do Projeto</p>
+        </a>
+        <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="controle_producao.html">
+          <span class="material-symbols-outlined" style="font-size:18px">factory</span>
+          <p class="text-xs font-medium">Controle de Produção</p>
+        </a>
+        <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="saida_estoque.html">
+          <span class="material-symbols-outlined" style="font-size:18px">output</span>
+          <p class="text-xs font-medium">Saída de Estoque</p>
+        </a>
+        <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="requisicao_estoque.html">
+          <span class="material-symbols-outlined" style="font-size:18px">pending_actions</span>
+          <p class="text-xs font-medium">Requisições de Estoque</p>
+        </a>
+        <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="ordem_compra.html">
+          <span class="material-symbols-outlined" style="font-size:18px">shopping_cart</span>
+          <p class="text-xs font-medium">Ordem de Compra</p>
+        </a>
+        <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="conferencia_recebimento.html">
+          <span class="material-symbols-outlined" style="font-size:18px">fact_check</span>
+          <p class="text-xs font-medium">Conferência de Recebimento</p>
+        </a>
+        <a class="flex items-center gap-2 rounded-lg bg-primary/10 px-2 py-1.5 text-primary" href="frota_documentacao.html">
+          <span class="material-symbols-outlined fill-1" style="font-size:18px">local_shipping</span>
+          <p class="text-xs font-medium">Controle de Frota</p>
+        </a>
+        <a id="nav-cad-user" class="hidden items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="cadastro_usuario.html">
+          <span class="material-symbols-outlined" style="font-size:18px">person_add_alt</span>
+          <p class="text-xs font-medium">Cadastrar Usuários</p>
+        </a>
+        <a id="nav-gestao-avista" class="hidden items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="gestao_avista.html" target="_blank">
+          <span class="material-symbols-outlined" style="font-size:18px">tv</span>
+          <p class="text-xs font-medium">Gestão à Vista</p>
+        </a>
+        <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="clientes.html">
+          <span class="material-symbols-outlined" style="font-size:18px">person_add</span>
+          <p class="text-xs font-medium">Clientes</p>
+        </a>
+        <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="dashboard_custos.html">
+          <span class="material-symbols-outlined" style="font-size:18px">attach_money</span>
+          <p class="text-xs font-medium">Custos por Cliente</p>
+        </a>
+        <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="tarefas.html">
+          <span class="material-symbols-outlined" style="font-size:18px">check_circle</span>
+          <p class="text-xs font-medium">Tarefas</p>
+        </a>
+        <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="membros.html">
+          <span class="material-symbols-outlined" style="font-size:18px">groups</span>
+          <p class="text-xs font-medium">Equipe</p>
+        </a>
+        <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary transition-colors" href="relatorios.html">
+          <span class="material-symbols-outlined" style="font-size:18px">bar_chart</span>
+          <p class="text-xs font-medium">Relatórios</p>
+        </a>
+      </nav>
+    </div>
+    <div class="p-3 border-t border-gray-200 dark:border-gray-800">
+      <div class="space-y-0.5">
+        <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 hover:text-primary transition-colors" href="ajuda.html">
+          <span class="material-symbols-outlined" style="font-size:18px">help</span>
+          <p class="text-xs font-medium">Ajuda e Suporte</p>
+        </a>
+        <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 hover:text-primary transition-colors" href="configuracoes.html">
+          <span class="material-symbols-outlined" style="font-size:18px">settings</span>
+          <p class="text-xs font-medium">Configurações</p>
+        </a>
+        <a class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-text-light-secondary dark:text-text-dark-secondary hover:bg-primary/10 hover:text-primary transition-colors" href="#" onclick="signOut(); return false;">
+          <span class="material-symbols-outlined" style="font-size:18px">logout</span>
+          <p class="text-xs font-medium">Sair</p>
+        </a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main Content ────────────────────────────────────────────────── -->
+  <main class="flex-1 min-w-0 overflow-auto">
+
+    <!-- Sticky Header -->
+    <header class="sticky top-0 z-10 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark px-6 py-4">
+      <div class="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <div class="flex items-center gap-1.5 text-xs text-gray-400 mb-0.5">
+            <span>Início</span>
+            <span class="material-symbols-outlined" style="font-size:13px">chevron_right</span>
+            <span class="text-primary font-semibold">Controle de Frota</span>
+          </div>
+          <h1 class="text-xl font-bold text-[#0d121b] dark:text-white">Controle de Documentação da Frota</h1>
+          <p class="text-xs text-gray-400 mt-0.5">IPVA, licenciamento, seguro e manutenções preventivas</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="exportPainelPDF()"
+            class="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 transition-colors">
+            <span class="material-symbols-outlined" style="font-size:16px">picture_as_pdf</span>
+            Exportar PDF (DDS)
+          </button>
+          <button onclick="exportFrotaXLS()"
+            class="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors">
+            <span class="material-symbols-outlined" style="font-size:16px">download</span>
+            Exportar XLS
+          </button>
+          <button onclick="openVeiculoModal()"
+            class="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white hover:bg-primary/90 transition-colors">
+            <span class="material-symbols-outlined" style="font-size:16px">add</span>
+            Novo Veículo
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <div class="p-6 space-y-6">
+
+      <!-- ── KPI Cards ──────────────────────────────────────────────── -->
+      <div class="grid grid-cols-2 gap-4 lg:grid-cols-5">
+        <div class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark p-5 shadow-sm flex items-center gap-4">
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#7f1d1d 0%,#dc2626 100%)">
+            <span class="material-symbols-outlined text-white" style="font-size:20px">error</span>
+          </div>
+          <div class="min-w-0">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Vencidos</p>
+            <p class="text-2xl font-extrabold text-[#0d121b] dark:text-white mt-0.5 whitespace-nowrap" id="kpi-vencidos">—</p>
+          </div>
+        </div>
+        <div class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark p-5 shadow-sm flex items-center gap-4">
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#92400e 0%,#d97706 100%)">
+            <span class="material-symbols-outlined text-white" style="font-size:20px">schedule</span>
+          </div>
+          <div class="min-w-0">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">A Vencer</p>
+            <p class="text-2xl font-extrabold text-[#0d121b] dark:text-white mt-0.5 whitespace-nowrap" id="kpi-avencer">—</p>
+          </div>
+        </div>
+        <div class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark p-5 shadow-sm flex items-center gap-4">
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#14532d 0%,#16a34a 100%)">
+            <span class="material-symbols-outlined text-white" style="font-size:20px">verified</span>
+          </div>
+          <div class="min-w-0">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Em Dia / Pago</p>
+            <p class="text-2xl font-extrabold text-[#0d121b] dark:text-white mt-0.5 whitespace-nowrap" id="kpi-emdia">—</p>
+          </div>
+        </div>
+        <div class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark p-5 shadow-sm flex items-center gap-4 min-w-0">
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%)">
+            <span class="material-symbols-outlined text-white" style="font-size:20px">payments</span>
+          </div>
+          <div class="min-w-0">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Valor Pendente</p>
+            <p class="text-2xl font-extrabold text-[#0d121b] dark:text-white mt-0.5 whitespace-nowrap" id="kpi-valor-pendente">—</p>
+          </div>
+        </div>
+        <div class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark p-5 shadow-sm flex items-center gap-4">
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#581c87 0%,#9333ea 100%)">
+            <span class="material-symbols-outlined text-white" style="font-size:20px">build</span>
+          </div>
+          <div class="min-w-0">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Manutenções Pendentes</p>
+            <p class="text-2xl font-extrabold text-[#0d121b] dark:text-white mt-0.5 whitespace-nowrap" id="kpi-manut-pendentes">—</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Tabs ───────────────────────────────────────────────────── -->
+      <div class="border-b border-gray-200 dark:border-gray-800">
+        <nav class="flex gap-6 -mb-px overflow-x-auto">
+          <button class="tab-btn active flex items-center gap-1.5 py-3 px-1 text-xs font-semibold text-gray-500 whitespace-nowrap" data-tab="painel" onclick="switchTab('painel')">
+            <span class="material-symbols-outlined" style="font-size:16px">space_dashboard</span> Painel
+          </button>
+          <button class="tab-btn flex items-center gap-1.5 py-3 px-1 text-xs font-semibold text-gray-500 whitespace-nowrap" data-tab="documentos" onclick="switchTab('documentos')">
+            <span class="material-symbols-outlined" style="font-size:16px">description</span> Documentos
+          </button>
+          <button class="tab-btn flex items-center gap-1.5 py-3 px-1 text-xs font-semibold text-gray-500 whitespace-nowrap" data-tab="manutencoes" onclick="switchTab('manutencoes')">
+            <span class="material-symbols-outlined" style="font-size:16px">build</span> Manutenções Preventivas
+          </button>
+          <button class="tab-btn flex items-center gap-1.5 py-3 px-1 text-xs font-semibold text-gray-500 whitespace-nowrap" data-tab="veiculos" onclick="switchTab('veiculos')">
+            <span class="material-symbols-outlined" style="font-size:16px">directions_car</span> Veículos
+          </button>
+          <button class="tab-btn flex items-center gap-1.5 py-3 px-1 text-xs font-semibold text-gray-500 whitespace-nowrap" data-tab="pagamentos" onclick="switchTab('pagamentos')">
+            <span class="material-symbols-outlined" style="font-size:16px">receipt_long</span> Histórico de Pagamentos
+          </button>
+          <button class="tab-btn flex items-center gap-1.5 py-3 px-1 text-xs font-semibold text-gray-500 whitespace-nowrap" data-tab="config" onclick="switchTab('config')">
+            <span class="material-symbols-outlined" style="font-size:16px">tune</span> Calendário e Parâmetros
+          </button>
+        </nav>
+      </div>
+
+      <!-- ══════════════════ PAINEL ══════════════════ -->
+      <div id="tab-painel" class="tab-panel active space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark p-5 shadow-sm lg:col-span-1">
+            <p class="text-sm font-bold text-[#0d121b] dark:text-white mb-3">Status Geral dos Documentos</p>
+            <div class="relative h-48"><canvas id="chart-status-donut"></canvas></div>
+          </div>
+          <div class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark p-5 shadow-sm lg:col-span-2">
+            <p class="text-sm font-bold text-[#0d121b] dark:text-white mb-3">Valor Pendente por Veículo (Top 8)</p>
+            <div class="relative h-48"><canvas id="chart-valor-bar"></canvas></div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div class="rounded-xl border border-red-200 dark:border-red-900/40 bg-white dark:bg-background-dark shadow-sm">
+            <div class="flex items-center gap-2 px-5 py-3 border-b border-red-100 dark:border-red-900/40 bg-red-50/60 dark:bg-red-900/10">
+              <span class="material-symbols-outlined text-red-600" style="font-size:18px">error</span>
+              <h2 class="text-sm font-bold text-red-800 dark:text-red-300">Vencidos — Ação Imediata (DDS)</h2>
+            </div>
+            <div id="painel-vencidos-list" class="divide-y divide-gray-100 dark:divide-gray-800 max-h-96 overflow-y-auto"></div>
+          </div>
+          <div class="rounded-xl border border-amber-200 dark:border-amber-900/40 bg-white dark:bg-background-dark shadow-sm">
+            <div class="flex items-center gap-2 px-5 py-3 border-b border-amber-100 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-900/10">
+              <span class="material-symbols-outlined text-amber-600" style="font-size:18px">schedule</span>
+              <h2 class="text-sm font-bold text-amber-800 dark:text-amber-300">A Vencer — Planejamento de Quinta</h2>
+            </div>
+            <div id="painel-avencer-list" class="divide-y divide-gray-100 dark:divide-gray-800 max-h-96 overflow-y-auto"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════ DOCUMENTOS ══════════════════ -->
+      <div id="tab-documentos" class="tab-panel space-y-4">
+        <div class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark shadow-sm">
+          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex-wrap gap-3">
+            <div>
+              <h2 class="text-sm font-bold text-[#0d121b] dark:text-white">IPVA, Licenciamento e Seguro</h2>
+              <p class="text-xs text-gray-400">Preencha valores, pagamento e dados do seguro de cada veículo</p>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <select id="doc-filter-ano" class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 py-2 px-3 text-xs dark:text-white"></select>
+              <select id="doc-filter-tipo" class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 py-2 px-3 text-xs dark:text-white">
+                <option value="">Todos os Tipos</option>
+                <option value="IPVA">IPVA</option>
+                <option value="LICENCIAMENTO">Licenciamento</option>
+                <option value="SEGURO">Seguro</option>
+              </select>
+              <select id="doc-filter-status" class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 py-2 px-3 text-xs dark:text-white">
+                <option value="">Todos os Status</option>
+                <option value="VENCIDO">Vencido</option>
+                <option value="AVENCER">A Vencer</option>
+                <option value="EMDIA">Em Dia</option>
+                <option value="PAGO">Pago/Vigente</option>
+                <option value="PREENCHER">Preencher/Conferir</option>
+              </select>
+              <input type="text" id="doc-filter-busca" placeholder="Buscar placa ou motorista..."
+                class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 py-2 px-3 text-xs dark:text-white" />
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50 dark:bg-gray-800/50">
+                <tr>
+                  <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Veículo</th>
+                  <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Motorista</th>
+                  <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Tipo</th>
+                  <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Próximo Vencimento</th>
+                  <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Valor</th>
+                  <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Status</th>
+                  <th class="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Ações</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 dark:divide-gray-800" id="documentos-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════ MANUTENÇÕES ══════════════════ -->
+      <div id="tab-manutencoes" class="tab-panel space-y-4">
+        <div class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark shadow-sm">
+          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex-wrap gap-3">
+            <div>
+              <h2 class="text-sm font-bold text-[#0d121b] dark:text-white">Manutenções Preventivas por Veículo</h2>
+              <p class="text-xs text-gray-400">Intervalo recomendado conforme a marca — troca de óleo, filtros, freios e revisão geral</p>
+            </div>
+            <input type="text" id="manut-filter-busca" placeholder="Buscar placa ou marca..."
+              class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 py-2 px-3 text-xs dark:text-white" />
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50 dark:bg-gray-800/50">
+                <tr>
+                  <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Veículo</th>
+                  <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Última Manutenção</th>
+                  <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Recomendado (marca)</th>
+                  <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Próxima Prevista</th>
+                  <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Status</th>
+                  <th class="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Ações</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 dark:divide-gray-800" id="manutencoes-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════ VEÍCULOS ══════════════════ -->
+      <div id="tab-veiculos" class="tab-panel space-y-4">
+        <div class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark shadow-sm">
+          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex-wrap gap-3">
+            <div>
+              <h2 class="text-sm font-bold text-[#0d121b] dark:text-white">Cadastro de Veículos</h2>
+              <p class="text-xs text-gray-400">Placa, marca, modelo, motorista e UF de registro</p>
+            </div>
+            <input type="text" id="veiculo-filter-busca" placeholder="Buscar placa, marca ou motorista..."
+              class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 py-2 px-3 text-xs dark:text-white" />
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50 dark:bg-gray-800/50">
+                <tr>
+                  <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Placa</th>
+                  <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Marca / Modelo</th>
+                  <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Motorista</th>
+                  <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">UF</th>
+                  <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Final Placa</th>
+                  <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Ativo</th>
+                  <th class="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Ações</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 dark:divide-gray-800" id="veiculos-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════ HISTÓRICO DE PAGAMENTOS ══════════════════ -->
+      <div id="tab-pagamentos" class="tab-panel space-y-4">
+        <div class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark shadow-sm">
+          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex-wrap gap-3">
+            <div>
+              <h2 class="text-sm font-bold text-[#0d121b] dark:text-white">Histórico de Pagamentos</h2>
+              <p class="text-xs text-gray-400">Lançamentos de IPVA, licenciamento, seguro e manutenção com comprovante em PDF</p>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <select id="pag-filter-veiculo" class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 py-2 px-3 text-xs dark:text-white">
+                <option value="">Todos os Veículos</option>
+              </select>
+              <select id="pag-filter-tipo" class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 py-2 px-3 text-xs dark:text-white">
+                <option value="">Todos os Tipos</option>
+                <option value="IPVA">IPVA</option>
+                <option value="LICENCIAMENTO">Licenciamento</option>
+                <option value="SEGURO">Seguro</option>
+                <option value="MANUTENCAO">Manutenção</option>
+                <option value="OUTRO">Outro</option>
+              </select>
+              <input type="text" id="pag-filter-busca" placeholder="Buscar placa ou descrição..."
+                class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 py-2 px-3 text-xs dark:text-white" />
+              <button onclick="openPagamentoModal()"
+                class="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white hover:bg-primary/90 transition-colors">
+                <span class="material-symbols-outlined" style="font-size:16px">add</span>
+                Novo Registro
+              </button>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50 dark:bg-gray-800/50">
+                <tr>
+                  <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Data</th>
+                  <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Veículo</th>
+                  <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Tipo</th>
+                  <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Descrição</th>
+                  <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Valor</th>
+                  <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Comprovante</th>
+                  <th class="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Ações</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 dark:divide-gray-800" id="pagamentos-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════ CONFIG (Calendário / Parâmetros) ══════════════════ -->
+      <div id="tab-config" class="tab-panel space-y-4">
+        <div class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark shadow-sm">
+          <div class="flex items-center gap-3 px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%)">
+              <span class="material-symbols-outlined text-white" style="font-size:16px">tune</span>
+            </div>
+            <div>
+              <h2 class="text-sm font-bold text-[#0d121b] dark:text-white">Parâmetros</h2>
+              <p class="text-xs text-gray-400">Ano vigente, janela de alerta e taxa de licenciamento</p>
+            </div>
+          </div>
+          <div class="p-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label class="field-label">Ano Vigente</label>
+              <input type="number" id="param-ano-vigente" class="input-field" style="text-transform:none">
+            </div>
+            <div>
+              <label class="field-label">Dias de Alerta ("A Vencer")</label>
+              <input type="number" id="param-dias-alerta" class="input-field" style="text-transform:none">
+            </div>
+            <div>
+              <label class="field-label">Taxa de Licenciamento (R$)</label>
+              <input type="number" step="0.01" id="param-taxa-licenciamento" class="input-field" style="text-transform:none">
+            </div>
+            <div>
+              <label class="field-label">Taxa de Licenciamento c/ Atraso (R$)</label>
+              <input type="number" step="0.01" id="param-taxa-atraso" class="input-field" style="text-transform:none">
+            </div>
+          </div>
+          <div class="px-6 pb-6">
+            <button onclick="saveParametros()" class="rounded-lg bg-primary px-4 py-2 text-xs font-bold text-white hover:bg-primary/90 transition-colors">Salvar Parâmetros</button>
+          </div>
+        </div>
+
+        <div class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark shadow-sm">
+          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex-wrap gap-3">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:linear-gradient(135deg,#14532d 0%,#16a34a 100%)">
+                <span class="material-symbols-outlined text-white" style="font-size:16px">event</span>
+              </div>
+              <div>
+                <h2 class="text-sm font-bold text-[#0d121b] dark:text-white">Calendário Detran-GO / SEFAZ-GO</h2>
+                <p class="text-xs text-gray-400">Vencimento de IPVA e Licenciamento por final de placa</p>
+              </div>
+            </div>
+            <select id="calendario-ano-select" class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 py-2 px-3 text-xs dark:text-white"></select>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50 dark:bg-gray-800/50">
+                <tr>
+                  <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Final da Placa</th>
+                  <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Vencimento IPVA</th>
+                  <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Vencimento Licenciamento</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 dark:divide-gray-800" id="calendario-table-body"></tbody>
+            </table>
+          </div>
+          <div class="px-6 py-4">
+            <button onclick="saveCalendario()" class="rounded-lg bg-primary px-4 py-2 text-xs font-bold text-white hover:bg-primary/90 transition-colors">Salvar Calendário</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- Toast Container -->
+<div id="toast-container" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+
+<!-- ── Modal: Veículo ──────────────────────────────────────────────── -->
+<div id="veiculo-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4" style="backdrop-filter:blur(4px);background:rgba(0,0,0,0.4)">
+  <div class="modal-card w-full max-w-2xl rounded-2xl bg-white dark:bg-gray-900 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+    <div class="px-6 py-5 border-b border-gray-100 dark:border-gray-800 flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%)">
+        <span class="material-symbols-outlined text-white" style="font-size:18px">directions_car</span>
+      </div>
+      <div>
+        <h3 class="text-sm font-bold text-gray-900 dark:text-white" id="veiculo-modal-title">Novo Veículo</h3>
+        <p class="text-xs text-gray-400">Dados cadastrais do veículo</p>
+      </div>
+    </div>
+    <form id="veiculo-form" class="px-6 py-5 space-y-4 overflow-y-auto">
+      <input type="hidden" id="veiculo-id">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label class="field-label">Placa <span class="text-red-500">*</span></label>
+          <input type="text" id="veiculo-placa" required maxlength="8" placeholder="ABC1D23" class="input-field">
+        </div>
+        <div>
+          <label class="field-label">Marca <span class="text-red-500">*</span></label>
+          <input type="text" id="veiculo-marca" required list="marcas-list" placeholder="Ex: MERCEDES-BENZ" class="input-field">
+          <datalist id="marcas-list"></datalist>
+        </div>
+        <div>
+          <label class="field-label">Modelo <span class="text-red-500">*</span></label>
+          <input type="text" id="veiculo-modelo" required placeholder="Ex: SPRINTER 415" class="input-field">
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div>
+          <label class="field-label">Ano/Modelo</label>
+          <input type="text" id="veiculo-ano" placeholder="2022/2023" class="input-field">
+        </div>
+        <div>
+          <label class="field-label">Cor</label>
+          <input type="text" id="veiculo-cor" class="input-field">
+        </div>
+        <div>
+          <label class="field-label">UF de Registro</label>
+          <input type="text" id="veiculo-uf" maxlength="2" value="GO" class="input-field">
+        </div>
+        <div>
+          <label class="field-label">KM Atual</label>
+          <input type="number" id="veiculo-km" style="text-transform:none" class="input-field">
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="field-label">Motorista</label>
+          <input type="text" id="veiculo-motorista" class="input-field">
+        </div>
+        <div>
+          <label class="field-label">RENAVAM</label>
+          <input type="text" id="veiculo-renavam" style="text-transform:none" class="input-field">
+        </div>
+      </div>
+      <div>
+        <label class="field-label">Observação</label>
+        <textarea id="veiculo-obs" rows="2" class="textarea-field"></textarea>
+      </div>
+      <label class="flex items-center gap-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
+        <input type="checkbox" id="veiculo-ativo" checked class="rounded">
+        Veículo ativo na frota
+      </label>
+
+      <div>
+        <label class="field-label">Documento do Veículo (PDF) <span class="font-normal text-gray-400">(CRLV, etc.)</span></label>
+        <div id="veiculo-pdf-current" class="hidden mt-1 mb-2 flex items-center justify-between gap-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2">
+          <a id="veiculo-pdf-current-link" href="#" target="_blank" rel="noopener" class="flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline truncate">
+            <span class="material-symbols-outlined" style="font-size:16px">picture_as_pdf</span> Ver PDF anexado
+          </a>
+          <button type="button" onclick="removeVeiculoPdf()" class="text-xs font-semibold text-red-600 hover:underline flex-shrink-0">Remover</button>
+        </div>
+        <input type="file" id="veiculo-pdf-file" accept="application/pdf"
+          class="block w-full text-xs text-gray-700 dark:text-gray-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20">
+      </div>
+    </form>
+    <div class="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-800 flex gap-3 justify-end">
+      <button type="button" onclick="closeVeiculoModal()"
+        class="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+        Cancelar
+      </button>
+      <button type="button" id="veiculo-submit-btn" onclick="submitVeiculo()"
+        class="px-5 py-2 rounded-lg text-xs font-bold text-white transition-all shadow-sm hover:opacity-90"
+        style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%)">
+        Salvar Veículo
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: Documento (IPVA/Licenciamento/Seguro) ───────────────────── -->
+<div id="documento-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4" style="backdrop-filter:blur(4px);background:rgba(0,0,0,0.4)">
+  <div class="modal-card w-full max-w-lg rounded-2xl bg-white dark:bg-gray-900 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+    <div class="px-6 py-5 border-b border-gray-100 dark:border-gray-800 flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%)">
+        <span class="material-symbols-outlined text-white" style="font-size:18px">description</span>
+      </div>
+      <div>
+        <h3 class="text-sm font-bold text-gray-900 dark:text-white" id="documento-modal-title">Documento</h3>
+        <p class="text-xs text-gray-400" id="documento-modal-subtitle">—</p>
+      </div>
+    </div>
+    <form id="documento-form" class="px-6 py-5 space-y-4 overflow-y-auto">
+      <input type="hidden" id="doc-veiculo-id">
+      <input type="hidden" id="doc-tipo">
+      <input type="hidden" id="doc-ano">
+
+      <div id="doc-fields-valor" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="field-label">Valor (R$)</label>
+          <input type="number" step="0.01" id="doc-valor" style="text-transform:none" class="input-field">
+        </div>
+        <div>
+          <label class="field-label">Data de Pagamento</label>
+          <input type="date" id="doc-data-pagamento" style="text-transform:none" class="input-field">
+        </div>
+      </div>
+
+      <div id="doc-fields-manual">
+        <label class="field-label">Vencimento Manual <span class="font-normal text-gray-400">(placa fora de GO ou parcelamento)</span></label>
+        <input type="date" id="doc-vencimento-manual" style="text-transform:none" class="input-field">
+      </div>
+
+      <div id="doc-fields-seguro" class="hidden space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="field-label">Seguradora</label>
+            <input type="text" id="doc-seguradora" class="input-field">
+          </div>
+          <div>
+            <label class="field-label">Apólice</label>
+            <input type="text" id="doc-apolice" style="text-transform:none" class="input-field">
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="field-label">Início de Vigência</label>
+            <input type="date" id="doc-vigencia-inicio" style="text-transform:none" class="input-field">
+          </div>
+          <div>
+            <label class="field-label">Fim de Vigência</label>
+            <input type="date" id="doc-vigencia-fim" style="text-transform:none" class="input-field">
+          </div>
+        </div>
+      </div>
+
+      <label class="flex items-center gap-2 text-xs font-semibold text-gray-700 dark:text-gray-300" id="doc-pago-label">
+        <input type="checkbox" id="doc-pago" class="rounded">
+        Pago
+      </label>
+
+      <div>
+        <label class="field-label">Documento em PDF <span class="font-normal text-gray-400">(guia, CRLV, apólice digitalizada)</span></label>
+        <div id="doc-pdf-current" class="hidden mt-1 mb-2 flex items-center justify-between gap-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2">
+          <a id="doc-pdf-current-link" href="#" target="_blank" rel="noopener" class="flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline truncate">
+            <span class="material-symbols-outlined" style="font-size:16px">picture_as_pdf</span> Ver PDF anexado
+          </a>
+          <button type="button" onclick="removeDocPdf()" class="text-xs font-semibold text-red-600 hover:underline flex-shrink-0">Remover</button>
+        </div>
+        <input type="file" id="doc-pdf-file" accept="application/pdf"
+          class="block w-full text-xs text-gray-700 dark:text-gray-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20">
+      </div>
+
+      <div>
+        <label class="field-label">Observação</label>
+        <textarea id="doc-obs" rows="2" class="textarea-field"></textarea>
+      </div>
+    </form>
+    <div class="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-800 flex gap-3 justify-end">
+      <button type="button" onclick="closeDocumentoModal()"
+        class="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+        Cancelar
+      </button>
+      <button type="button" onclick="submitDocumento()"
+        class="px-5 py-2 rounded-lg text-xs font-bold text-white transition-all shadow-sm hover:opacity-90"
+        style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%)">
+        Salvar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: Manutenção ──────────────────────────────────────────────── -->
+<div id="manutencao-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4" style="backdrop-filter:blur(4px);background:rgba(0,0,0,0.4)">
+  <div class="modal-card w-full max-w-lg rounded-2xl bg-white dark:bg-gray-900 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+    <div class="px-6 py-5 border-b border-gray-100 dark:border-gray-800 flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#581c87 0%,#9333ea 100%)">
+        <span class="material-symbols-outlined text-white" style="font-size:18px">build</span>
+      </div>
+      <div>
+        <h3 class="text-sm font-bold text-gray-900 dark:text-white">Registrar Manutenção</h3>
+        <p class="text-xs text-gray-400" id="manutencao-modal-subtitle">—</p>
+      </div>
+    </div>
+    <form id="manutencao-form" class="px-6 py-5 space-y-4 overflow-y-auto">
+      <input type="hidden" id="manut-veiculo-id">
+      <div>
+        <label class="field-label">Tipo de Manutenção <span class="text-red-500">*</span></label>
+        <input type="text" id="manut-tipo" required list="manut-tipo-list" placeholder="Ex: TROCA DE ÓLEO E FILTRO" class="input-field">
+        <datalist id="manut-tipo-list"></datalist>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="field-label">Data Realizada <span class="text-red-500">*</span></label>
+          <input type="date" id="manut-data" required style="text-transform:none" class="input-field">
+        </div>
+        <div>
+          <label class="field-label">KM na Realização</label>
+          <input type="number" id="manut-km" style="text-transform:none" class="input-field">
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="field-label">Próxima Data <span class="font-normal text-gray-400">(opcional, senão calcula pela marca)</span></label>
+          <input type="date" id="manut-proxima-data" style="text-transform:none" class="input-field">
+        </div>
+        <div>
+          <label class="field-label">Próximo KM <span class="font-normal text-gray-400">(opcional)</span></label>
+          <input type="number" id="manut-proximo-km" style="text-transform:none" class="input-field">
+        </div>
+      </div>
+      <div>
+        <label class="field-label">Observação</label>
+        <textarea id="manut-obs" rows="2" class="textarea-field"></textarea>
+      </div>
+    </form>
+    <div class="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-800 flex gap-3 justify-end">
+      <button type="button" onclick="closeManutencaoModal()"
+        class="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+        Cancelar
+      </button>
+      <button type="button" onclick="submitManutencao()"
+        class="px-5 py-2 rounded-lg text-xs font-bold text-white transition-all shadow-sm hover:opacity-90"
+        style="background:linear-gradient(135deg,#581c87 0%,#9333ea 100%)">
+        Salvar Manutenção
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: Registro de Pagamento (Histórico) ───────────────────────── -->
+<div id="pagamento-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4" style="backdrop-filter:blur(4px);background:rgba(0,0,0,0.4)">
+  <div class="modal-card w-full max-w-lg rounded-2xl bg-white dark:bg-gray-900 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+    <div class="px-6 py-5 border-b border-gray-100 dark:border-gray-800 flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#14532d 0%,#16a34a 100%)">
+        <span class="material-symbols-outlined text-white" style="font-size:18px">receipt_long</span>
+      </div>
+      <div>
+        <h3 class="text-sm font-bold text-gray-900 dark:text-white" id="pagamento-modal-title">Novo Registro de Pagamento</h3>
+        <p class="text-xs text-gray-400">Lançamento com comprovante em PDF</p>
+      </div>
+    </div>
+    <form id="pagamento-form" class="px-6 py-5 space-y-4 overflow-y-auto">
+      <input type="hidden" id="pag-id">
+      <div>
+        <label class="field-label">Veículo <span class="text-red-500">*</span></label>
+        <select id="pag-veiculo-id" required class="select-field"></select>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="field-label">Tipo <span class="text-red-500">*</span></label>
+          <select id="pag-tipo" required class="select-field">
+            <option value="IPVA">IPVA</option>
+            <option value="LICENCIAMENTO">Licenciamento</option>
+            <option value="SEGURO">Seguro</option>
+            <option value="MANUTENCAO">Manutenção</option>
+            <option value="OUTRO">Outro</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label">Data de Pagamento <span class="text-red-500">*</span></label>
+          <input type="date" id="pag-data" required style="text-transform:none" class="input-field">
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="field-label">Descrição</label>
+          <input type="text" id="pag-descricao" placeholder="Ex: 2ª PARCELA IPVA 2026" class="input-field">
+        </div>
+        <div>
+          <label class="field-label">Valor (R$)</label>
+          <input type="number" step="0.01" id="pag-valor" style="text-transform:none" class="input-field">
+        </div>
+      </div>
+      <div>
+        <label class="field-label">Comprovante em PDF</label>
+        <div id="pag-pdf-current" class="hidden mt-1 mb-2 flex items-center justify-between gap-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2">
+          <a id="pag-pdf-current-link" href="#" target="_blank" rel="noopener" class="flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline truncate">
+            <span class="material-symbols-outlined" style="font-size:16px">picture_as_pdf</span> Ver comprovante anexado
+          </a>
+          <button type="button" onclick="removePagPdf()" class="text-xs font-semibold text-red-600 hover:underline flex-shrink-0">Remover</button>
+        </div>
+        <input type="file" id="pag-pdf-file" accept="application/pdf"
+          class="block w-full text-xs text-gray-700 dark:text-gray-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20">
+      </div>
+      <div>
+        <label class="field-label">Observação</label>
+        <textarea id="pag-obs" rows="2" class="textarea-field"></textarea>
+      </div>
+    </form>
+    <div class="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-800 flex gap-3 justify-end">
+      <button type="button" onclick="closePagamentoModal()"
+        class="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+        Cancelar
+      </button>
+      <button type="button" id="pagamento-submit-btn" onclick="submitPagamento()"
+        class="px-5 py-2 rounded-lg text-xs font-bold text-white transition-all shadow-sm hover:opacity-90"
+        style="background:linear-gradient(135deg,#14532d 0%,#16a34a 100%)">
+        Salvar Registro
+      </button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
