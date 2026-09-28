@@ -122,6 +122,41 @@ function finalPlaca(placa) {
     return digits ? digits.slice(-1) : null;
 }
 
+// ─── Datas em formato brasileiro nos formulários ────────────────────────────
+// <input type="date"> nativo exibe o formato conforme o locale do navegador/SO
+// (podendo aparecer mm/dd/aaaa mesmo com a página em pt-BR). Para garantir
+// dd/mm/aaaa sempre, usamos <input type="text" class="date-br-input"> com
+// máscara e só convertemos para ISO (aaaa-mm-dd) na hora de salvar.
+function isoToBR(iso) {
+    if (!iso) return '';
+    const parts = String(iso).split('-');
+    if (parts.length !== 3) return '';
+    const [y, m, d] = parts;
+    return `${d}/${m}/${y}`;
+}
+
+function brToISO(br) {
+    if (!br) return null;
+    const parts = br.trim().split('/');
+    if (parts.length !== 3) return null;
+    const [d, m, y] = parts;
+    if (d.length !== 2 || m.length !== 2 || y.length !== 4) return null;
+    return `${y}-${m}-${d}`;
+}
+
+function maskDateInput(input) {
+    input.oninput = () => {
+        const digits = input.value.replace(/\D/g, '').slice(0, 8);
+        if (digits.length > 4) input.value = `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+        else if (digits.length > 2) input.value = `${digits.slice(0, 2)}/${digits.slice(2)}`;
+        else input.value = digits;
+    };
+}
+
+function applyDateMasks(root = document) {
+    root.querySelectorAll('.date-br-input').forEach(maskDateInput);
+}
+
 function formatMoney(value) {
     const n = Number(value);
     if (isNaN(n)) return 'R$ 0,00';
@@ -231,6 +266,7 @@ async function initFrota() {
         populateMaintenanceTypeDatalist();
         populateAnoFilters();
         populateVeiculoSelects();
+        applyDateMasks();
         renderAll();
     } catch (error) {
         console.error('Erro ao carregar dados da frota:', error);
@@ -637,10 +673,11 @@ function renderCalendarioTable() {
         return `
         <tr>
             <td class="px-5 py-2 text-xs font-bold text-gray-700 dark:text-gray-300">${fp}</td>
-            <td class="px-5 py-2"><input type="date" data-ano="${ano}" data-tipo="IPVA" data-final="${fp}" class="calendario-input input-field" style="text-transform:none" value="${ipva ? ipva.vencimento : ''}"></td>
-            <td class="px-5 py-2"><input type="date" data-ano="${ano}" data-tipo="LICENCIAMENTO" data-final="${fp}" class="calendario-input input-field" style="text-transform:none" value="${lic ? lic.vencimento : ''}"></td>
+            <td class="px-5 py-2"><input type="text" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" data-ano="${ano}" data-tipo="IPVA" data-final="${fp}" class="calendario-input input-field date-br-input" style="text-transform:none" value="${ipva ? isoToBR(ipva.vencimento) : ''}"></td>
+            <td class="px-5 py-2"><input type="text" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" data-ano="${ano}" data-tipo="LICENCIAMENTO" data-final="${fp}" class="calendario-input input-field date-br-input" style="text-transform:none" value="${lic ? isoToBR(lic.vencimento) : ''}"></td>
         </tr>`;
     }).join('');
+    applyDateMasks(tbody);
 }
 
 // ─── Abas ───────────────────────────────────────────────────────────────────
@@ -812,12 +849,12 @@ function openDocumentoModal(veiculoId, tipo, ano) {
 
     if (doc) {
         document.getElementById('doc-valor').value = doc.valor ?? '';
-        document.getElementById('doc-data-pagamento').value = doc.data_pagamento || '';
-        document.getElementById('doc-vencimento-manual').value = doc.vencimento_manual || '';
+        document.getElementById('doc-data-pagamento').value = isoToBR(doc.data_pagamento);
+        document.getElementById('doc-vencimento-manual').value = isoToBR(doc.vencimento_manual);
         document.getElementById('doc-seguradora').value = doc.seguradora || '';
         document.getElementById('doc-apolice').value = doc.apolice || '';
-        document.getElementById('doc-vigencia-inicio').value = doc.vigencia_inicio || '';
-        document.getElementById('doc-vigencia-fim').value = doc.vigencia_fim || '';
+        document.getElementById('doc-vigencia-inicio').value = isoToBR(doc.vigencia_inicio);
+        document.getElementById('doc-vigencia-fim').value = isoToBR(doc.vigencia_fim);
         document.getElementById('doc-pago').checked = !!doc.pago;
         document.getElementById('doc-obs').value = doc.observacao || '';
 
@@ -847,18 +884,36 @@ function removeDocPdf() {
     document.getElementById('doc-pdf-current').classList.add('hidden');
 }
 
+// Lê um input com máscara dd/mm/aaaa e converte para ISO — `invalid` distingue
+// "vazio" (ok para campo opcional) de "preenchido mas incompleto/malformado".
+function readDateField(id) {
+    const raw = document.getElementById(id).value.trim();
+    if (!raw) return { iso: null, invalid: false };
+    const iso = brToISO(raw);
+    return { iso, invalid: iso === null };
+}
+
 async function submitDocumento() {
     const veiculoId = Number(document.getElementById('doc-veiculo-id').value);
     const tipo = document.getElementById('doc-tipo').value;
     const ano = Number(document.getElementById('doc-ano').value);
     const veiculo = state.veiculos.find(v => v.id === veiculoId);
 
+    const dataPagamento = readDateField('doc-data-pagamento');
+    const vencimentoManual = readDateField('doc-vencimento-manual');
+    const vigenciaInicio = readDateField('doc-vigencia-inicio');
+    const vigenciaFim = readDateField('doc-vigencia-fim');
+    if (dataPagamento.invalid || vencimentoManual.invalid || vigenciaInicio.invalid || vigenciaFim.invalid) {
+        showToast('Alguma data está incompleta ou inválida (use dd/mm/aaaa).', 'warning');
+        return;
+    }
+
     const isSeguro = tipo === 'SEGURO';
-    if (isSeguro && (!document.getElementById('doc-seguradora').value.trim() || !document.getElementById('doc-apolice').value.trim() || !document.getElementById('doc-vigencia-fim').value)) {
+    if (isSeguro && (!document.getElementById('doc-seguradora').value.trim() || !document.getElementById('doc-apolice').value.trim() || !vigenciaFim.iso)) {
         showToast('Preencha seguradora, apólice e fim de vigência.', 'warning');
         return;
     }
-    if (!isSeguro && (veiculo.uf || 'GO').toUpperCase() !== 'GO' && !document.getElementById('doc-vencimento-manual').value) {
+    if (!isSeguro && (veiculo.uf || 'GO').toUpperCase() !== 'GO' && !vencimentoManual.iso) {
         showToast('Veículo fora de GO: informe o vencimento manual.', 'warning');
         return;
     }
@@ -870,12 +925,12 @@ async function submitDocumento() {
         veiculo_id: veiculoId, tipo, ano,
         valor: document.getElementById('doc-valor').value ? Number(document.getElementById('doc-valor').value) : null,
         pago: document.getElementById('doc-pago').checked,
-        data_pagamento: document.getElementById('doc-data-pagamento').value || null,
-        vencimento_manual: document.getElementById('doc-vencimento-manual').value || null,
+        data_pagamento: dataPagamento.iso,
+        vencimento_manual: vencimentoManual.iso,
         seguradora: isSeguro ? (document.getElementById('doc-seguradora').value.trim() || null) : null,
         apolice: isSeguro ? (document.getElementById('doc-apolice').value.trim() || null) : null,
-        vigencia_inicio: isSeguro ? (document.getElementById('doc-vigencia-inicio').value || null) : null,
-        vigencia_fim: isSeguro ? (document.getElementById('doc-vigencia-fim').value || null) : null,
+        vigencia_inicio: isSeguro ? vigenciaInicio.iso : null,
+        vigencia_fim: isSeguro ? vigenciaFim.iso : null,
         observacao: document.getElementById('doc-obs').value.trim() || null,
         updated_at: new Date().toISOString(),
     };
@@ -908,7 +963,7 @@ function openManutencaoModal(veiculoId) {
     document.getElementById('manutencao-form').reset();
     document.getElementById('manut-veiculo-id').value = veiculoId;
     document.getElementById('manutencao-modal-subtitle').textContent = `${veiculo.placa} · ${veiculo.marca} ${veiculo.modelo}`;
-    document.getElementById('manut-data').value = todayISO();
+    document.getElementById('manut-data').value = isoToBR(todayISO());
 
     const modal = document.getElementById('manutencao-modal');
     modal.classList.remove('hidden');
@@ -924,16 +979,21 @@ function closeManutencaoModal() {
 async function submitManutencao() {
     const veiculoId = Number(document.getElementById('manut-veiculo-id').value);
     const tipo = document.getElementById('manut-tipo').value.trim();
-    const data = document.getElementById('manut-data').value;
-    if (!tipo || !data) {
+    const dataRealizada = readDateField('manut-data');
+    const proximaData = readDateField('manut-proxima-data');
+    if (dataRealizada.invalid || proximaData.invalid) {
+        showToast('Alguma data está incompleta ou inválida (use dd/mm/aaaa).', 'warning');
+        return;
+    }
+    if (!tipo || !dataRealizada.iso) {
         showToast('Preencha o tipo e a data da manutenção.', 'warning');
         return;
     }
     const payload = {
         veiculo_id: veiculoId, tipo,
-        data_realizada: data,
+        data_realizada: dataRealizada.iso,
         km_realizada: document.getElementById('manut-km').value ? Number(document.getElementById('manut-km').value) : null,
-        proxima_data: document.getElementById('manut-proxima-data').value || null,
+        proxima_data: proximaData.iso,
         proximo_km: document.getElementById('manut-proximo-km').value ? Number(document.getElementById('manut-proximo-km').value) : null,
         observacao: document.getElementById('manut-obs').value.trim() || null,
     };
@@ -955,7 +1015,7 @@ function openPagamentoModal(id) {
     const form = document.getElementById('pagamento-form');
     form.reset();
     document.getElementById('pag-id').value = '';
-    document.getElementById('pag-data').value = todayISO();
+    document.getElementById('pag-data').value = isoToBR(todayISO());
 
     existingPagPdfPath = null;
     removePagPdfRequested = false;
@@ -969,7 +1029,7 @@ function openPagamentoModal(id) {
             document.getElementById('pag-id').value = p.id;
             document.getElementById('pag-veiculo-id').value = p.veiculo_id;
             document.getElementById('pag-tipo').value = p.tipo;
-            document.getElementById('pag-data').value = p.data_pagamento || todayISO();
+            document.getElementById('pag-data').value = isoToBR(p.data_pagamento) || isoToBR(todayISO());
             document.getElementById('pag-descricao').value = p.descricao || '';
             document.getElementById('pag-valor').value = p.valor ?? '';
             document.getElementById('pag-obs').value = p.observacao || '';
@@ -1006,8 +1066,12 @@ async function submitPagamento() {
     const id = document.getElementById('pag-id').value;
     const veiculoId = Number(document.getElementById('pag-veiculo-id').value);
     const tipo = document.getElementById('pag-tipo').value;
-    const dataPagamento = document.getElementById('pag-data').value;
-    if (!veiculoId || !tipo || !dataPagamento) {
+    const dataPagamento = readDateField('pag-data');
+    if (dataPagamento.invalid) {
+        showToast('Data de pagamento incompleta ou inválida (use dd/mm/aaaa).', 'warning');
+        return;
+    }
+    if (!veiculoId || !tipo || !dataPagamento.iso) {
         showToast('Selecione o veículo, o tipo e a data de pagamento.', 'warning');
         return;
     }
@@ -1017,7 +1081,7 @@ async function submitPagamento() {
 
     const payload = {
         veiculo_id: veiculoId, tipo,
-        data_pagamento: dataPagamento,
+        data_pagamento: dataPagamento.iso,
         descricao: document.getElementById('pag-descricao').value.trim() || null,
         valor: document.getElementById('pag-valor').value ? Number(document.getElementById('pag-valor').value) : null,
         observacao: document.getElementById('pag-obs').value.trim() || null,
@@ -1087,15 +1151,22 @@ async function saveParametros() {
 async function saveCalendario() {
     const inputs = document.querySelectorAll('.calendario-input');
     const writes = [];
+    let invalido = false;
     inputs.forEach(input => {
         if (!input.value) return;
+        const iso = brToISO(input.value);
+        if (!iso) { invalido = true; return; }
         writes.push({
             ano: Number(input.dataset.ano),
             tipo: input.dataset.tipo,
             final_placa: input.dataset.final,
-            vencimento: input.value,
+            vencimento: iso,
         });
     });
+    if (invalido) {
+        showToast('Alguma data está incompleta ou inválida (use dd/mm/aaaa).', 'warning');
+        return;
+    }
     if (!writes.length) {
         showToast('Nenhuma data preenchida para salvar.', 'warning');
         return;

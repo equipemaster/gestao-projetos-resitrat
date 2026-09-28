@@ -655,13 +655,13 @@
         </div>
         <div>
           <label class="field-label">Data de Pagamento</label>
-          <input type="date" id="doc-data-pagamento" style="text-transform:none" class="input-field">
+          <input type="text" id="doc-data-pagamento" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" style="text-transform:none" class="input-field date-br-input">
         </div>
       </div>
 
       <div id="doc-fields-manual">
         <label class="field-label">Vencimento Manual <span class="font-normal text-gray-400">(placa fora de GO ou parcelamento)</span></label>
-        <input type="date" id="doc-vencimento-manual" style="text-transform:none" class="input-field">
+        <input type="text" id="doc-vencimento-manual" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" style="text-transform:none" class="input-field date-br-input">
       </div>
 
       <div id="doc-fields-seguro" class="hidden space-y-4">
@@ -678,11 +678,11 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="field-label">Início de Vigência</label>
-            <input type="date" id="doc-vigencia-inicio" style="text-transform:none" class="input-field">
+            <input type="text" id="doc-vigencia-inicio" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" style="text-transform:none" class="input-field date-br-input">
           </div>
           <div>
             <label class="field-label">Fim de Vigência</label>
-            <input type="date" id="doc-vigencia-fim" style="text-transform:none" class="input-field">
+            <input type="text" id="doc-vigencia-fim" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" style="text-transform:none" class="input-field date-br-input">
           </div>
         </div>
       </div>
@@ -745,7 +745,7 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label class="field-label">Data Realizada <span class="text-red-500">*</span></label>
-          <input type="date" id="manut-data" required style="text-transform:none" class="input-field">
+          <input type="text" id="manut-data" required placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" style="text-transform:none" class="input-field date-br-input">
         </div>
         <div>
           <label class="field-label">KM na Realização</label>
@@ -755,7 +755,7 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label class="field-label">Próxima Data <span class="font-normal text-gray-400">(opcional, senão calcula pela marca)</span></label>
-          <input type="date" id="manut-proxima-data" style="text-transform:none" class="input-field">
+          <input type="text" id="manut-proxima-data" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" style="text-transform:none" class="input-field date-br-input">
         </div>
         <div>
           <label class="field-label">Próximo KM <span class="font-normal text-gray-400">(opcional)</span></label>
@@ -812,7 +812,7 @@
         </div>
         <div>
           <label class="field-label">Data de Pagamento <span class="text-red-500">*</span></label>
-          <input type="date" id="pag-data" required style="text-transform:none" class="input-field">
+          <input type="text" id="pag-data" required placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" style="text-transform:none" class="input-field date-br-input">
         </div>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
