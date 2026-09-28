@@ -193,7 +193,6 @@ function renderOrders() {
         // (see addItemRow): quantity can't drop below what's received, and
         // they can't be removed.
         const canEdit = o.status !== 'CANCELADO';
-        const canDelete = totalReceived === 0;
 
         return `
             <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors">
@@ -221,10 +220,9 @@ function renderOrders() {
                     <button onclick="editOrder('${o.id}')" class="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors" title="Editar">
                         <span class="material-symbols-outlined" style="font-size:18px">edit</span>
                     </button>` : ''}
-                    ${canDelete ? `
                     <button onclick="openDeleteModal('${o.id}')" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Excluir">
                         <span class="material-symbols-outlined" style="font-size:18px">delete</span>
-                    </button>` : ''}
+                    </button>
                 </td>
             </tr>
         `;
@@ -299,20 +297,32 @@ function addItemRow(item) {
     }
 
     const removeBtn = row.querySelector('.remove-item-btn');
+    const removeRow = () => {
+        row.remove();
+        toggleRemoveButtons();
+        updateTotalPreview();
+    };
     if (receivedQty > 0) {
-        // Already-received items are locked from removal, and their quantity
-        // can't drop below what's received — deleting them or under-cutting
-        // the quantity would orphan/contradict the receiving history.
-        removeBtn.classList.add('hidden');
+        // Quantity can't drop below what's received (would contradict the
+        // receiving history). The item itself can still be removed — its
+        // receipts go with it via ON DELETE CASCADE — but only after a second
+        // click, so it isn't deleted by accident.
         const qtyInput = row.querySelector('[name="item_qty"]');
         qtyInput.min = receivedQty;
         qtyInput.title = `Já foram recebidos ${receivedQty} ${item.unit}. A quantidade não pode ficar abaixo disso.`;
-    } else {
         removeBtn.addEventListener('click', () => {
-            row.remove();
-            toggleRemoveButtons();
-            updateTotalPreview();
+            if (removeBtn.dataset.armed === '1') return removeRow();
+            removeBtn.dataset.armed = '1';
+            removeBtn.title = `Este item já tem ${receivedQty} ${item.unit} recebidos. Clique de novo para remover (o histórico de recebimento será apagado ao salvar).`;
+            removeBtn.classList.add('bg-red-100', 'text-red-600', 'ring-2', 'ring-red-400');
+            showToast(`"${item.name}" já tem recebimentos. Clique na lixeira de novo para remover.`, 'error');
+            setTimeout(() => {
+                delete removeBtn.dataset.armed;
+                removeBtn.classList.remove('bg-red-100', 'text-red-600', 'ring-2', 'ring-red-400');
+            }, 4000);
         });
+    } else {
+        removeBtn.addEventListener('click', removeRow);
     }
     row.querySelectorAll('[name="item_qty"], [name="item_price"]').forEach(el => {
         el.addEventListener('input', updateTotalPreview);
@@ -323,12 +333,10 @@ function addItemRow(item) {
 }
 
 function toggleRemoveButtons() {
+    // An order needs at least one item, so the lone remaining row can't be removed.
     const rows = document.querySelectorAll('.order-item-row');
-    const removableRows = Array.from(rows).filter(r => !(Number(r.dataset.receivedQty) > 0));
     rows.forEach(row => {
-        if (Number(row.dataset.receivedQty) > 0) return; // stays hidden regardless of count
-        const btn = row.querySelector('.remove-item-btn');
-        btn.classList.toggle('hidden', removableRows.length <= 1);
+        row.querySelector('.remove-item-btn').classList.toggle('hidden', rows.length <= 1);
     });
 }
 
@@ -650,8 +658,15 @@ function openDeleteModal(id) {
     const order = allOrders.find(o => o.id === id);
     if (!order) return;
     pendingDeleteId = id;
+    // Items and their receipts are removed by ON DELETE CASCADE in the DB, but
+    // anything a receipt already auto-posted elsewhere (e.g. Itens do Projeto)
+    // is not — so warn when the order has receiving history.
+    const hasReceipts = (order.purchase_order_items || []).some(i => (i.quantity_received || 0) > 0);
+    const receiptsWarning = hasReceipts
+        ? `<br><br><span class="text-amber-600 font-semibold">Atenção: esta ordem já possui recebimentos registrados. O histórico de recebimento também será apagado.</span>`
+        : '';
     document.getElementById('delete-modal-desc').innerHTML =
-        `Tem certeza que deseja excluir a ordem <strong>${escapeHtml(order.code || '')}</strong> (${escapeHtml(order.supplier_name)})? Todos os itens serão removidos.`;
+        `Tem certeza que deseja excluir a ordem <strong>${escapeHtml(order.code || '')}</strong> (${escapeHtml(order.supplier_name)})? Todos os itens serão removidos.${receiptsWarning}`;
     document.getElementById('delete-modal').classList.remove('hidden');
 }
 
