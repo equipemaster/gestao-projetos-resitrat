@@ -292,6 +292,30 @@ async function fetchProjectItems(projectId) {
     }
 }
 
+// Every stock requisition inserts into project_items, so the whole table is
+// well past the PostgREST "Max rows" cap — a plain .select() silently drops
+// rows and project breakdowns come up short. Page through with .range().
+async function fetchAllProjectItems(columns = '*') {
+    try {
+        const all = [];
+        for (let from = 0; ; from += PGRST_PAGE_SIZE) {
+            const { data, error } = await _supabase
+                .from('project_items')
+                .select(columns)
+                .order('id', { ascending: true })
+                .range(from, from + PGRST_PAGE_SIZE - 1);
+            if (error) throw error;
+            if (!data || data.length === 0) break;
+            all.push(...data);
+            if (data.length < PGRST_PAGE_SIZE) break;
+        }
+        return all;
+    } catch (error) {
+        console.error('Error fetching all project items:', error.message);
+        return [];
+    }
+}
+
 async function createProjectItem(itemData) {
     const { data, error } = await _supabase.from('project_items').insert([itemData]);
     if (error) throw error;

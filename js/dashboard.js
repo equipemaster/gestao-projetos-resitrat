@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         fetchProjectSummaries(),
         fetchTasks(),
         _supabase.from('project_forecast_items').select('project_id, quantity, value, is_paid').then(r => r.data),
-        _supabase.from('project_items').select('project_id, name, quantity, unit, value, category').then(r => r.data)
+        fetchAllProjectItems('id, project_id, name, quantity, unit, value, category')
     ]);
 
     // Map forecast costs (unpaid only)
@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const [projects, tasks, allProjectItems] = await Promise.all([
             fetchProjectSummaries(),
             fetchTasks(),
-            _supabase.from('project_items').select('project_id, name, quantity, unit, value, category').then(r => r.data)
+            fetchAllProjectItems('id, project_id, name, quantity, unit, value, category')
         ]);
         const allIt = await _supabase.from('project_forecast_items').select('project_id, quantity, value, is_paid').then(r => r.data);
         const iMap = {};
